@@ -54,7 +54,6 @@ function updateGoogleUI(on){
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 button,a,[onclick]{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 input,select,textarea{-webkit-user-select:text;user-select:text;font-size:16px !important;touch-action:auto;}
-/* 모바일 터치 */
 .tab,.day-btn,.icon-btn,.backup-btn,.cal-nav-btn,.add-site-btn,.btn,.popup-btn,.popup-close,.confirm-btn-cancel,.confirm-btn-ok{
   -webkit-tap-highlight-color:transparent;
   touch-action:manipulation;
@@ -85,7 +84,6 @@ header{padding:12px 16px;display:flex;align-items:center;justify-content:space-b
 #file-import{display:none;}
 main{padding:18px 14px;max-width:1400px;}
 .view{display:none;}.view.active{display:block;}
-/* FORM */
 .form-card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px;}
 .form-title{font-size:13px;font-weight:700;margin-bottom:16px;color:var(--accent);}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:12px;}
@@ -114,7 +112,6 @@ main{padding:18px 14px;max-width:1400px;}
 .btn-primary{background:var(--accent);color:#000;}.btn-primary:hover{background:#00ffb3;}.btn-primary:active{transform:scale(0.97);}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--bd);}.btn-ghost:hover{color:var(--text);}
 .section-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
-/* COMPANY BLOCKS */
 .company-block{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:14px;overflow:hidden;}
 .company-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--sf2);border-bottom:1px solid var(--bd);cursor:pointer;width:100%;text-align:left;font-family:'Noto Sans KR',sans-serif;outline:none;border-top:none;border-left:none;border-right:none;}
 .company-name-row{display:flex;align-items:center;gap:10px;}
@@ -151,7 +148,6 @@ main{padding:18px 14px;max-width:1400px;}
 .empty{text-align:center;padding:50px 20px;color:var(--dim);}
 .empty-icon{font-size:40px;margin-bottom:12px;}
 .empty-text{font-size:13px;line-height:1.7;}
-/* CALENDAR */
 .calendar-wrapper{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bd);}
 .cal-title{font-size:16px;font-weight:800;font-family:'DM Mono',monospace;}
@@ -176,7 +172,6 @@ main{padding:18px 14px;max-width:1400px;}
 .cal-event:hover{opacity:1;filter:brightness(1.25);}
 .cal-event-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0;}
 .cal-event-mgr{font-size:7.5px;opacity:0.72;white-space:nowrap;flex-shrink:0;}
-/* WEEKLY */
 .weekly-wrapper{background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;}
 .weekly-scroll{overflow-x:auto;}
 .weekly-grid{display:grid;grid-template-columns:repeat(7,minmax(120px,1fr));min-width:640px;}
@@ -193,7 +188,6 @@ main{padding:18px 14px;max-width:1400px;}
 .week-event-co{font-size:10px;opacity:0.75;margin-top:1px;}
 .week-event-mgr{font-size:10px;opacity:0.7;margin-top:1px;}
 .week-event-price{font-family:'DM Mono',monospace;font-size:10px;margin-top:3px;opacity:0.85;}
-/* SETTLEMENT TAB */
 .settle-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
 .settle-title{font-size:15px;font-weight:800;}
 .settle-period{display:flex;align-items:center;gap:8px;}
@@ -220,7 +214,6 @@ main{padding:18px 14px;max-width:1400px;}
 .settle-badge{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;}
 .settle-badge.vat{background:#1a3a1a;color:#4ade80;}
 .settle-badge.t33{background:#2a1a3a;color:#c084fc;}
-/* POPUPS */
 .popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);}
 .popup-overlay.open{display:flex;animation:fadeIn 0.15s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
@@ -256,7 +249,6 @@ main{padding:18px 14px;max-width:1400px;}
 .popup-btn:hover{border-color:var(--accent);color:var(--accent);}
 .popup-btn.del{border-color:#3d1a1a;color:var(--danger);}
 .popup-btn.del:hover{background:var(--danger);color:#fff;border-color:var(--danger);}
-/* DATE POPUP */
 .date-popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:350;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:14px;}
 .date-popup-overlay.open{display:flex;animation:fadeIn 0.15s ease;}
 .date-popup{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;width:100%;max-width:400px;max-height:80vh;display:flex;flex-direction:column;}
@@ -270,7 +262,6 @@ main{padding:18px 14px;max-width:1400px;}
 .dp-item-site{font-size:14px;font-weight:800;margin-bottom:2px;}
 .dp-item-co{font-size:11px;color:var(--muted);}
 .dp-phone{display:inline-block;margin-top:5px;font-size:11px;color:var(--accent);text-decoration:none;font-weight:600;}
-/* CONFIRM */
 .confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:20px;}
 .confirm-overlay.open{display:flex;animation:fadeIn 0.15s ease;}
 .confirm-box{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:24px;width:100%;max-width:320px;text-align:center;}
@@ -282,7 +273,6 @@ main{padding:18px 14px;max-width:1400px;}
 .confirm-btn-cancel:hover{color:var(--text);}
 .confirm-btn-ok{flex:1;padding:11px;border-radius:9px;border:none;background:var(--danger);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
 .confirm-btn-ok:hover{background:#ff6b85;}
-/* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:14px;}
 .modal-overlay.open{display:flex;animation:fadeIn 0.15s ease;}
 .modal{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:22px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;}
@@ -436,7 +426,6 @@ main{padding:18px 14px;max-width:1400px;}
     </div>
     <div id="report-content"></div>
   </div>
-
   <!-- SETTLE -->
   <div class="view" id="view-settle">
     <div class="settle-header">
@@ -591,30 +580,17 @@ function getCompanyColor(name){
   const idx=cos.indexOf(name)%PALETTE.length;return PALETTE[idx<0?0:idx];
 }
 
-// ── 세금 계산 ──
-// 원청: 내가 받는 돈 (항상 VAT포함 금액으로 입력)
-//   → 공급가 = 입력/1.1, 부가세 = 입력 - 공급가
-// 하청: 내가 줄 돈 (지급방식 선택)
-//   VAT  → 입력금액에 부가세(10%) 추가해서 지급: 실지급 = 입력 * 1.1
-//   3.3% → 입력금액에서 3.3% 차감 후 지급: 실지급 = 입력 * 0.967
-//   없음 → 입력금액 그대로 지급
-
 function calcMainTax(amount){
-  // 원청: VAT포함 금액 → 공급가/부가세 분리
   const supply = Math.round(amount / 1.1);
   const vat = amount - supply;
   return { supply, vat, payout: amount };
 }
 
 function calcSubTax(amount, taxtype){
-  // 하청: 입력금액은 항상 VAT포함 금액
-  // VAT → 이미 포함된 금액 그대로 지급 (공급가/부가세 분리 표시만)
-  // 3.3% → 입력금액에서 3.3% 차감 후 지급
-  // 없음 → 그대로 지급
   if(taxtype === 'vat'){
     const supply = Math.round(amount / 1.1);
     const vat = amount - supply;
-    return { supply, vat, deduct: 0, payout: amount }; // 실지급 = 입력금액 그대로
+    return { supply, vat, deduct: 0, payout: amount };
   } else if(taxtype === 't33'){
     const deduct = Math.round(amount * 0.033);
     return { supply: amount, vat: 0, deduct, payout: amount - deduct };
@@ -622,7 +598,6 @@ function calcSubTax(amount, taxtype){
   return { supply: amount, vat: 0, deduct: 0, payout: amount };
 }
 
-// 하위 호환
 function calcTax(amount, taxtype){ return calcMainTax(amount); }
 function taxLabel(taxtype){
   if(taxtype==='vat')return '<span class="tax-badge vat">VAT</span>';
@@ -638,17 +613,548 @@ function exportData(){
   a.download='청소팀_백업_'+new Date().toLocaleDateString('ko-KR').replace(/\./g,'').replace(/ /g,'')+'.json';
   a.click();
 }
+
+// ★ 수정된 importData 함수 - 내부에 다른 코드가 섞이지 않도록 정리
 function importData(e){
   const file=e.target.files[0];if(!file)return;
   const r=new FileReader();
-  r.onload=ev=>{
+  r.onload=function(ev){
     try{
       const data=JSON.parse(ev.target.result);
       if(data.sites&&Array.isArray(data.sites)){
-        showConfirm('백업 불러오기','현재 데이터를 백업 파일로 교체합니다. 계속할까요?',()=>{
+        showConfirm('백업 불러오기','현재 데이터를 백업 파일로 교체합니다. 계속할까요?',function(){
           sites=data.sites;
           if(data.title){appTitle=data.title;localStorage.setItem('cm-title',appTitle);}
-          save();// ── REPORT TAB ──
+          save();
+          renderAll();
+          showToast('✅ 백업을 불러왔습니다.');
+        });
+      }else{alert('올바른 백업 파일이 아닙니다.');}
+    }catch(err){alert('파일을 읽을 수 없습니다.');}
+  };
+  r.readAsText(file);e.target.value='';
+}
+
+// EXCEL EXPORT
+function exportExcel(){
+  if(!sites.length){alert('등록된 현장이 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
+  initSettlePeriod();
+  const yrEl=document.getElementById('settle-year');
+  const moEl=document.getElementById('settle-month');
+  const yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
+  const mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+  const companies=[...new Set(sites.map(s=>s.company))].sort();
+
+  const wb=XLSX.utils.book_new();
+  const wsData=[];
+
+  const COLOR={
+    headerBg:'1a3a2a', headerFont:'00e5a0',
+    subBg:'004d36',    subFont:'ffffff',
+    totalBg:'00b37a',  totalFont:'000000',
+    vatFont:'4ade80',  deductFont:'ff8fa0',
+    profitFont:'ffb547',
+    oddBg:'1e1e1e',    evenBg:'161616',
+  };
+
+  const headers=['업체명','현장명','주소','사업자번호','이메일/주민번호','은행명','계좌번호','청소요일',
+    '원청금액(VAT포함)','원청공급가','원청부가세',
+    '하청지급방식','하청금액','부가세(+)/3.3%(-)','하청실지급액','영업이익'];
+  wsData.push(headers);
+
+  const colWidths=[12,14,24,14,20,8,18,10,14,12,10,14,12,14,12,12];
+  let rowIdx=1;
+  let grandMain=0,grandSubPayout=0,grandProfit=0;
+
+  companies.forEach((co)=>{
+    const coSites=sites.filter(s=>s.company===co);
+    let coMain=0,coSubPayout=0,coProfit=0;
+
+    coSites.forEach((s)=>{
+      const mt=calcMainTax(s.priceMain||0);
+      const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
+      const subAdj=st.vat?st.vat:st.deduct?-st.deduct:0;
+      const profit=(s.priceMain||0)-st.payout;
+      const daysStr=s.days.sort().map(d=>DAYS[d]).join('/');
+      const sttLabel=s.subtaxtype==='vat'?'부가세추가(VAT)':s.subtaxtype==='t33'?'3.3%공제':'해당없음';
+      coMain+=s.priceMain||0; coSubPayout+=st.payout; coProfit+=profit;
+
+      wsData.push([
+        co, s.site, s.addr||'',
+        s.bizno||'', s.email||'', s.bank||'', s.account||'', daysStr,
+        s.priceMain||0, mt.supply, mt.vat,
+        sttLabel, s.priceSub||0,
+        subAdj, st.payout, profit
+      ]);
+      rowIdx++;
+    });
+
+    wsData.push([co+' 소계','','','','','','','',coMain,'','','','','','',coProfit]);
+    rowIdx++;
+    wsData.push([]);
+    rowIdx++;
+
+    grandMain+=coMain; grandSubPayout+=coSubPayout; grandProfit+=coProfit;
+  });
+
+  wsData.push(['전체 합계','','','','','','','',grandMain,'','','','','','',grandProfit]);
+
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=colWidths.map(w=>({wch:w}));
+  ws['!rows']=wsData.map((_,i)=>({hpt:i===0?22:18}));
+
+  XLSX.utils.book_append_sheet(wb,ws,'정산내역');
+  XLSX.writeFile(wb,`정산내역_${yr}년${mo}월.xlsx`);
+}
+
+// CONFIRM POPUP
+function showConfirm(title,desc,onOk){
+  document.getElementById('confirm-title').textContent=title;
+  document.getElementById('confirm-desc').textContent=desc;
+  const btn=document.getElementById('confirm-ok-btn');
+  btn.textContent=title.includes('삭제')?'삭제':'확인';
+  btn.onclick=function(){closeConfirm();onOk();};
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('open');}
+
+// ADD SITE
+function resetForm(){
+  ['f-co','f-site','f-mgr','f-phone','f-addr','f-bizno','f-email','f-bank','f-account','f-price-main','f-price-sub','f-memo'].forEach(function(id){document.getElementById(id).value='';});
+  const fst=document.getElementById('f-subtaxtype');if(fst)fst.value='none';
+  document.querySelectorAll('#day-picker .day-btn').forEach(function(b){b.classList.remove('active');});
+}
+function addSite(){
+  const company=document.getElementById('f-co').value.trim();
+  const site=document.getElementById('f-site').value.trim();
+  const priceMain=parseInt(document.getElementById('f-price-main').value)||0;
+  const days=getDays('day-picker');
+  if(!company){alert('업체명을 입력해주세요.');return;}
+  if(!site){alert('현장명을 입력해주세요.');return;}
+  if(!priceMain){alert('원청 금액을 입력해주세요.');return;}
+  if(!days.length){alert('청소 요일을 선택해주세요.');return;}
+  sites.push({id:Date.now(),company,site,
+    manager:document.getElementById('f-mgr').value.trim(),
+    phone:document.getElementById('f-phone').value.trim(),
+    addr:document.getElementById('f-addr').value.trim(),
+    bizno:document.getElementById('f-bizno').value.trim(),
+    email:document.getElementById('f-email').value.trim(),
+    bank:document.getElementById('f-bank').value.trim(),
+    account:document.getElementById('f-account').value.trim(),
+    priceMain,priceSub:parseInt(document.getElementById('f-price-sub').value)||0,
+    taxtype:'vat',
+    subtaxtype:document.getElementById('f-subtaxtype').value||'none',
+    days,memo:document.getElementById('f-memo').value.trim()
+  });
+  save();resetForm();renderAll();
+}
+
+// DELETE
+function deleteSite(id){
+  const s=sites.find(function(s){return s.id===id;});if(!s)return;
+  showConfirm('현장 삭제','"'+s.site+'" 현장을 정말 삭제할까요? 이 작업은 되돌릴 수 없습니다.',function(){
+    sites=sites.filter(function(s){return s.id!==id;});save();renderAll();
+  });
+}
+
+// POPUP
+function openPopup(id){
+  const s=sites.find(function(s){return s.id===id;});if(!s)return;
+  popupSiteId=id;
+  const col=getCompanyColor(s.company);
+  document.getElementById('p-site').textContent=s.site;
+  document.getElementById('p-co').textContent=s.company;
+  document.getElementById('p-co-dot').style.background=col.text;
+  const t=calcTax(s.priceMain||0,s.taxtype||'vat');
+  const profit=(s.priceMain||0)-(s.priceSub||0);
+  let rows='';
+  rows+='<div class="popup-row"><div class="popup-row-icon">&#128197;</div><div class="popup-row-content"><div class="popup-row-lbl">청소 요일</div><div class="popup-days">'+s.days.sort().map(function(d){return '<span class="popup-day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div></div>';
+  rows+='<div class="popup-row"><div class="popup-row-icon">&#128176;</div><div class="popup-row-content"><div class="popup-row-lbl">금액 '+taxLabel(s.taxtype||'vat')+'</div><div class="popup-price-grid">'
+    +'<div class="popup-price-item"><div class="popup-price-lbl">원청(VAT포함)</div><div class="popup-price-val main">'+fmtW(s.priceMain)+'</div></div>'
+    +'<div class="popup-price-item"><div class="popup-price-lbl">공급가액</div><div class="popup-price-val" style="color:#4ade80;font-size:14px">'+fmtW(t.supply)+'</div></div>'
+    +(t.vat?'<div class="popup-price-item"><div class="popup-price-lbl">부가세</div><div class="popup-price-val" style="color:#4ade80;font-size:14px">'+fmtW(t.vat)+'</div></div>':'')
+    +(t.deduct?'<div class="popup-price-item"><div class="popup-price-lbl">3.3%공제</div><div class="popup-price-val" style="color:#ff8fa0;font-size:14px">-'+fmtW(t.deduct)+'</div></div>':'')
+    +(s.priceSub?'<div class="popup-price-item"><div class="popup-price-lbl">하청</div><div class="popup-price-val sub">'+fmtW(s.priceSub)+'</div></div>'
+    +'<div class="popup-price-item"><div class="popup-price-lbl">이익</div><div class="popup-price-val profit">'+fmtW(profit)+'</div></div>':'')
+    +'</div></div></div>';
+  if(s.manager)rows+='<div class="popup-row"><div class="popup-row-icon">&#128100;</div><div class="popup-row-content"><div class="popup-row-lbl">담당자</div><div class="popup-row-val">'+s.manager+'</div></div></div>';
+  if(s.phone){var tel=s.phone.replace(/[^0-9+]/g,'');rows+='<div class="popup-row"><div class="popup-row-icon">&#128222;</div><div class="popup-row-content"><div class="popup-row-lbl">연락처</div><a class="popup-phone-link" href="tel:'+tel+'">&#128242; '+s.phone+'</a></div></div>';}
+  if(s.addr)rows+='<div class="popup-row"><div class="popup-row-icon">&#128205;</div><div class="popup-row-content"><div class="popup-row-lbl">주소</div><div class="popup-row-val" style="font-size:13px">'+s.addr+'</div></div></div>';
+  if(s.bizno)rows+='<div class="popup-row"><div class="popup-row-icon">&#128196;</div><div class="popup-row-content"><div class="popup-row-lbl">사업자번호</div><div class="popup-row-val">'+s.bizno+'</div></div></div>';
+  if(s.email)rows+='<div class="popup-row"><div class="popup-row-icon">&#128231;</div><div class="popup-row-content"><div class="popup-row-lbl">이메일</div><div class="popup-row-val">'+s.email+'</div></div></div>';
+  if(s.bank||s.account)rows+='<div class="popup-row"><div class="popup-row-icon">&#127984;</div><div class="popup-row-content"><div class="popup-row-lbl">계좌정보</div><div class="popup-row-val">'+(s.bank||'')+' '+(s.account||'')+'</div></div></div>';
+  if(s.memo)rows+='<div class="popup-row"><div class="popup-row-icon">&#128221;</div><div class="popup-row-content"><div class="popup-row-lbl">메모</div><div class="popup-memo">'+s.memo.replace(/\n/g,'<br>')+'</div></div></div>';
+  document.getElementById('popup-rows').innerHTML=rows;
+  document.getElementById('detail-popup').classList.add('open');
+}
+function closePopup(){document.getElementById('detail-popup').classList.remove('open');popupSiteId=null;}
+function handlePopupBg(e){if(e.target===document.getElementById('detail-popup'))closePopup();}
+function deleteFromPopup(){
+  const id=popupSiteId;const s=sites.find(function(s){return s.id===id;});if(!s)return;
+  closePopup();
+  setTimeout(function(){showConfirm('현장 삭제','"'+s.site+'" 현장을 정말 삭제할까요?',function(){sites=sites.filter(function(s){return s.id!==id;});save();renderAll();});},200);
+}
+function editFromPopup(){const id=popupSiteId;closePopup();setTimeout(function(){openEdit(id);},150);}
+
+// EDIT MODAL
+function openEdit(id){
+  const s=sites.find(function(s){return s.id===id;});if(!s)return;
+  editingSiteId=id;
+  document.getElementById('e-co').value=s.company;
+  document.getElementById('e-site').value=s.site;
+  document.getElementById('e-mgr').value=s.manager||'';
+  document.getElementById('e-phone').value=s.phone||'';
+  document.getElementById('e-addr').value=s.addr||'';
+  document.getElementById('e-bizno').value=s.bizno||'';
+  document.getElementById('e-email').value=s.email||'';
+  document.getElementById('e-bank').value=s.bank||'';
+  document.getElementById('e-account').value=s.account||'';
+  document.getElementById('e-price-main').value=s.priceMain||'';
+  document.getElementById('e-price-sub').value=s.priceSub||'';
+  document.getElementById('e-subtaxtype').value=s.subtaxtype||'none';
+  document.getElementById('e-memo').value=s.memo||'';
+  document.querySelectorAll('#e-day-picker .day-btn').forEach(function(b){b.classList.toggle('active',s.days.includes(parseInt(b.dataset.day)));});
+  document.getElementById('edit-modal').classList.add('open');
+  updateProfitPreview();
+}
+function closeModal(){document.getElementById('edit-modal').classList.remove('open');editingSiteId=null;}
+function handleModalBg(e){if(e.target===document.getElementById('edit-modal'))closeModal();}
+function updateProfitPreview(){
+  const main=parseInt(document.getElementById('e-price-main').value)||0;
+  const sub=parseInt(document.getElementById('e-price-sub').value)||0;
+  const taxtype=document.getElementById('e-subtaxtype').value;
+  const preview=document.getElementById('profit-preview');
+  if(!main){preview.style.display='none';return;}
+  preview.style.display='flex';
+  const st=calcSubTax(sub,taxtype);
+  const profit=main-st.payout;
+  const rate=main?Math.round(profit/main*100):0;
+  document.getElementById('preview-payout').textContent=st.payout.toLocaleString('ko-KR')+'원';
+  document.getElementById('preview-profit').textContent=profit.toLocaleString('ko-KR')+'원';
+  document.getElementById('preview-rate').textContent=rate+'%';
+}
+function saveEdit(){
+  const s=sites.find(function(s){return s.id===editingSiteId;});if(!s)return;
+  const company=document.getElementById('e-co').value.trim();
+  const site=document.getElementById('e-site').value.trim();
+  const priceMain=parseInt(document.getElementById('e-price-main').value)||0;
+  const days=getDays('e-day-picker');
+  if(!company||!site||!priceMain||!days.length){alert('필수 항목을 입력해주세요.');return;}
+  s.company=company;s.site=site;s.days=days;s.priceMain=priceMain;
+  s.priceSub=parseInt(document.getElementById('e-price-sub').value)||0;
+  s.taxtype='vat';
+  s.subtaxtype=document.getElementById('e-subtaxtype').value;
+  s.manager=document.getElementById('e-mgr').value.trim();
+  s.phone=document.getElementById('e-phone').value.trim();
+  s.addr=document.getElementById('e-addr').value.trim();
+  s.bizno=document.getElementById('e-bizno').value.trim();
+  s.email=document.getElementById('e-email').value.trim();
+  s.bank=document.getElementById('e-bank').value.trim();
+  s.account=document.getElementById('e-account').value.trim();
+  s.memo=document.getElementById('e-memo').value.trim();
+  save();closeModal();renderAll();
+}
+
+// RENDER LIST
+function renderList(){
+  const el=document.getElementById('company-list');
+  if(!sites.length){el.innerHTML='<div class="empty"><div class="empty-icon">&#127970;</div><div class="empty-text">등록된 업체가 없어요.<br>위 양식에서 추가해보세요.</div></div>';return;}
+  const companies=[...new Set(sites.map(function(s){return s.company;}))].sort();
+  el.innerHTML=companies.map(function(co){
+    const col=getCompanyColor(co);
+    const coSites=sites.filter(function(s){return s.company===co;});
+    return '<div class="company-block">'
+      +'<button class="company-header" onclick="toggleCompany(this)">'
+      +'<div class="company-name-row">'
+      +'<div class="company-dot" style="background:'+col.text+'"></div>'
+      +'<div class="company-name">'+co+'</div>'
+      +'<div class="company-site-count">(현장 '+coSites.length+'곳)</div>'
+      +'</div><div class="company-chevron open">&#9660;</div></button>'
+      +'<div class="company-sites">'
+      +coSites.map(function(s){return renderSiteCard(s,col);}).join('')
+      +'<button class="add-site-btn" onclick="prefillCompany(\''+co.replace(/'/g,"\\'")+'\')">\+ 현장 추가</button>'
+      +'</div></div>';
+  }).join('');
+}
+function renderSiteCard(s,col){
+  const tel=s.phone?s.phone.replace(/[^0-9+]/g,''):'';
+  const t=calcTax(s.priceMain||0,s.taxtype||'vat');
+  const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
+  const profit=(s.priceMain||0)-st.payout;
+  const profitRate=s.priceMain?Math.round(profit/(s.priceMain)*100):0;
+  return '<div class="site-card">'
+    +'<div style="position:absolute;top:0;left:0;width:3px;height:100%;background:'+col.text+';border-radius:3px 0 0 3px;"></div>'
+    +'<div class="site-header">'
+    +'<div><div class="site-name">'+s.site+(s.priceSub&&s.subtaxtype&&s.subtaxtype!=='none'?'<span class="tax-badge '+(s.subtaxtype==='t33'?'t33':'vat')+'" style="margin-left:4px">'+(s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'')+'</span>':'')+'</div>'+(s.addr?'<div style="font-size:11px;color:var(--muted);margin-top:2px">&#128205; '+s.addr+'</div>':'')+(s.bizno?'<div style="font-size:11px;color:var(--muted)">&#128196; '+s.bizno+'</div>':'')
+    +((s.bank||s.account)?'<div style="font-size:11px;color:var(--muted)">&#127984; '+(s.bank||'')+' '+(s.account||'')+'</div>':'')+'</div>'
+    +'<div class="site-actions">'
+    +'<button class="icon-btn" onclick="openEdit('+s.id+')">&#9999;&#65039;</button>'
+    +'<button class="icon-btn del" onclick="deleteSite('+s.id+')">&#128465;</button>'
+    +'</div></div>'
+    +'<div class="site-meta">'
+    +'<div class="meta-row"><span class="meta-lbl">요일</span><div style="display:flex;gap:4px;flex-wrap:wrap">'+s.days.sort().map(function(d){return '<span class="day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div>'
+    +'<div class="meta-row"><span class="meta-lbl">금액</span>'
+    +'<div class="price-row">'
+    +'<div class="price-chip"><div class="price-chip-label">원청</div><div class="price-chip-val main-price">'+fmtW(s.priceMain)+'</div></div>'
+    +(s.priceSub?'<div class="price-chip"><div class="price-chip-label">하청</div><div class="price-chip-val sub-price">'+fmtW(s.priceSub)+'</div></div>'
+    +'<div class="price-chip"><div class="price-chip-label">이익</div><div class="price-chip-val profit-price">'+fmtW(profit)+'</div></div>'
+    +'<div class="price-chip"><div class="price-chip-label">이익률</div><div class="price-chip-val" style="color:#ffb547;font-size:13px;font-weight:700">'+profitRate+'%</div></div>':'')
+    +'</div></div>'
+    +(s.manager?'<div class="meta-row"><span class="meta-lbl">담당자</span><span>'+s.manager+'</span></div>':'')
+    +(s.phone?'<div class="meta-row"><span class="meta-lbl">연락처</span><a class="phone-link" href="tel:'+tel+'">'+s.phone+'</a></div>':'')
+    +'</div>'
+    +(s.memo?'<div class="memo-box">&#128172; '+s.memo+'</div>':'')
+    +'</div>';
+}
+function toggleCompany(hdr){
+  const body=hdr.nextElementSibling;const chev=hdr.querySelector('.company-chevron');
+  const h=body.style.display==='none';body.style.display=h?'':'none';chev.classList.toggle('open',h);
+}
+function prefillCompany(name){
+  document.getElementById('f-co').value=name;switchTab('list');
+  document.getElementById('f-site').focus();window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// DATE POPUP
+function openDatePopup(dow,dateLabel,daySites){
+  document.getElementById('dp-title').textContent=dateLabel;
+  const list=document.getElementById('dp-list');
+  list.innerHTML=daySites.map(function(s){
+    const col=getCompanyColor(s.company);
+    const tel=s.phone?s.phone.replace(/[^0-9+]/g,''):'';
+    return '<div class="dp-item" style="border-left:3px solid '+col.text+';background:'+col.bg+'" onclick="openPopupFromDate('+s.id+')">'
+      +'<div class="dp-item-site" style="color:'+col.text+'">'+s.site+'</div>'
+      +'<div class="dp-item-co">'+s.company+(s.manager?' · '+s.manager:'')+'</div>'
+      +(s.phone?'<a class="dp-phone" href="tel:'+tel+'" onclick="event.stopPropagation()">&#128242; '+s.phone+'</a>':'')
+      +'</div>';
+  }).join('');
+  document.getElementById('date-popup').classList.add('open');
+}
+function closeDatePopup(){document.getElementById('date-popup').classList.remove('open');}
+function openPopupFromDate(id){closeDatePopup();setTimeout(function(){openPopup(id);},150);}
+
+// RENDER CALENDAR
+function renderCalendar(){
+  document.getElementById('cal-title').textContent=calYear+'년 '+(calMonth+1)+'월';
+  const grid=document.getElementById('cal-grid');grid.innerHTML='';
+  ['일','월','화','수','목','금','토'].forEach(function(d){var h=document.createElement('div');h.className='cal-dh';h.textContent=d;grid.appendChild(h);});
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const dim=new Date(calYear,calMonth+1,0).getDate();
+  const prevDim=new Date(calYear,calMonth,0).getDate();
+  let cells=[];
+  for(let i=firstDay-1;i>=0;i--)cells.push({day:prevDim-i,other:true});
+  for(let d=1;d<=dim;d++)cells.push({day:d,other:false});
+  while(cells.length%7!==0)cells.push({day:cells.length-dim-firstDay+1,other:true});
+  cells.forEach(function(cell,idx){
+    const dow=idx%7;
+    const isToday=!cell.other&&calYear===today.getFullYear()&&calMonth===today.getMonth()&&cell.day===today.getDate();
+    const el=document.createElement('div');
+    el.className='cal-cell'+(cell.other?' other':'')+(isToday?' today':'');
+    const dateRow=document.createElement('div');dateRow.className='cal-date-row';
+    const dateEl=document.createElement('div');dateEl.className='cal-date';dateEl.textContent=cell.day;dateRow.appendChild(dateEl);
+    if(!cell.other){
+      const daySites=sites.filter(function(s){return s.days.includes(dow);});
+      if(daySites.length>0){var badge=document.createElement('div');badge.className='cal-count-badge';badge.textContent=daySites.length+'건';dateRow.appendChild(badge);}
+      el.appendChild(dateRow);
+      const evs=document.createElement('div');evs.className='cal-events';
+      daySites.forEach(function(s){
+        const col=getCompanyColor(s.company);
+        const ev=document.createElement('button');ev.className='cal-event';ev.style.cssText='width:100%;text-align:left;font-family:Noto Sans KR,sans-serif;outline:none;padding:2px 4px;';
+        ev.style.background=col.bg;ev.style.color=col.text;
+        ev.innerHTML='<div class="cal-event-name">'+s.site+'</div>'+(s.manager?'<div class="cal-event-mgr">'+s.manager+'</div>':'');
+        ev.title=s.site+(s.manager?' ('+s.manager+')':'');
+        ev.addEventListener('click',function(e){e.stopPropagation();openPopup(s.id);});
+        evs.appendChild(ev);
+      });
+      el.appendChild(evs);
+      const dateLabel=calYear+'년 '+(calMonth+1)+'월 '+cell.day+'일';
+      el.addEventListener('click',function(){openDatePopup(dow,dateLabel,daySites);});
+    }else{el.appendChild(dateRow);}
+    grid.appendChild(el);
+  });
+}
+
+// RENDER WEEKLY
+function getDayCountInMonth(year, month, dow){
+  let count=0;
+  const dim=new Date(year,month+1,0).getDate();
+  for(let d=1;d<=dim;d++){if(new Date(year,month,d).getDay()===dow)count++;}
+  return count;
+}
+function totalCountInMonth(site, year, month){
+  return site.days.reduce(function(sum,dow){return sum+getDayCountInMonth(year,month,dow);},0);
+}
+function dailyPrice(site, year, month){
+  const total=totalCountInMonth(site,year,month);
+  return total>0?Math.round((site.priceMain||0)/total):0;
+}
+function renderWeekly(){
+  const grid=document.getElementById('weekly-grid');grid.innerHTML='';
+  const now=new Date();const todayDow=now.getDay();
+  const weekDates=[];
+  for(let i=0;i<7;i++){var d=new Date(now);d.setDate(now.getDate()-todayDow+i);weekDates.push(d);}
+  const baseYear=now.getFullYear();const baseMonth=now.getMonth();
+  const daySums=DAYS.map(function(_,idx){
+    return sites.filter(function(s){return s.days.includes(idx);})
+      .reduce(function(sum,s){return sum+dailyPrice(s,baseYear,baseMonth);},0);
+  });
+  DAYS.forEach(function(d,i){
+    const wd=weekDates[i];const isToday=wd.toDateString()===now.toDateString();
+    const h=document.createElement('div');
+    h.className='week-hdr'+(i===0?' sun':i===6?' sat':'')+(isToday?' today-col':'');
+    const sumStr=daySums[i]>0?daySums[i].toLocaleString('ko-KR')+'원':'';
+    h.innerHTML='<div class="week-hdr-day">'+d+'</div>'
+      +'<div class="week-hdr-date">'+(wd.getMonth()+1)+'/'+(wd.getDate())+'</div>'
+      +(sumStr?'<div class="week-hdr-sum">'+sumStr+'</div>':'');
+    grid.appendChild(h);
+  });
+  if(!sites.length){
+    var e=document.createElement('div');
+    e.style.cssText='grid-column:1/-1;padding:36px;text-align:center;color:var(--dim);font-size:13px';
+    e.textContent='등록된 현장이 없습니다.';grid.appendChild(e);return;
+  }
+  DAYS.forEach(function(_,idx){
+    const cell=document.createElement('div');cell.className='week-cell';
+    sites.filter(function(s){return s.days.includes(idx);}).forEach(function(s){
+      const col=getCompanyColor(s.company);
+      const daily=dailyPrice(s,baseYear,baseMonth);
+      const cnt=totalCountInMonth(s,baseYear,baseMonth);
+      const ev=document.createElement('div');ev.className='week-event';
+      ev.style.background=col.bg;ev.style.borderColor=col.bg;
+      ev.innerHTML='<div class="week-event-name" style="color:'+col.text+'">'+s.site+'</div>'
+        +'<div class="week-event-co" style="color:'+col.text+'">'+s.company+'</div>'
+        +(s.manager?'<div class="week-event-mgr">'+s.manager+'</div>':'')
+        +'<div class="week-event-price" style="color:'+col.text+'">'+daily.toLocaleString('ko-KR')+'원<span style="font-size:9px;opacity:0.6;margin-left:3px">(월'+cnt+'일)</span></div>';
+      ev.addEventListener('click',function(){openPopup(s.id);});cell.appendChild(ev);
+    });
+    grid.appendChild(cell);
+  });
+}
+
+// RENDER SETTLE
+function initSettlePeriod(){
+  const yr=document.getElementById('settle-year');
+  const mo=document.getElementById('settle-month');
+  if(yr.options.length>0)return;
+  const y=today.getFullYear();
+  for(let i=y-2;i<=y+1;i++){var o=document.createElement('option');o.value=i;o.textContent=i+'년';if(i===y)o.selected=true;yr.appendChild(o);}
+  for(let m=1;m<=12;m++){var o2=document.createElement('option');o2.value=m;o2.textContent=m+'월';if(m===today.getMonth()+1)o2.selected=true;mo.appendChild(o2);}
+}
+function renderSettle(){
+  initSettlePeriod();
+  const content=document.getElementById('settle-content');
+  if(!sites.length){
+    content.innerHTML='<div class="empty"><div class="empty-icon">&#128176;</div><div class="empty-text">등록된 현장이 없습니다.</div></div>';
+    return;
+  }
+  const companies=[...new Set(sites.map(function(s){return s.company;}))].sort();
+  let gMain=0,gSupply=0,gVat=0,gSubInput=0,gSubAdj=0,gSubPayout=0,gProfit=0;
+
+  content.innerHTML = companies.map(function(co){
+    const col=getCompanyColor(co);
+    const coSites=sites.filter(function(s){return s.company===co;});
+    let cMain=0,cSupply=0,cVat=0,cSubInput=0,cSubAdj=0,cSubPayout=0,cProfit=0;
+
+    const rowsHtml = coSites.map(function(s){
+      const mt = calcMainTax(s.priceMain||0);
+      const st = calcSubTax(s.priceSub||0, s.subtaxtype||'none');
+      const profit = (s.priceMain||0) - st.payout;
+      const subAdj = st.vat ? st.vat : st.deduct ? -st.deduct : 0;
+
+      cMain+=s.priceMain||0; cSupply+=mt.supply; cVat+=mt.vat;
+      cSubInput+=s.priceSub||0; cSubAdj+=subAdj; cSubPayout+=st.payout; cProfit+=profit;
+
+      const daysStr=s.days.sort().map(function(d){return '<span class="day-tag" style="font-size:10px">'+DAYS[d]+'</span>';}).join(' ');
+      const subtaxLbl=s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'없음';
+
+      return '<tr>'
+        +'<td>'+s.site+'</td>'
+        +'<td style="font-size:11px;color:var(--muted)">'+(s.addr||'—')+'</td>'
+        +'<td style="font-size:11px;color:var(--muted)">'+(s.bizno||'—')+'</td>'
+        +'<td style="font-size:11px;color:var(--muted)">'+(s.email||'—')+'</td>'
+        +'<td style="font-size:11px;color:var(--muted)">'+(s.bank||'—')+'</td>'
+        +'<td style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted)">'+(s.account||'—')+'</td>'
+        +'<td>'+daysStr+'</td>'
+        +'<td class="settle-num main">'+fmtN(s.priceMain)+'</td>'
+        +'<td class="settle-num vat">'+fmtN(mt.supply)+'</td>'
+        +'<td class="settle-num vat">'+fmtN(mt.vat)+'</td>'
+        +'<td><span class="settle-badge '+(s.subtaxtype==='t33'?'t33':'vat')+'">'+subtaxLbl+'</span></td>'
+        +'<td class="settle-num sub">'+(s.priceSub?fmtN(s.priceSub):'—')+'</td>'
+        +'<td class="'+(subAdj>0?'settle-num vat':subAdj<0?'settle-num deduct':'settle-num sub')+'">'+(subAdj>0?'+'+fmtN(subAdj):subAdj<0?'-'+fmtN(-subAdj):'—')+'</td>'
+        +'<td class="settle-num sub" style="font-weight:800">'+(s.priceSub?fmtN(st.payout):'—')+'</td>'
+        +'<td class="settle-num profit" style="font-weight:800">'+fmtN(profit)+'</td>'
+        +'</tr>';
+    }).join('');
+
+    gMain+=cMain; gSupply+=cSupply; gVat+=cVat;
+    gSubInput+=cSubInput; gSubAdj+=cSubAdj; gSubPayout+=cSubPayout; gProfit+=cProfit;
+
+    return '<div class="settle-company-block">'
+      +'<div class="settle-company-hdr">'
+      +'<div class="settle-co-left"><div class="company-dot" style="background:'+col.text+'"></div><div class="settle-co-name">'+co+'</div><div style="font-size:11px;color:var(--muted);margin-left:4px">(현장 '+coSites.length+'곳)</div></div>'
+      +'<div class="settle-co-total">'+fmtN(cMain)+'원</div></div>'
+      +'<div style="overflow-x:auto;">'
+      +'<table class="settle-table"><thead><tr>'
+      +'<th>현장명</th><th>주소</th><th>사업자번호</th><th>이메일/주민번호</th><th>은행명</th><th>계좌번호</th><th>요일</th>'
+      +'<th style="text-align:right">원청금액</th><th style="text-align:right">공급가</th><th style="text-align:right">부가세</th>'
+      +'<th>하청방식</th><th style="text-align:right">하청금액</th><th style="text-align:right">부가세(+)/3.3%(-)</th>'
+      +'<th style="text-align:right">하청실지급액</th><th style="text-align:right">영업이익</th>'
+      +'</tr></thead><tbody>'
+      +rowsHtml
+      +'<tr class="settle-sum-row"><td colspan="7">소계</td>'
+      +'<td class="settle-num main">'+fmtN(cMain)+'</td><td class="settle-num vat">'+fmtN(cSupply)+'</td><td class="settle-num vat">'+fmtN(cVat)+'</td><td>—</td>'
+      +'<td class="settle-num sub">'+fmtN(cSubInput)+'</td>'
+      +'<td class="'+(cSubAdj>0?'settle-num vat':cSubAdj<0?'settle-num deduct':'settle-num sub')+'">'+(cSubAdj>0?'+'+fmtN(cSubAdj):cSubAdj<0?'-'+fmtN(-cSubAdj):'—')+'</td>'
+      +'<td class="settle-num sub" style="font-weight:800">'+fmtN(cSubPayout)+'</td>'
+      +'<td class="settle-num profit" style="font-weight:800">'+fmtN(cProfit)+'</td>'
+      +'</tr></tbody></table></div></div>';
+  }).join('')
+  +'<div class="settle-company-block" style="border-color:var(--accent)">'
+  +'<div class="settle-company-hdr" style="background:var(--a2)">'
+  +'<div class="settle-co-name" style="color:var(--accent)">&#9654; 전체 합계</div>'
+  +'<div class="settle-co-total">'+fmtN(gMain)+'원</div></div>'
+  +'<div style="overflow-x:auto;"><table class="settle-table"><thead><tr>'
+  +'<th>구분</th><th style="text-align:right">원청금액</th><th style="text-align:right">공급가</th><th style="text-align:right">부가세</th>'
+  +'<th>—</th><th style="text-align:right">하청금액</th><th style="text-align:right">부가세(+)/3.3%(-)</th>'
+  +'<th style="text-align:right">하청실지급액</th><th style="text-align:right">영업이익</th>'
+  +'</tr></thead><tbody>'
+  +'<tr class="settle-sum-row"><td>합계</td>'
+  +'<td class="settle-num main">'+fmtN(gMain)+'</td><td class="settle-num vat">'+fmtN(gSupply)+'</td><td class="settle-num vat">'+fmtN(gVat)+'</td><td>—</td>'
+  +'<td class="settle-num sub">'+fmtN(gSubInput)+'</td>'
+  +'<td class="'+(gSubAdj>0?'settle-num vat':gSubAdj<0?'settle-num deduct':'settle-num sub')+'">'+(gSubAdj>0?'+'+fmtN(gSubAdj):gSubAdj<0?'-'+fmtN(-gSubAdj):'—')+'</td>'
+  +'<td class="settle-num sub" style="font-weight:800">'+fmtN(gSubPayout)+'</td>'
+  +'<td class="settle-num profit" style="font-weight:800">'+fmtN(gProfit)+'</td>'
+  +'</tr></tbody></table></div></div>';
+}
+
+// RENDER STATS
+function renderStats(){
+  const cos=[...new Set(sites.map(function(s){return s.company;}))];
+  document.getElementById('st-co').textContent=cos.length;
+  document.getElementById('st-site').textContent=sites.length;
+  let totalMain=0,totalSub=0;
+  sites.forEach(function(s){totalMain+=s.priceMain||0;totalSub+=s.priceSub||0;});
+  const totalProfit=totalMain-totalSub;
+  const profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
+  document.getElementById('st-main').textContent=totalMain.toLocaleString('ko-KR');
+  document.getElementById('st-sub').textContent=totalSub.toLocaleString('ko-KR');
+  document.getElementById('st-profit').textContent=totalProfit.toLocaleString('ko-KR');
+  document.getElementById('st-rate').textContent=profitRate+'%';
+}
+function renderTitle(){document.getElementById('logo-display').textContent=appTitle;document.title=appTitle;}
+function renderAll(){renderTitle();renderList();renderCalendar();renderWeekly();renderStats();initSettlePeriod();renderSettle();}
+function changeMonth(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',['list','calendar','weekly','report','settle'][i]===name);});
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  document.getElementById('view-'+name).classList.add('active');
+  if(name==='settle')renderSettle();
+  if(name==='report'){initReportDate();renderReport();}
+}
+
+// ── REPORT TAB ──
 var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
@@ -688,8 +1194,8 @@ function renderReport(){
         +'</div>'
         +'<div style="font-size:11px;color:#777;">'+(s.mgr?'담당: '+s.mgr+'<br>':'')+(s.phone?'연락처: '+s.phone+'<br>':'')+(hasPhoto?'<span style="color:#00e5a0;font-weight:700;">📷 '+info.photos+'장</span>':'')+'</div>'
         +(isWork?'<div style="display:flex;gap:6px;">'
-          +'<button onclick="manualUpload(''+s.id+'',''+dateStr+'')" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📷 사진추가</button>'
-          +(!hasPhoto?'<button onclick="sendSmsOne(''+s.id+'',''+dateStr+'',this)" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📱 문자발송</button>':'')
+          +'<button onclick="manualUpload(\''+s.id+'\',\''+dateStr+'\')" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📷 사진추가</button>'
+          +(!hasPhoto?'<button onclick="sendSmsOne(\''+s.id+'\',\''+dateStr+'\',this)" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📱 문자발송</button>':'')
           +'</div>':'<div style="font-size:10px;color:#444;text-align:center;">오늘 작업 없음</div>')
         +'</div>';
     });
@@ -704,7 +1210,7 @@ function renderReport(){
   document.getElementById('report-content').innerHTML = html;
 }
 function manualUpload(siteId, dateStr){
-  var site=sites.find(function(s){return s.id===siteId;});
+  var site=sites.find(function(s){return s.id==siteId;});
   if(!site)return;
   var input=document.createElement('input');
   input.type='file';input.accept='image/*';input.multiple=true;
@@ -721,21 +1227,29 @@ function manualUpload(siteId, dateStr){
   input.click();
 }
 function sendSmsOne(siteId, dateStr, btn){
-  var site=sites.find(function(s){return s.id===siteId;});
+  var site=sites.find(function(s){return s.id==siteId;});
   if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
   if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
   if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0,smsSent:false};
   reportPhotoData[dateStr][siteId].smsSent=true;
   saveReportData();
   btn.textContent='✓ 발송됨';btn.style.color='#00e5a0';btn.style.borderColor='#004d36';
-  showToast('📱 '+site.phone+' 문자 발송
-(SMS API 연동 후 실제 발송)');
+  showToast('📱 '+site.phone+' 문자 발송\n(SMS API 연동 후 실제 발송)');
 }
 function sendReportEmail(){
   if(!isGoogleLoggedIn()){showToast('❌ Google 로그인 후 사용 가능합니다');return;}
   showToast('📧 이메일 발송 기능 준비 중...');
 }
-// 토큰 파싱은 renderAll 후에 실행
+
+function showToast(msg){
+  var t=document.getElementById('cm-toast');
+  if(!t){t=document.createElement('div');t.id='cm-toast';
+  t.style.cssText='position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1e1e1e;border:1px solid #2c2c2c;color:#f0f0f0;padding:11px 20px;border-radius:10px;font-size:13px;z-index:9999;max-width:340px;text-align:center;line-height:1.5;white-space:pre-line;box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:opacity 0.3s;';
+  document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._t);t._t=setTimeout(function(){t.style.opacity='0';},3000);
+}
+
 function checkGoogleToken(){
   var h=location.hash;
   if(h&&h.indexOf('access_token')>-1){
@@ -756,714 +1270,9 @@ function checkGoogleToken(){
   }
 }
 
-function showToast(msg){
-  var t=document.getElementById('cm-toast');
-  if(!t){t=document.createElement('div');t.id='cm-toast';
-  t.style.cssText='position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1e1e1e;border:1px solid #2c2c2c;color:#f0f0f0;padding:11px 20px;border-radius:10px;font-size:13px;z-index:9999;max-width:340px;text-align:center;line-height:1.5;white-space:pre-line;box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:opacity 0.3s;';
-  document.body.appendChild(t);}
-  t.textContent=msg;t.style.opacity='1';
-  clearTimeout(t._t);t._t=setTimeout(function(){t.style.opacity='0';},3000);
-}
 renderAll();
 if(isGoogleLoggedIn())updateGoogleUI(true);
 checkGoogleToken();
-        });
-      }else{alert('올바른 백업 파일이 아닙니다.');}
-    }catch{alert('파일을 읽을 수 없습니다.');}
-  };
-  r.readAsText(file);e.target.value='';
-}
-
-// EXCEL EXPORT (CSV)
-function exportExcel(){
-  if(!sites.length){alert('등록된 현장이 없습니다.');return;}
-  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
-  initSettlePeriod();
-  const yrEl=document.getElementById('settle-year');
-  const moEl=document.getElementById('settle-month');
-  const yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
-  const mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
-  const companies=[...new Set(sites.map(s=>s.company))].sort();
-
-  const wb=XLSX.utils.book_new();
-  const wsData=[];
-  const merges=[];
-  const styles={};
-
-  // 색상 정의
-  const COLOR={
-    headerBg:'1a3a2a', headerFont:'00e5a0',
-    subBg:'004d36',    subFont:'ffffff',
-    totalBg:'00b37a',  totalFont:'000000',
-    vatFont:'4ade80',  deductFont:'ff8fa0',
-    profitFont:'ffb547',
-    oddBg:'1e1e1e',    evenBg:'161616',
-  };
-
-  // 헤더
-  const headers=['업체명','현장명','주소','사업자번호','이메일/주민번호','은행명','계좌번호','청소요일',
-    '원청금액(VAT포함)','원청공급가','원청부가세',
-    '하청지급방식','하청금액','부가세(+)/3.3%(-)','하청실지급액','영업이익'];
-  wsData.push(headers);
-
-  const colWidths=[12,14,24,14,20,8,18,10,14,12,10,14,12,14,12,12];
-  let rowIdx=1; // 0-based, 헤더가 0번
-  let grandMain=0,grandSubPayout=0,grandProfit=0;
-
-  companies.forEach((co,ci)=>{
-    const coSites=sites.filter(s=>s.company===co);
-    let coMain=0,coSubPayout=0,coProfit=0;
-    const coStartRow=rowIdx;
-
-    coSites.forEach((s,si)=>{
-      const mt=calcMainTax(s.priceMain||0);
-      const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
-      const subAdj=st.vat?st.vat:st.deduct?-st.deduct:0;
-      const profit=(s.priceMain||0)-st.payout;
-      const daysStr=s.days.sort().map(d=>DAYS[d]).join('/');
-      const sttLabel=s.subtaxtype==='vat'?'부가세추가(VAT)':s.subtaxtype==='t33'?'3.3%공제':'해당없음';
-      coMain+=s.priceMain||0; coSubPayout+=st.payout; coProfit+=profit;
-
-      wsData.push([
-        co, s.site, s.addr||'',
-        s.bizno||'', s.email||'', s.bank||'', s.account||'', daysStr,
-        s.priceMain||0, mt.supply, mt.vat,
-        sttLabel, s.priceSub||0,
-        subAdj, st.payout, profit
-      ]);
-      rowIdx++;
-    });
-
-    // 소계 행
-    wsData.push([
-      co+' 소계','','','','','','','',
-      coMain,'','','','','','',coProfit
-    ]);
-    rowIdx++;
-    wsData.push([]); // 빈 행
-    rowIdx++;
-
-    grandMain+=coMain; grandSubPayout+=coSubPayout; grandProfit+=coProfit;
-  });
-
-  // 전체 합계
-  wsData.push(['전체 합계','','','','','','','',grandMain,'','','','','','',grandProfit]);
-  const totalRowIdx=rowIdx;
-
-  // 워크시트 생성
-  const ws=XLSX.utils.aoa_to_sheet(wsData);
-
-  // 열 너비
-  ws['!cols']=colWidths.map(w=>({wch:w}));
-
-  // 셀 스타일 적용 (xlsx full은 스타일 지원)
-  const range=XLSX.utils.decode_range(ws['!ref']);
-
-  const applyStyle=(r,c,style)=>{
-    const addr=XLSX.utils.encode_cell({r,c});
-    if(!ws[addr])ws[addr]={v:'',t:'s'};
-    ws[addr].s=style;
-  };
-
-  const hdrStyle={
-    font:{bold:true,color:{rgb:COLOR.headerFont},sz:10},
-    fill:{fgColor:{rgb:COLOR.headerBg}},
-    alignment:{horizontal:'center',vertical:'center',wrapText:true},
-    border:{bottom:{style:'medium',color:{rgb:'00e5a0'}}}
-  };
-  const numStyle=(rgb)=>({
-    font:{color:{rgb},sz:10},
-    alignment:{horizontal:'right'},
-    numFmt:'#,##0'
-  });
-  const txtStyle={font:{sz:10},alignment:{horizontal:'left',vertical:'center'}};
-  const subStyle={
-    font:{bold:true,color:{rgb:COLOR.subFont},sz:10},
-    fill:{fgColor:{rgb:COLOR.subBg}},
-    alignment:{horizontal:'left'}
-  };
-  const subNumStyle=(rgb)=>({
-    font:{bold:true,color:{rgb:rgb||'ffffff'},sz:10},
-    fill:{fgColor:{rgb:COLOR.subBg}},
-    alignment:{horizontal:'right'},
-    numFmt:'#,##0'
-  });
-  const totalStyle={
-    font:{bold:true,color:{rgb:COLOR.totalFont},sz:11},
-    fill:{fgColor:{rgb:COLOR.totalBg}},
-    alignment:{horizontal:'left'}
-  };
-  const totalNumStyle={
-    font:{bold:true,color:{rgb:'000000'},sz:11},
-    fill:{fgColor:{rgb:COLOR.totalBg}},
-    alignment:{horizontal:'right'},
-    numFmt:'#,##0'
-  };
-
-  // 헤더 스타일
-  for(let c=0;c<=15;c++) applyStyle(0,c,hdrStyle);
-
-  // 데이터 행 스타일
-  let dRowIdx=1;
-  let isSubOrEmpty=false;
-  let rowNum=0;
-  wsData.slice(1).forEach((row,i)=>{
-    const r=i+1;
-    const isSub=row[0]&&row[0].toString().includes('소계');
-    const isTotal=row[0]==='전체 합계';
-    const isEmpty=!row[0]&&!row[1];
-
-    if(isSub){
-      for(let c=0;c<=15;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr]){ws[addr]={v:'',t:'s'};}
-        const isNum=[8,15].includes(c);
-        ws[addr].s=isNum?subNumStyle('ffb547'):subStyle;
-        if(isNum&&ws[addr].v)ws[addr].t='n';
-      }
-    } else if(isTotal){
-      for(let c=0;c<=15;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr]){ws[addr]={v:'',t:'s'};}
-        const isNum=[8,15].includes(c);
-        ws[addr].s=isNum?totalNumStyle:totalStyle;
-        if(isNum&&ws[addr].v)ws[addr].t='n';
-      }
-    } else if(!isEmpty){
-      rowNum++;
-      const bg=rowNum%2===0?'242424':'1e1e1e';
-      for(let c=0;c<=15;c++){
-        const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr])ws[addr]={v:'',t:'s'};
-        const numCols=[8,9,10,12,13,14,15];
-        const vatCols=[9,10];
-        const profitCol=15;
-        const deductCol=13;
-        if(numCols.includes(c)){
-          let fgRgb='f0f0f0';
-          if(vatCols.includes(c))fgRgb=COLOR.vatFont;
-          else if(c===deductCol)fgRgb=COLOR.deductFont;
-          else if(c===profitCol)fgRgb=COLOR.profitFont;
-          ws[addr].s={font:{color:{rgb:fgRgb},sz:10},fill:{fgColor:{rgb:bg}},alignment:{horizontal:'right'},numFmt:'#,##0'};
-          if(ws[addr].v!==''&&ws[addr].v!==undefined)ws[addr].t='n';
-        } else {
-          ws[addr].s={font:{color:{rgb:'f0f0f0'},sz:10},fill:{fgColor:{rgb:bg}},alignment:{horizontal:'left'}};
-        }
-      }
-    }
-  });
-
-  // 행 높이
-  ws['!rows']=wsData.map((_,i)=>({hpt:i===0?22:18}));
-
-  XLSX.utils.book_append_sheet(wb,ws,'정산내역');
-  XLSX.writeFile(wb,`정산내역_${yr}년${mo}월.xlsx`);
-}
-
-// CONFIRM POPUP
-function showConfirm(title,desc,onOk){
-  document.getElementById('confirm-title').textContent=title;
-  document.getElementById('confirm-desc').textContent=desc;
-  const btn=document.getElementById('confirm-ok-btn');
-  btn.textContent=title.includes('삭제')?'삭제':'확인';
-  btn.onclick=()=>{closeConfirm();onOk();};
-  document.getElementById('confirm-overlay').classList.add('open');
-}
-function closeConfirm(){document.getElementById('confirm-overlay').classList.remove('open');}
-
-// ADD SITE
-function resetForm(){
-  ['f-co','f-site','f-mgr','f-phone','f-addr','f-bizno','f-email','f-bank','f-account','f-price-main','f-price-sub','f-memo'].forEach(id=>document.getElementById(id).value='');
-  const fst=document.getElementById('f-subtaxtype');if(fst)fst.value='none';
-  document.querySelectorAll('#day-picker .day-btn').forEach(b=>b.classList.remove('active'));
-}
-function addSite(){
-  const company=document.getElementById('f-co').value.trim();
-  const site=document.getElementById('f-site').value.trim();
-  const priceMain=parseInt(document.getElementById('f-price-main').value)||0;
-  const days=getDays('day-picker');
-  if(!company){alert('업체명을 입력해주세요.');return;}
-  if(!site){alert('현장명을 입력해주세요.');return;}
-  if(!priceMain){alert('원청 금액을 입력해주세요.');return;}
-  if(!days.length){alert('청소 요일을 선택해주세요.');return;}
-  sites.push({id:Date.now(),company,site,
-    manager:document.getElementById('f-mgr').value.trim(),
-    phone:document.getElementById('f-phone').value.trim(),
-    addr:document.getElementById('f-addr').value.trim(),
-    bizno:document.getElementById('f-bizno').value.trim(),
-    email:document.getElementById('f-email').value.trim(),
-    bank:document.getElementById('f-bank').value.trim(),
-    account:document.getElementById('f-account').value.trim(),
-    priceMain,priceSub:parseInt(document.getElementById('f-price-sub').value)||0,
-    taxtype:'vat',
-    subtaxtype:document.getElementById('f-subtaxtype').value||'none',
-    days,memo:document.getElementById('f-memo').value.trim()
-  });
-  save();resetForm();renderAll();
-}
-
-// DELETE
-function deleteSite(id){
-  const s=sites.find(s=>s.id===id);if(!s)return;
-  showConfirm('현장 삭제',`"${s.site}" 현장을 정말 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,()=>{
-    sites=sites.filter(s=>s.id!==id);save();renderAll();
-  });
-}
-
-// POPUP
-function openPopup(id){
-  const s=sites.find(s=>s.id===id);if(!s)return;
-  popupSiteId=id;
-  const col=getCompanyColor(s.company);
-  document.getElementById('p-site').textContent=s.site;
-  document.getElementById('p-co').textContent=s.company;
-  document.getElementById('p-co-dot').style.background=col.text;
-  const t=calcTax(s.priceMain||0,s.taxtype||'vat');
-  const profit=(s.priceMain||0)-(s.priceSub||0);
-  let rows='';
-  rows+=`<div class="popup-row"><div class="popup-row-icon">&#128197;</div><div class="popup-row-content"><div class="popup-row-lbl">청소 요일</div><div class="popup-days">${s.days.sort().map(d=>`<span class="popup-day-tag">${DAYS[d]}</span>`).join('')}</div></div></div>`;
-  rows+=`<div class="popup-row"><div class="popup-row-icon">&#128176;</div><div class="popup-row-content"><div class="popup-row-lbl">금액 ${taxLabel(s.taxtype||'vat')}</div><div class="popup-price-grid">
-    <div class="popup-price-item"><div class="popup-price-lbl">원청(VAT포함)</div><div class="popup-price-val main">${fmtW(s.priceMain)}</div></div>
-    <div class="popup-price-item"><div class="popup-price-lbl">공급가액</div><div class="popup-price-val" style="color:#4ade80;font-size:14px">${fmtW(t.supply)}</div></div>
-    ${t.vat?`<div class="popup-price-item"><div class="popup-price-lbl">부가세</div><div class="popup-price-val" style="color:#4ade80;font-size:14px">${fmtW(t.vat)}</div></div>`:''}
-    ${t.deduct?`<div class="popup-price-item"><div class="popup-price-lbl">3.3%공제</div><div class="popup-price-val" style="color:#ff8fa0;font-size:14px">-${fmtW(t.deduct)}</div></div>`:''}
-    ${s.priceSub?`<div class="popup-price-item"><div class="popup-price-lbl">하청</div><div class="popup-price-val sub">${fmtW(s.priceSub)}</div></div>
-    <div class="popup-price-item"><div class="popup-price-lbl">이익</div><div class="popup-price-val profit">${fmtW(profit)}</div></div>`:''}
-  </div></div></div>`;
-  if(s.manager)rows+=`<div class="popup-row"><div class="popup-row-icon">&#128100;</div><div class="popup-row-content"><div class="popup-row-lbl">담당자</div><div class="popup-row-val">${s.manager}</div></div></div>`;
-  if(s.phone){const tel=s.phone.replace(/[^0-9+]/g,'');rows+=`<div class="popup-row"><div class="popup-row-icon">&#128222;</div><div class="popup-row-content"><div class="popup-row-lbl">연락처</div><a class="popup-phone-link" href="tel:${tel}">&#128242; ${s.phone}</a></div></div>`;}
-  if(s.addr)rows+=`<div class="popup-row"><div class="popup-row-icon">&#128205;</div><div class="popup-row-content"><div class="popup-row-lbl">주소</div><div class="popup-row-val" style="font-size:13px">${s.addr}</div></div></div>`;
-  if(s.bizno)rows+=`<div class="popup-row"><div class="popup-row-icon">&#128196;</div><div class="popup-row-content"><div class="popup-row-lbl">사업자번호</div><div class="popup-row-val">${s.bizno}</div></div></div>`;
-  if(s.email)rows+=`<div class="popup-row"><div class="popup-row-icon">&#128231;</div><div class="popup-row-content"><div class="popup-row-lbl">이메일</div><div class="popup-row-val">${s.email}</div></div></div>`;
-  if(s.bank||s.account)rows+=`<div class="popup-row"><div class="popup-row-icon">&#127984;</div><div class="popup-row-content"><div class="popup-row-lbl">계좌정보</div><div class="popup-row-val">${s.bank||''} ${s.account||''}</div></div></div>`;
-  if(s.memo)rows+=`<div class="popup-row"><div class="popup-row-icon">&#128221;</div><div class="popup-row-content"><div class="popup-row-lbl">메모</div><div class="popup-memo">${s.memo.replace(/\n/g,'<br>')}</div></div></div>`;
-  document.getElementById('popup-rows').innerHTML=rows;
-  document.getElementById('detail-popup').classList.add('open');
-}
-function closePopup(){document.getElementById('detail-popup').classList.remove('open');popupSiteId=null;}
-function handlePopupBg(e){if(e.target===document.getElementById('detail-popup'))closePopup();}
-function deleteFromPopup(){
-  const id=popupSiteId;const s=sites.find(s=>s.id===id);if(!s)return;
-  closePopup();
-  setTimeout(()=>showConfirm('현장 삭제',`"${s.site}" 현장을 정말 삭제할까요?`,()=>{sites=sites.filter(s=>s.id!==id);save();renderAll();}),200);
-}
-function editFromPopup(){const id=popupSiteId;closePopup();setTimeout(()=>openEdit(id),150);}
-
-// EDIT MODAL
-function openEdit(id){
-  const s=sites.find(s=>s.id===id);if(!s)return;
-  editingSiteId=id;
-  document.getElementById('e-co').value=s.company;
-  document.getElementById('e-site').value=s.site;
-  document.getElementById('e-mgr').value=s.manager||'';
-  document.getElementById('e-phone').value=s.phone||'';
-  document.getElementById('e-addr').value=s.addr||'';
-  document.getElementById('e-bizno').value=s.bizno||'';
-  document.getElementById('e-email').value=s.email||'';
-  document.getElementById('e-bank').value=s.bank||'';
-  document.getElementById('e-account').value=s.account||'';
-  document.getElementById('e-price-main').value=s.priceMain||'';
-  document.getElementById('e-price-sub').value=s.priceSub||'';
-  document.getElementById('e-subtaxtype').value=s.subtaxtype||'none';
-  document.getElementById('e-memo').value=s.memo||'';
-  document.querySelectorAll('#e-day-picker .day-btn').forEach(b=>b.classList.toggle('active',s.days.includes(parseInt(b.dataset.day))));
-  document.getElementById('edit-modal').classList.add('open');
-  updateProfitPreview();
-}
-function closeModal(){document.getElementById('edit-modal').classList.remove('open');editingSiteId=null;}
-function handleModalBg(e){if(e.target===document.getElementById('edit-modal'))closeModal();}
-function updateProfitPreview(){
-  const main=parseInt(document.getElementById('e-price-main').value)||0;
-  const sub=parseInt(document.getElementById('e-price-sub').value)||0;
-  const taxtype=document.getElementById('e-subtaxtype').value;
-  const preview=document.getElementById('profit-preview');
-  if(!main){preview.style.display='none';return;}
-  preview.style.display='flex';
-  const st=calcSubTax(sub,taxtype);
-  const profit=main-st.payout;
-  const rate=main?Math.round(profit/main*100):0;
-  document.getElementById('preview-payout').textContent=st.payout.toLocaleString('ko-KR')+'원';
-  document.getElementById('preview-profit').textContent=profit.toLocaleString('ko-KR')+'원';
-  document.getElementById('preview-rate').textContent=rate+'%';
-}
-
-function saveEdit(){
-  const s=sites.find(s=>s.id===editingSiteId);if(!s)return;
-  const company=document.getElementById('e-co').value.trim();
-  const site=document.getElementById('e-site').value.trim();
-  const priceMain=parseInt(document.getElementById('e-price-main').value)||0;
-  const days=getDays('e-day-picker');
-  if(!company||!site||!priceMain||!days.length){alert('필수 항목을 입력해주세요.');return;}
-  s.company=company;s.site=site;s.days=days;s.priceMain=priceMain;
-  s.priceSub=parseInt(document.getElementById('e-price-sub').value)||0;
-  s.taxtype='vat';
-  s.subtaxtype=document.getElementById('e-subtaxtype').value;
-  s.manager=document.getElementById('e-mgr').value.trim();
-  s.phone=document.getElementById('e-phone').value.trim();
-  s.addr=document.getElementById('e-addr').value.trim();
-  s.bizno=document.getElementById('e-bizno').value.trim();
-  s.email=document.getElementById('e-email').value.trim();
-  s.bank=document.getElementById('e-bank').value.trim();
-  s.account=document.getElementById('e-account').value.trim();
-  s.memo=document.getElementById('e-memo').value.trim();
-  save();closeModal();renderAll();
-}
-
-// RENDER LIST
-function renderList(){
-  const el=document.getElementById('company-list');
-  if(!sites.length){el.innerHTML='<div class="empty"><div class="empty-icon">&#127970;</div><div class="empty-text">등록된 업체가 없어요.<br>위 양식에서 추가해보세요.</div></div>';return;}
-  const companies=[...new Set(sites.map(s=>s.company))].sort();
-  el.innerHTML=companies.map(co=>{
-    const col=getCompanyColor(co);
-    const coSites=sites.filter(s=>s.company===co);
-    return `<div class="company-block">
-      <button class="company-header" onclick="toggleCompany(this)">
-        <div class="company-name-row">
-          <div class="company-dot" style="background:${col.text}"></div>
-          <div class="company-name">${co}</div>
-          <div class="company-site-count">(현장 ${coSites.length}곳)</div>
-        </div>
-        <div class="company-chevron open">&#9660;</div>
-      </button>
-      <div class="company-sites">
-        ${coSites.map(s=>renderSiteCard(s,col)).join('')}
-        <button class="add-site-btn" onclick="prefillCompany('${co.replace(/'/g,"\'")}')">+ 현장 추가</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function renderSiteCard(s,col){
-  const tel=s.phone?s.phone.replace(/[^0-9+]/g,''):'';
-  const t=calcTax(s.priceMain||0,s.taxtype||'vat');
-  const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
-  const profit=(s.priceMain||0)-st.payout;
-  const profitRate=s.priceMain?Math.round(profit/(s.priceMain)*100):0;
-  return `<div class="site-card">
-    <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:${col.text};border-radius:3px 0 0 3px;"></div>
-    <div class="site-header">
-      <div><div class="site-name">${s.site}${s.priceSub&&s.subtaxtype&&s.subtaxtype!=='none'?'<span class="tax-badge '+(s.subtaxtype==='t33'?'t33':'vat')+'" style="margin-left:4px">'+(s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'')+'</span>':''}</div>${s.addr?`<div style="font-size:11px;color:var(--muted);margin-top:2px">&#128205; ${s.addr}</div>`:''}${s.bizno?`<div style="font-size:11px;color:var(--muted)">&#128196; ${s.bizno}</div>`:''}
-      ${(s.bank||s.account)?`<div style="font-size:11px;color:var(--muted)">&#127984; ${s.bank||''} ${s.account||''}</div>`:''}</div>
-      <div class="site-actions">
-        <button class="icon-btn" onclick="openEdit(${s.id})">&#9999;&#65039;</button>
-        <button class="icon-btn del" onclick="deleteSite(${s.id})">&#128465;</button>
-      </div>
-    </div>
-    <div class="site-meta">
-      <div class="meta-row"><span class="meta-lbl">요일</span><div style="display:flex;gap:4px;flex-wrap:wrap">${s.days.sort().map(d=>`<span class="day-tag">${DAYS[d]}</span>`).join('')}</div></div>
-      <div class="meta-row"><span class="meta-lbl">금액</span>
-        <div class="price-row">
-          <div class="price-chip"><div class="price-chip-label">원청</div><div class="price-chip-val main-price">${fmtW(s.priceMain)}</div></div>
-          ${s.priceSub?`<div class="price-chip"><div class="price-chip-label">하청</div><div class="price-chip-val sub-price">${fmtW(s.priceSub)}</div></div>
-          <div class="price-chip"><div class="price-chip-label">이익</div><div class="price-chip-val profit-price">${fmtW(profit)}</div></div>
-          <div class="price-chip"><div class="price-chip-label">이익률</div><div class="price-chip-val" style="color:#ffb547;font-size:13px;font-weight:700">${profitRate}%</div></div>`:''  }
-        </div>
-      </div>
-      ${s.manager?`<div class="meta-row"><span class="meta-lbl">담당자</span><span>${s.manager}</span></div>`:''}
-      ${s.phone?`<div class="meta-row"><span class="meta-lbl">연락처</span><a class="phone-link" href="tel:${tel}">${s.phone}</a></div>`:''}
-    </div>
-    ${s.memo?`<div class="memo-box">&#128172; ${s.memo}</div>`:''}
-  </div>`;
-}
-function toggleCompany(hdr){
-  const body=hdr.nextElementSibling;const chev=hdr.querySelector('.company-chevron');
-  const h=body.style.display==='none';body.style.display=h?'':'none';chev.classList.toggle('open',h);
-}
-function prefillCompany(name){
-  document.getElementById('f-co').value=name;switchTab('list');
-  document.getElementById('f-site').focus();window.scrollTo({top:0,behavior:'smooth'});
-}
-
-// DATE POPUP
-function openDatePopup(dow,dateLabel,daySites){
-  document.getElementById('dp-title').textContent=dateLabel;
-  const list=document.getElementById('dp-list');
-  list.innerHTML=daySites.map(s=>{
-    const col=getCompanyColor(s.company);
-    const tel=s.phone?s.phone.replace(/[^0-9+]/g,''):'';
-    return `<div class="dp-item" style="border-left:3px solid ${col.text};background:${col.bg}" onclick="openPopupFromDate(${s.id})">
-      <div class="dp-item-site" style="color:${col.text}">${s.site}</div>
-      <div class="dp-item-co">${s.company}${s.manager?' · '+s.manager:''}</div>
-      ${s.phone?`<a class="dp-phone" href="tel:${tel}" onclick="event.stopPropagation()">&#128242; ${s.phone}</a>`:''}
-    </div>`;
-  }).join('');
-  document.getElementById('date-popup').classList.add('open');
-}
-function closeDatePopup(){document.getElementById('date-popup').classList.remove('open');}
-function openPopupFromDate(id){closeDatePopup();setTimeout(()=>openPopup(id),150);}
-
-// RENDER CALENDAR
-function renderCalendar(){
-  document.getElementById('cal-title').textContent=`${calYear}년 ${calMonth+1}월`;
-  const grid=document.getElementById('cal-grid');grid.innerHTML='';
-  ['일','월','화','수','목','금','토'].forEach(d=>{const h=document.createElement('div');h.className='cal-dh';h.textContent=d;grid.appendChild(h);});
-  const firstDay=new Date(calYear,calMonth,1).getDay();
-  const dim=new Date(calYear,calMonth+1,0).getDate();
-  const prevDim=new Date(calYear,calMonth,0).getDate();
-  let cells=[];
-  for(let i=firstDay-1;i>=0;i--)cells.push({day:prevDim-i,other:true});
-  for(let d=1;d<=dim;d++)cells.push({day:d,other:false});
-  while(cells.length%7!==0)cells.push({day:cells.length-dim-firstDay+1,other:true});
-  cells.forEach((cell,idx)=>{
-    const dow=idx%7;
-    const isToday=!cell.other&&calYear===today.getFullYear()&&calMonth===today.getMonth()&&cell.day===today.getDate();
-    const el=document.createElement('div');
-    el.className='cal-cell'+(cell.other?' other':'')+(isToday?' today':'');
-    const dateRow=document.createElement('div');dateRow.className='cal-date-row';
-    const dateEl=document.createElement('div');dateEl.className='cal-date';dateEl.textContent=cell.day;dateRow.appendChild(dateEl);
-    if(!cell.other){
-      const daySites=sites.filter(s=>s.days.includes(dow));
-      if(daySites.length>0){const badge=document.createElement('div');badge.className='cal-count-badge';badge.textContent=daySites.length+'건';dateRow.appendChild(badge);}
-      el.appendChild(dateRow);
-      const evs=document.createElement('div');evs.className='cal-events';
-      daySites.forEach(s=>{
-        const col=getCompanyColor(s.company);
-        const ev=document.createElement('button');ev.className='cal-event';ev.style.cssText='width:100%;text-align:left;font-family:Noto Sans KR,sans-serif;outline:none;padding:2px 4px;';
-        ev.style.background=col.bg;ev.style.color=col.text;
-        ev.innerHTML='<div class="cal-event-name">'+s.site+'</div>'+(s.manager?'<div class="cal-event-mgr">'+s.manager+'</div>':'');
-        ev.title=s.site+(s.manager?' ('+s.manager+')':'');
-        ev.addEventListener('click',(e)=>{e.stopPropagation();openPopup(s.id);});
-        evs.appendChild(ev);
-      });
-      el.appendChild(evs);
-      const dateLabel=`${calYear}년 ${calMonth+1}월 ${cell.day}일`;
-      el.addEventListener('click',()=>openDatePopup(dow,dateLabel,daySites));
-    }else{el.appendChild(dateRow);}
-    grid.appendChild(el);
-  });
-}
-
-// RENDER WEEKLY
-function getDayCountInMonth(year, month, dow){
-  let count=0;
-  const dim=new Date(year,month+1,0).getDate();
-  for(let d=1;d<=dim;d++){if(new Date(year,month,d).getDay()===dow)count++;}
-  return count;
-}
-// 현장의 월 총 투입횟수 (등록된 모든 요일 합산)
-function totalCountInMonth(site, year, month){
-  return site.days.reduce((sum,dow)=>sum+getDayCountInMonth(year,month,dow),0);
-}
-// 일당 = 월금액 ÷ 해당월 총 투입일수
-function dailyPrice(site, year, month){
-  const total=totalCountInMonth(site,year,month);
-  return total>0?Math.round((site.priceMain||0)/total):0;
-}
-
-function renderWeekly(){
-  const grid=document.getElementById('weekly-grid');grid.innerHTML='';
-  const now=new Date();const todayDow=now.getDay();
-  const weekDates=[];
-  for(let i=0;i<7;i++){const d=new Date(now);d.setDate(now.getDate()-todayDow+i);weekDates.push(d);}
-
-  // 이번달 기준으로 요일 횟수 계산 (현재 달 고정)
-  const baseYear=now.getFullYear();const baseMonth=now.getMonth();
-  const daySums=DAYS.map((_,idx)=>{
-    return sites.filter(s=>s.days.includes(idx))
-      .reduce((sum,s)=>sum+dailyPrice(s,baseYear,baseMonth),0);
-  });
-
-  // 헤더 (요일 + 날짜 + 합산)
-  DAYS.forEach((d,i)=>{
-    const wd=weekDates[i];const isToday=wd.toDateString()===now.toDateString();
-    const h=document.createElement('div');
-    h.className='week-hdr'+(i===0?' sun':i===6?' sat':'')+(isToday?' today-col':'');
-    const sumStr=daySums[i]>0?daySums[i].toLocaleString('ko-KR')+'원':'';
-    h.innerHTML='<div class="week-hdr-day">'+d+'</div>'
-      +'<div class="week-hdr-date">'+(wd.getMonth()+1)+'/'+(wd.getDate())+'</div>'
-      +(sumStr?'<div class="week-hdr-sum">'+sumStr+'</div>':'');
-    grid.appendChild(h);
-  });
-
-  if(!sites.length){
-    const e=document.createElement('div');
-    e.style.cssText='grid-column:1/-1;padding:36px;text-align:center;color:var(--dim);font-size:13px';
-    e.textContent='등록된 현장이 없습니다.';grid.appendChild(e);return;
-  }
-
-  // 셀
-  DAYS.forEach((_,idx)=>{
-    const cell=document.createElement('div');cell.className='week-cell';
-    sites.filter(s=>s.days.includes(idx)).forEach(s=>{
-      const col=getCompanyColor(s.company);
-      const daily=dailyPrice(s,baseYear,baseMonth);
-      const cnt=totalCountInMonth(s,baseYear,baseMonth);
-      const ev=document.createElement('div');ev.className='week-event';
-      ev.style.background=col.bg;ev.style.borderColor=col.bg;
-      ev.innerHTML=`<div class="week-event-name" style="color:${col.text}">${s.site}</div>`
-        +`<div class="week-event-co" style="color:${col.text}">${s.company}</div>`
-        +(s.manager?`<div class="week-event-mgr">${s.manager}</div>`:'')
-        +`<div class="week-event-price" style="color:${col.text}">${daily.toLocaleString('ko-KR')}원<span style="font-size:9px;opacity:0.6;margin-left:3px">(월${cnt}일)</span></div>`;
-      ev.addEventListener('click',()=>openPopup(s.id));cell.appendChild(ev);
-    });
-    grid.appendChild(cell);
-  });
-}
-
-// RENDER SETTLE
-function initSettlePeriod(){
-  const yr=document.getElementById('settle-year');
-  const mo=document.getElementById('settle-month');
-  if(yr.options.length>0)return;
-  const y=today.getFullYear();
-  for(let i=y-2;i<=y+1;i++){const o=document.createElement('option');o.value=i;o.textContent=i+'년';if(i===y)o.selected=true;yr.appendChild(o);}
-  for(let m=1;m<=12;m++){const o=document.createElement('option');o.value=m;o.textContent=m+'월';if(m===today.getMonth()+1)o.selected=true;mo.appendChild(o);}
-}
-function renderSettle(){
-  initSettlePeriod();
-  const content=document.getElementById('settle-content');
-  if(!sites.length){
-    content.innerHTML='<div class="empty"><div class="empty-icon">&#128176;</div><div class="empty-text">등록된 현장이 없습니다.</div></div>';
-    return;
-  }
-  const companies=[...new Set(sites.map(s=>s.company))].sort();
-
-  // 전체 합계
-  let gMain=0,gSupply=0,gVat=0,gSubInput=0,gSubAdj=0,gSubPayout=0,gProfit=0;
-
-  content.innerHTML = companies.map(co=>{
-    const col=getCompanyColor(co);
-    const coSites=sites.filter(s=>s.company===co);
-    let cMain=0,cSupply=0,cVat=0,cSubInput=0,cSubAdj=0,cSubPayout=0,cProfit=0;
-
-    const rowsHtml = coSites.map(s=>{
-      const mt = calcMainTax(s.priceMain||0);           // 원청
-      const st = calcSubTax(s.priceSub||0, s.subtaxtype||'none'); // 하청
-      const profit = (s.priceMain||0) - st.payout;
-      const subAdj = st.vat ? st.vat : st.deduct ? -st.deduct : 0;
-
-      cMain+=s.priceMain||0; cSupply+=mt.supply; cVat+=mt.vat;
-      cSubInput+=s.priceSub||0; cSubAdj+=subAdj; cSubPayout+=st.payout; cProfit+=profit;
-
-      const daysStr=s.days.sort().map(d=>`<span class="day-tag" style="font-size:10px">${DAYS[d]}</span>`).join(' ');
-      const subtaxLbl=s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'없음';
-
-      return `<tr>
-        <td>${s.site}</td>
-        <td style="font-size:11px;color:var(--muted)">${s.addr||'—'}</td>
-        <td style="font-size:11px;color:var(--muted)">${s.bizno||'—'}</td>
-        <td style="font-size:11px;color:var(--muted)">${s.email||'—'}</td>
-        <td style="font-size:11px;color:var(--muted)">${s.bank||'—'}</td>
-        <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${s.account||'—'}</td>
-        <td>${daysStr}</td>
-        <td class="settle-num main">${fmtN(s.priceMain)}</td>
-        <td class="settle-num vat">${fmtN(mt.supply)}</td>
-        <td class="settle-num vat">${fmtN(mt.vat)}</td>
-        <td><span class="settle-badge ${s.subtaxtype==='t33'?'t33':'vat'}">${subtaxLbl}</span></td>
-        <td class="settle-num sub">${s.priceSub?fmtN(s.priceSub):'—'}</td>
-        <td class="${subAdj>0?'settle-num vat':subAdj<0?'settle-num deduct':'settle-num sub'}">${subAdj>0?'+'+fmtN(subAdj):subAdj<0?'-'+fmtN(-subAdj):'—'}</td>
-        <td class="settle-num sub" style="font-weight:800">${s.priceSub?fmtN(st.payout):'—'}</td>
-        <td class="settle-num profit" style="font-weight:800">${fmtN(profit)}</td>
-      </tr>`;
-    }).join('');
-
-    gMain+=cMain; gSupply+=cSupply; gVat+=cVat;
-    gSubInput+=cSubInput; gSubAdj+=cSubAdj; gSubPayout+=cSubPayout; gProfit+=cProfit;
-
-    return `<div class="settle-company-block">
-      <div class="settle-company-hdr">
-        <div class="settle-co-left">
-          <div class="company-dot" style="background:${col.text}"></div>
-          <div class="settle-co-name">${co}</div>
-          <div style="font-size:11px;color:var(--muted);margin-left:4px">(현장 ${coSites.length}곳)</div>
-        </div>
-        <div class="settle-co-total">${fmtN(cMain)}원</div>
-      </div>
-      <div style="overflow-x:auto;">
-      <table class="settle-table">
-        <thead><tr>
-          <th>현장명</th><th>주소</th><th>사업자번호</th><th>이메일/주민번호</th><th>은행명</th><th>계좌번호</th><th>요일</th>
-          <th style="text-align:right">원청금액</th>
-          <th style="text-align:right">공급가</th>
-          <th style="text-align:right">부가세</th>
-          <th>하청방식</th>
-          <th style="text-align:right">하청금액</th>
-          <th style="text-align:right">부가세(+)/3.3%(-)</th>
-          <th style="text-align:right">하청실지급액</th>
-          <th style="text-align:right">영업이익</th>
-        </tr></thead>
-        <tbody>
-          ${rowsHtml}
-          <tr class="settle-sum-row">
-            <td colspan="7">소계</td>
-            <td class="settle-num main">${fmtN(cMain)}</td>
-            <td class="settle-num vat">${fmtN(cSupply)}</td>
-            <td class="settle-num vat">${fmtN(cVat)}</td>
-            <td>—</td>
-            <td class="settle-num sub">${fmtN(cSubInput)}</td>
-            <td class="${cSubAdj>0?'settle-num vat':cSubAdj<0?'settle-num deduct':'settle-num sub'}">${cSubAdj>0?'+'+fmtN(cSubAdj):cSubAdj<0?'-'+fmtN(-cSubAdj):'—'}</td>
-            <td class="settle-num sub" style="font-weight:800">${fmtN(cSubPayout)}</td>
-            <td class="settle-num profit" style="font-weight:800">${fmtN(cProfit)}</td>
-          </tr>
-        </tbody>
-      </table>
-      </div>
-    </div>`;
-  }).join('') + `
-  <div class="settle-company-block" style="border-color:var(--accent)">
-    <div class="settle-company-hdr" style="background:var(--a2)">
-      <div class="settle-co-name" style="color:var(--accent)">&#9654; 전체 합계</div>
-      <div class="settle-co-total">${fmtN(gMain)}원</div>
-    </div>
-    <div style="overflow-x:auto;">
-    <table class="settle-table">
-      <thead><tr>
-        <th>구분</th>
-        <th style="text-align:right">원청금액</th>
-        <th style="text-align:right">공급가</th>
-        <th style="text-align:right">부가세</th>
-        <th>—</th>
-        <th style="text-align:right">하청금액</th>
-        <th style="text-align:right">부가세(+)/3.3%(-)</th>
-        <th style="text-align:right">하청실지급액</th>
-        <th style="text-align:right">영업이익</th>
-      </tr></thead>
-      <tbody>
-        <tr class="settle-sum-row">
-          <td>합계</td>
-          <td class="settle-num main">${fmtN(gMain)}</td>
-          <td class="settle-num vat">${fmtN(gSupply)}</td>
-          <td class="settle-num vat">${fmtN(gVat)}</td>
-          <td>—</td>
-          <td class="settle-num sub">${fmtN(gSubInput)}</td>
-          <td class="${gSubAdj>0?'settle-num vat':gSubAdj<0?'settle-num deduct':'settle-num sub'}">${gSubAdj>0?'+'+fmtN(gSubAdj):gSubAdj<0?'-'+fmtN(-gSubAdj):'—'}</td>
-          <td class="settle-num sub" style="font-weight:800">${fmtN(gSubPayout)}</td>
-          <td class="settle-num profit" style="font-weight:800">${fmtN(gProfit)}</td>
-        </tr>
-      </tbody>
-    </table>
-    </div>
-  </div>`;
-}
-
-
-// RENDER STATS
-function renderStats(){
-  const cos=[...new Set(sites.map(s=>s.company))];
-  document.getElementById('st-co').textContent=cos.length;
-  document.getElementById('st-site').textContent=sites.length;
-  let totalMain=0,totalSub=0;
-  sites.forEach(s=>{totalMain+=s.priceMain||0;totalSub+=s.priceSub||0;});
-  const totalProfit=totalMain-totalSub;
-  const profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
-  document.getElementById('st-main').textContent=totalMain.toLocaleString('ko-KR');
-  document.getElementById('st-sub').textContent=totalSub.toLocaleString('ko-KR');
-  document.getElementById('st-profit').textContent=totalProfit.toLocaleString('ko-KR');
-  document.getElementById('st-rate').textContent=profitRate+'%';
-}
-function renderTitle(){document.getElementById('logo-display').textContent=appTitle;document.title=appTitle;}
-function renderAll(){renderTitle();renderList();renderCalendar();renderWeekly();renderStats();initSettlePeriod();renderSettle();}
-function changeMonth(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
-function switchTab(name){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['list','calendar','weekly','report','settle'][i]===name));
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-'+name).classList.add('active');
-  if(name==='settle')renderSettle();
-  if(name==='report'){initReportDate();renderReport();}
-}
-renderAll();
-
-
 </script>
 </body>
 </html>
