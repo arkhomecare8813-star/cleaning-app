@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>현장 사진 업로드</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0a;--sf:#161616;--sf2:#1e1e1e;--sf3:#272727;
+  --bd:#2c2c2c;--accent:#00e5a0;--a2:#004d36;
+  --text:#f0f0f0;--muted:#777;--danger:#ff4d6d;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 80px;}
+.wrap{width:100%;max-width:480px;}
+.logo-row{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.logo-icon{width:38px;height:38px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.logo-title{font-size:18px;font-weight:900;letter-spacing:-0.5px;}
+.logo-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;margin-bottom:14px;}
+
+/* 현장 정보 */
+.info-rows{display:flex;flex-direction:column;gap:12px;}
+.info-row{display:flex;align-items:flex-start;gap:10px;}
+.info-icon{font-size:18px;width:24px;flex-shrink:0;}
+.info-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;}
+.info-val{font-size:15px;font-weight:800;}
+.info-val.accent{color:var(--accent);}
+.date-pill{display:inline-flex;align-items:center;gap:5px;background:var(--a2);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;font-family:'DM Mono',monospace;}
+
+/* 업로드 존 */
+.upload-zone{border:2px dashed var(--bd);border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--sf2);position:relative;}
+.upload-zone.drag{border-color:var(--accent);background:rgba(0,229,160,0.06);}
+.upload-zone.has-files{border-color:var(--accent);border-style:solid;}
+.upload-big-icon{font-size:52px;margin-bottom:12px;line-height:1;}
+.upload-text{font-size:16px;font-weight:800;margin-bottom:5px;}
+.upload-sub{font-size:12px;color:var(--muted);line-height:1.6;}
+#file-input{display:none;}
+
+/* 미리보기 */
+.preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;}
+.preview-item{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--sf3);}
+.preview-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.preview-remove{position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.75);color:#fff;border:none;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:900;}
+.preview-more{aspect-ratio:1;border-radius:10px;background:var(--sf3);border:1px dashed var(--bd);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);cursor:pointer;font-weight:700;}
+
+/* 업로드 버튼 */
+.upload-btn{width:100%;padding:16px;border-radius:13px;background:var(--accent);border:none;color:#000;font-size:16px;font-weight:900;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;}
+.upload-btn:hover{background:#00ffb3;}
+.upload-btn:active{transform:scale(0.98);}
+.upload-btn:disabled{background:var(--sf3);color:var(--muted);cursor:not-allowed;transform:none;}
+
+/* 진행바 */
+.prog-wrap{margin-top:14px;display:none;}
+.prog-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;color:var(--muted);}
+.prog-bar{background:var(--sf3);border-radius:6px;height:8px;overflow:hidden;}
+.prog-fill{background:var(--accent);height:100%;border-radius:6px;transition:width 0.3s;width:0%;}
+.prog-file{font-size:11px;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* 완료 */
+.success{text-align:center;padding:24px 10px;}
+.success-emoji{font-size:64px;margin-bottom:14px;line-height:1;}
+.success-title{font-size:22px;font-weight:900;color:var(--accent);margin-bottom:6px;}
+.success-count{font-family:'DM Mono',monospace;font-size:32px;font-weight:900;color:var(--accent);margin:10px 0;}
+.success-path{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:16px;}
+.success-path strong{color:var(--accent);}
+.add-more{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+
+/* 에러 */
+.err-box{background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--danger);margin-top:12px;display:none;line-height:1.6;}
+
+/* 잘못된 링크 */
+.invalid{text-align:center;padding:40px 20px;}
+.invalid-icon{font-size:48px;margin-bottom:14px;}
+.invalid-title{font-size:18px;font-weight:800;margin-bottom:6px;}
+.invalid-sub{font-size:13px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo-row">
+    <div class="logo-icon">🧹</div>
+    <div>
+      <div class="logo-title" id="app-title">청소팀 관리</div>
+      <div class="logo-sub">현장 사진 업로드</div>
+    </div>
+  </div>
+
+  <!-- 잘못된 링크 -->
+  <div class="card" id="invalid-card" style="display:none;">
+    <div class="invalid">
+      <div class="invalid-icon">❌</div>
+      <div class="invalid-title">잘못된 링크입니다</div>
+      <div class="invalid-sub">담당자에게 올바른 링크를 요청하세요.</div>
+    </div>
+  </div>
+
+  <!-- 현장 정보 -->
+  <div class="card" id="info-card">
+    <div class="info-rows">
+      <div class="info-row">
+        <div class="info-icon">🏢</div>
+        <div><div class="info-lbl">업체</div><div class="info-val" id="info-co">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">📍</div>
+        <div><div class="info-lbl">현장</div><div class="info-val accent" id="info-site">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">📅</div>
+        <div><div class="info-lbl">날짜</div><div class="date-pill" id="info-date">—</div></div>
+      </div>
+      <div class="info-row" id="mgr-row" style="display:none;">
+        <div class="info-icon">👤</div>
+        <div><div class="info-lbl">담당자</div><div class="info-val" id="info-mgr">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 업로드 카드 -->
+  <div class="card" id="upload-card">
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-big-icon">📸</div>
+      <div class="upload-text">사진을 탭해서 선택하세요</div>
+      <div class="upload-sub">여러 장 동시 선택 가능<br>JPG · PNG · HEIC 모두 가능</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*" multiple onchange="handleFiles(this.files)">
+    <div class="preview-grid" id="preview-grid"></div>
+    <button class="upload-btn" id="upload-btn" onclick="startUpload()" disabled>
+      <span id="upload-btn-text">사진을 먼저 선택해주세요</span>
+    </button>
+    <div class="prog-wrap" id="prog-wrap">
+      <div class="prog-top">
+        <span id="prog-text">업로드 중...</span>
+        <span id="prog-pct">0%</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="prog-file" id="prog-file"></div>
+    </div>
+    <div class="err-box" id="err-box"></div>
+  </div>
+
+  <!-- 완료 카드 -->
+  <div class="card" id="success-card" style="display:none;">
+    <div class="success">
+      <div class="success-emoji">✅</div>
+      <div class="success-title">업로드 완료!</div>
+      <div class="success-count" id="success-count">0장</div>
+      <div class="success-path" id="success-path"></div>
+      <button class="add-more" onclick="resetUpload()">📷 사진 추가하기</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── 설정 ──
+// 사장님 구글 드라이브 공유 폴더 ID
+var ROOT_FOLDER_ID = '1q6wXEiRkPymWI4waM5PnLFpqtUhfEX5r';
+
+// 사장님 Google OAuth Client ID (기존 앱과 동일)
+var CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googleusercontent.com';
+var SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+var params = {};
+var accessToken = null;
+var selectedFiles = [];
+
+// ── URL 파라미터 파싱 ──
+function parseParams(){
+  location.search.slice(1).split('&').forEach(function(p){
+    var i = p.indexOf('=');
+    if(i > -1) params[decodeURIComponent(p.slice(0,i))] = decodeURIComponent(p.slice(i+1));
+  });
+}
+
+// ── 초기화 ──
+function init(){
+  parseParams();
+
+  // OAuth 토큰 수신 (사장님 앱에서 전달)
+  var hash = location.hash;
+  if(hash && hash.indexOf('access_token') > -1){
+    var hp = {};
+    hash.slice(1).split('&').forEach(function(s){
+      var i = s.indexOf('=');
+      if(i > -1) hp[s.slice(0,i)] = decodeURIComponent(s.slice(i+1));
+    });
+    if(hp.access_token){
+      accessToken = hp.access_token;
+      sessionStorage.setItem('up-token', accessToken);
+      sessionStorage.setItem('up-exp', String(Date.now() + parseInt(hp.expires_in||3600)*1000));
+      history.replaceState({}, '', location.pathname + location.search);
+    }
+  }
+
+  // 세션 토큰 복원
+  var saved = sessionStorage.getItem('up-token');
+  var exp = parseInt(sessionStorage.getItem('up-exp')||'0');
+  if(saved && Date.now() < exp) accessToken = saved;
+
+  // 파라미터 검증
+  if(!params.co || !params.site || !params.date){
+    document.getElementById('info-card').style.display = 'none';
+    document.getElementById('upload-card').style.display = 'none';
+    document.getElementById('invalid-card').style.display = '';
+    return;
+  }
+
+  // 현장 정보 표시
+  if(params.title) document.getElementById('app-title').textContent = params.title;
+  document.getElementById('info-co').textContent = params.co;
+  document.getElementById('info-site').textContent = params.site;
+  document.getElementById('info-date').textContent = params.date;
+  if(params.mgr){
+    document.getElementById('info-mgr').textContent = params.mgr;
+    document.getElementById('mgr-row').style.display = '';
+  }
+
+  // 토큰 없으면 사장님 계정으로 자동 로그인 시도
+  if(!accessToken) doLogin();
+}
+
+// ── 로그인 (사장님 드라이브 접근용) ──
+function doLogin(){
+  var base = location.href.split('#')[0];
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth'
+    + '?client_id=' + CLIENT_ID
+    + '&redirect_uri=' + encodeURIComponent(base)
+    + '&response_type=token'
+    + '&scope=' + encodeURIComponent(SCOPE)
+    + '&prompt=none'; // 자동 로그인 시도 (이미 로그인된 경우 팝업 없음)
+}
+
+// ── 파일 선택 ──
+function handleFiles(files){
+  for(var i=0;i<files.length;i++) selectedFiles.push(files[i]);
+  renderPreviews();
+  updateBtn();
+}
+
+function renderPreviews(){
+  var grid = document.getElementById('preview-grid');
+  grid.innerHTML = '';
+  var show = Math.min(selectedFiles.length, 8);
+  for(var i=0;i<show;i++){
+    (function(idx){
+      var div = document.createElement('div');
+      div.className = 'preview-item';
+      var img = document.createElement('img');
+      var reader = new FileReader();
+      reader.onload = function(e){ img.src = e.target.result; };
+      reader.readAsDataURL(selectedFiles[idx]);
+      var rm = document.createElement('button');
+      rm.className = 'preview-remove';
+      rm.innerHTML = '×';
+      rm.onclick = function(e){
+        e.stopPropagation();
+        selectedFiles.splice(idx,1);
+        renderPreviews(); updateBtn();
+      };
+      div.appendChild(img); div.appendChild(rm);
+      grid.appendChild(div);
+    })(i);
+  }
+  if(selectedFiles.length > 8){
+    var more = document.createElement('div');
+    more.className = 'preview-more';
+    more.textContent = '+' + (selectedFiles.length-8) + '장';
+    more.onclick = function(){ document.getElementById('file-input').click(); };
+    grid.appendChild(more);
+  }
+  document.getElementById('upload-zone').classList.toggle('has-files', selectedFiles.length > 0);
+}
+
+function updateBtn(){
+  var btn = document.getElementById('upload-btn');
+  var txt = document.getElementById('upload-btn-text');
+  if(selectedFiles.length === 0){
+    btn.disabled = true;
+    txt.textContent = '사진을 먼저 선택해주세요';
+  } else {
+    btn.disabled = false;
+    txt.textContent = '📤 ' + selectedFiles.length + '장 업로드하기';
+  }
+}
+
+// ── 드래그앤드롭 ──
+document.addEventListener('DOMContentLoaded', function(){
+  var z = document.getElementById('upload-zone');
+  if(!z) return;
+  z.addEventListener('dragover', function(e){ e.preventDefault(); z.classList.add('drag'); });
+  z.addEventListener('dragleave', function(){ z.classList.remove('drag'); });
+  z.addEventListener('drop', function(e){
+    e.preventDefault(); z.classList.remove('drag');
+    handleFiles(e.dataTransfer.files);
+  });
+});
+
+// ── 드라이브 API ──
+function searchFolder(name, parentId, cb){
+  var q = "name='" + name.replace(/'/g,"\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+  if(parentId) q += " and '" + parentId + "' in parents";
+  fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)', {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  }).then(function(r){ return r.json(); }).then(function(d){
+    cb(d.files && d.files.length ? d.files[0].id : null);
+  }).catch(function(){ cb(null); });
+}
+
+function createFolder(name, parentId, cb){
+  fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] })
+  }).then(function(r){ return r.json(); }).then(function(d){ cb(d.id || null); }).catch(function(){ cb(null); });
+}
+
+function getOrCreate(name, parentId, cb){
+  searchFolder(name, parentId, function(id){
+    if(id) cb(id);
+    else createFolder(name, parentId, cb);
+  });
+}
+
+function uploadFile(file, folderId, cb){
+  var meta = JSON.stringify({ name: file.name, parents: [folderId] });
+  var form = new FormData();
+  form.append('metadata', new Blob([meta], { type: 'application/json' }));
+  form.append('file', file);
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+  xhr.onload = function(){ cb(xhr.status === 200); };
+  xhr.onerror = function(){ cb(false); };
+  xhr.send(form);
+}
+
+// ── 업로드 시작 ──
+function startUpload(){
+  if(!selectedFiles.length) return;
+
+  // 토큰 없으면 로그인 먼저
+  if(!accessToken){
+    doLogin();
+    return;
+  }
+
+  document.getElementById('upload-btn').disabled = true;
+  document.getElementById('err-box').style.display = 'none';
+  document.getElementById('prog-wrap').style.display = '';
+
+  // 폴더 구조: ROOT > 업체명 > 현장명 > 날짜
+  getOrCreate(params.co, ROOT_FOLDER_ID, function(coId){
+    if(!coId){ showErr('업체 폴더 생성 실패. 다시 시도해주세요.'); return; }
+    getOrCreate(params.site, coId, function(siteId){
+      if(!siteId){ showErr('현장 폴더 생성 실패. 다시 시도해주세요.'); return; }
+      getOrCreate(params.date, siteId, function(dateId){
+        if(!dateId){ showErr('날짜 폴더 생성 실패. 다시 시도해주세요.'); return; }
+        uploadAll(dateId);
+      });
+    });
+  });
+}
+
+function uploadAll(folderId){
+  var total = selectedFiles.length;
+  var done = 0, failed = 0;
+
+  function next(){
+    var idx = done + failed;
+    if(idx >= total){
+      setProgress(100, '완료!', '');
+      showSuccess(done);
+      return;
+    }
+    var file = selectedFiles[idx];
+    setProgress(Math.round(idx/total*100), (idx+1)+'/'+total+' 업로드 중...', file.name);
+    uploadFile(file, folderId, function(ok){
+      if(ok) done++; else failed++;
+      next();
+    });
+  }
+  next();
+}
+
+function setProgress(pct, text, filename){
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct + '%';
+  document.getElementById('prog-text').textContent = text;
+  document.getElementById('prog-file').textContent = filename;
+}
+
+function showSuccess(count){
+  document.getElementById('upload-card').style.display = 'none';
+  document.getElementById('success-card').style.display = '';
+  document.getElementById('success-count').textContent = count + '장';
+  document.getElementById('success-path').innerHTML =
+    '<strong>' + params.co + '</strong> › <strong>' + params.site + '</strong> › ' + params.date + '<br>폴더에 저장되었습니다 ✓';
+}
+
+function showErr(msg){
+  var el = document.getElementById('err-box');
+  el.textContent = '❌ ' + msg;
+  el.style.display = '';
+  document.getElementById('upload-btn').disabled = false;
+}
+
+function resetUpload(){
+  selectedFiles = [];
+  document.getElementById('preview-grid').innerHTML = '';
+  document.getElementById('prog-wrap').style.display = 'none';
+  document.getElementById('err-box').style.display = 'none';
+  document.getElementById('upload-zone').classList.remove('has-files');
+  document.getElementById('success-card').style.display = 'none';
+  document.getElementById('upload-card').style.display = '';
+  updateBtn();
+}
+
+init();
+</script>
+</body>
+</html>
