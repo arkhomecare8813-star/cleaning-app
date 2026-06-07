@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>현장 사진 업로드</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js"></script>
 <style>
 :root{
   --bg:#0a0a0a;--sf:#161616;--sf2:#1e1e1e;--sf3:#272727;
@@ -261,72 +262,89 @@ function startUpload(){
   var done = 0;
   var failed = 0;
 
-  // 이미지 리사이즈 + 압축 후 업로드
+  // 파일 타입 판별 → 리사이즈 → 업로드
   function resizeAndUpload(file, cb){
-    var MAX_PX = 1280;   // 최대 가로/세로
-    var QUALITY = 0.75;  // JPEG 품질 (0~1)
+    var isHeic = file.type === 'image/heic' || file.type === 'image/heif'
+      || /\.(heic|heif)$/i.test(file.name||'');
 
+    if(isHeic && typeof heic2any !== 'undefined'){
+      // HEIC → JPEG 변환 후 리사이즈
+      heic2any({ blob: file, toType: 'image/jpeg', quality: 0.75 })
+        .then(function(blob){
+          resizeBlob(blob, file, cb);
+        })
+        .catch(function(){
+          // heic2any 실패 시 원본 전송
+          sendOriginal(file, cb);
+        });
+    } else {
+      // JPG/PNG 등 일반 포맷 → 바로 리사이즈
+      resizeBlob(file, file, cb);
+    }
+  }
+
+  function resizeBlob(blob, origFile, cb){
+    var MAX_PX = 1280;
+    var QUALITY = 0.75;
+    var objectUrl = URL.createObjectURL(blob);
     var img = new Image();
-    var objectUrl = URL.createObjectURL(file);
     img.onload = function(){
       URL.revokeObjectURL(objectUrl);
       var w = img.width, h = img.height;
-
-      // 리사이즈 필요 여부 계산
       if(w > MAX_PX || h > MAX_PX){
         if(w > h){ h = Math.round(h * MAX_PX / w); w = MAX_PX; }
         else { w = Math.round(w * MAX_PX / h); h = MAX_PX; }
       }
-
       var canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
-      var ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-
-      canvas.toBlob(function(blob){
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(outBlob){
         var reader = new FileReader();
         reader.onload = function(e){
           var base64 = e.target.result.split(',')[1];
-          var origKB = Math.round(file.size/1024);
-          var newKB  = Math.round(blob.size/1024);
+          var origKB = Math.round(origFile.size/1024);
+          var newKB  = Math.round(outBlob.size/1024);
           document.getElementById('prog-file').textContent =
-            (file.name||'') + '  ' + origKB + 'KB → ' + newKB + 'KB';
-
-          var body = JSON.stringify({
-            co: params.co,
-            site: params.site,
-            date: params.date,
-            name: file.name || ('photo_' + Date.now() + '.jpg'),
-            data: base64,
-            mime: 'image/jpeg'
-          });
-          fetch(GAS_URL, {method:'POST', body:body})
-            .then(function(r){ return r.json(); })
-            .then(function(d){ if(d.ok) done++; else failed++; cb(); })
-            .catch(function(){ failed++; cb(); });
+            (origFile.name||'') + '  ' + origKB + 'KB → ' + newKB + 'KB';
+          sendToGAS(base64, cb);
         };
-        reader.readAsDataURL(blob);
+        reader.readAsDataURL(outBlob);
       }, 'image/jpeg', QUALITY);
     };
     img.onerror = function(){
-      // 리사이즈 실패 시 원본 그대로 전송
       URL.revokeObjectURL(objectUrl);
-      var reader = new FileReader();
-      reader.onload = function(e){
-        var base64 = e.target.result.split(',')[1];
-        var body = JSON.stringify({
-          co: params.co, site: params.site, date: params.date,
-          name: file.name || ('photo_' + Date.now() + '.jpg'),
-          data: base64, mime: file.type || 'image/jpeg'
-        });
-        fetch(GAS_URL, {method:'POST', body:body})
-          .then(function(r){ return r.json(); })
-          .then(function(d){ if(d.ok) done++; else failed++; cb(); })
-          .catch(function(){ failed++; cb(); });
-      };
-      reader.readAsDataURL(file);
+      sendOriginal(origFile, cb);
     };
     img.src = objectUrl;
+  }
+
+  function sendToGAS(base64, cb){
+    var body = JSON.stringify({
+      co: params.co, site: params.site, date: params.date,
+      name: ('photo_' + Date.now() + '.jpg'),
+      data: base64, mime: 'image/jpeg'
+    });
+    fetch(GAS_URL, {method:'POST', body:body})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(d.ok) done++; else failed++; cb(); })
+      .catch(function(){ failed++; cb(); });
+  }
+
+  function sendOriginal(file, cb){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var base64 = e.target.result.split(',')[1];
+      var body = JSON.stringify({
+        co: params.co, site: params.site, date: params.date,
+        name: file.name || ('photo_' + Date.now() + '.jpg'),
+        data: base64, mime: file.type || 'image/jpeg'
+      });
+      fetch(GAS_URL, {method:'POST', body:body})
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if(d.ok) done++; else failed++; cb(); })
+        .catch(function(){ failed++; cb(); });
+    };
+    reader.readAsDataURL(file);
   }
 
   var idx = 0;
