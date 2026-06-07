@@ -243,9 +243,16 @@ function updateBtn(){
 }
 
 // ── 업로드 ──
+var isUploading = false;
+
 function startUpload(){
-  if(!selectedFiles.length) return;
-  document.getElementById('upload-btn').disabled = true;
+  if(!selectedFiles.length || isUploading) return;
+  isUploading = true;
+
+  var btn = document.getElementById('upload-btn');
+  var btnText = document.getElementById('upload-btn-text');
+  btn.disabled = true;
+  btnText.textContent = '⏳ 업로드 중...';
   document.getElementById('err-box').style.display = 'none';
   document.getElementById('prog-wrap').style.display = '';
 
@@ -284,35 +291,58 @@ function startUpload(){
       onDone(done, failed);
       return;
     }
-    uploadOne(selectedFiles[idx++], next);
+    var currentFile = selectedFiles[idx++];
+    // 진행 중인 파일명 표시
+    document.getElementById('prog-file').textContent = currentFile.name || '';
+    uploadOne(currentFile, next);
   }
   next();
 }
 
 function updateProgress(done, total){
-  var pct = total > 0 ? Math.round(done/total*100) : 0;
-  var bar = document.getElementById('prog-bar');
-  var txt = document.getElementById('prog-txt');
-  if(bar) bar.style.width = pct + '%';
-  if(txt) txt.textContent = done + ' / ' + total + '장';
+  var pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-text').textContent = done + ' / ' + total + '장 업로드 중...';
+  document.getElementById('prog-pct').textContent = pct + '%';
 }
 
 function onDone(done, failed){
+  isUploading = false;
   document.getElementById('prog-wrap').style.display = 'none';
-  document.getElementById('upload-card').style.display = 'none';
+
   if(failed === 0){
-    document.getElementById('done-card').style.display = '';
-    document.getElementById('done-count').textContent = done;
+    // 완료 카드 표시, 업로드 카드 숨김
+    document.getElementById('upload-card').style.display = 'none';
+    var sc = document.getElementById('success-card');
+    sc.style.display = '';
+    document.getElementById('success-count').textContent = done + '장';
+    document.getElementById('success-path').innerHTML =
+      '<strong>' + (params.site || '') + '</strong> 현장 사진 ' + done + '장이<br>성공적으로 저장되었습니다.';
   } else {
     var eb = document.getElementById('err-box');
-    eb.textContent = done + '장 성공, ' + failed + '장 실패. 다시 시도해주세요.';
+    eb.textContent = done + '장 성공, ' + failed + '장 실패. 실패한 사진을 다시 업로드해주세요.';
     eb.style.display = '';
     document.getElementById('upload-card').style.display = '';
-    document.getElementById('upload-btn').disabled = false;
+    var btn = document.getElementById('upload-btn');
+    btn.disabled = false;
+    document.getElementById('upload-btn-text').textContent = '📤 다시 업로드';
   }
 }
 
-// 드래그앤드롭
+// ── 초기화 (추가 업로드용) ──
+function resetUpload(){
+  selectedFiles = [];
+  document.getElementById('preview-grid').innerHTML = '';
+  document.getElementById('upload-zone').classList.remove('has-files');
+  document.getElementById('err-box').style.display = 'none';
+  document.getElementById('prog-wrap').style.display = 'none';
+  document.getElementById('success-card').style.display = 'none';
+  document.getElementById('upload-card').style.display = '';
+  document.getElementById('file-input').value = '';
+  updateBtn();
+}
+
+// ── 드래그앤드롭 ──
 function initDrop(){
   var zone = document.getElementById('upload-zone');
   if(!zone) return;
