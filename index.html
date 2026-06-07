@@ -2429,37 +2429,16 @@ function selectAllReportSites(state){
   document.querySelectorAll('[data-co]').forEach(function(el){ el.checked = state; });
 }
 
-// ── Drive API: 폴더 ID 검색 → 파일 목록 → 공유 링크 조회 ──
-function driveSearchFolder(name, parentId){
-  var q = 'mimeType="application/vnd.google-apps.folder" and name="'+name+'" and trashed=false'
-    + (parentId ? ' and "'+parentId+'" in parents' : '');
-  return fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)',{
-    headers:{ Authorization:'Bearer '+googleAccessToken }
-  }).then(function(r){return r.json();}).then(function(d){
-    return (d.files && d.files.length) ? d.files[0].id : null;
-  });
-}
-function driveListFiles(folderId){
-  var q = '"'+folderId+'" in parents and mimeType!="application/vnd.google-apps.folder" and trashed=false';
-  return fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,webViewLink)&pageSize=50',{
-    headers:{ Authorization:'Bearer '+googleAccessToken }
-  }).then(function(r){return r.json();}).then(function(d){
-    return d.files || [];
-  });
-}
-
-// 현장+날짜 → Drive 파일 목록 반환 (Promise)
-// 폴더 구조: appTitle > company > site > date
-function getDrivePhotos(company, siteName, dateStr){
-  return driveSearchFolder(appTitle, null)
-    .then(function(rootId){ return rootId ? driveSearchFolder(company, rootId) : null; })
-    .then(function(coId){ return coId ? driveSearchFolder(siteName, coId) : null; })
-    .then(function(siteId){ return siteId ? driveSearchFolder(dateStr, siteId) : null; })
-    .then(function(dateId){ return dateId ? driveListFiles(dateId) : []; })
+// ── Firebase photoFiles 조회 ──
+// GAS가 업로드 후 저장한 경로: /data/photoFiles/{date}/{siteId}
+function fbGetPhotoFiles(dateStr, siteId){
+  return fetch(FB_URL + '/data/photoFiles/' + dateStr + '/' + siteId + '.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ return (d && d.files) ? d.files : []; })
     .catch(function(){ return []; });
 }
 
-// ── 보고 본문 빌드 (Drive 사진 링크 포함, async) ──
+// ── 보고 본문 빌드 (Firebase photoFiles 링크 포함, async) ──
 function _buildReportContentAsync(callback){
   var selectedSiteList = sites.filter(function(s){ return _reportSelectedSites[s.id]; });
   if(!selectedSiteList.length){ callback(null); return; }
@@ -2469,11 +2448,9 @@ function _buildReportContentAsync(callback){
     ? _reportSelectedDates[0]
     : _reportSelectedDates[0]+' ~ '+_reportSelectedDates[_reportSelectedDates.length-1]+' ('+_reportSelectedDates.length+'일)';
 
-  // 모든 현장×날짜 조합의 Drive 조회를 병렬로
   var tasks = [];
   cos.forEach(function(co){
-    var coSites = selectedSiteList.filter(function(s){return s.company===co;});
-    coSites.forEach(function(s){
+    selectedSiteList.filter(function(s){return s.company===co;}).forEach(function(s){
       _reportSelectedDates.forEach(function(dateStr){
         var dow = getDayOfWeek(dateStr);
         if(!s.days || !s.days.includes(dow)) return;
@@ -2482,20 +2459,17 @@ function _buildReportContentAsync(callback){
     });
   });
 
-  if(!tasks.length){ callback({ text:'선택한 날짜에 해당 현장 작업일이 없습니다.', dateLabel:dateLabel, cos:cos }); return; }
+  if(!tasks.length){
+    callback({ text:'선택한 날짜에 해당 현장 작업일이 없습니다.', dateLabel:dateLabel, cos:cos });
+    return;
+  }
 
   var results = new Array(tasks.length);
   var remaining = tasks.length;
 
   tasks.forEach(function(task, i){
-    var photoInfo = (reportPhotoData[task.dateStr]||{})[task.site.id]||{photos:0};
-    if(!isGoogleLoggedIn()){
-      // Google 미로그인: Firebase 카운트만 사용
-      results[i] = { task:task, files:[], count: photoInfo.photos };
-      if(--remaining === 0) buildText();
-      return;
-    }
-    getDrivePhotos(task.co, task.site.site, task.dateStr).then(function(files){
+    fbGetPhotoFiles(task.dateStr, task.site.id).then(function(files){
+      var photoInfo = (reportPhotoData[task.dateStr]||{})[task.site.id]||{photos:0};
       results[i] = { task:task, files:files, count: photoInfo.photos };
       if(--remaining === 0) buildText();
     });
@@ -2513,15 +2487,12 @@ function _buildReportContentAsync(callback){
       var photoCount = r.files.length || r.count;
       var status = photoCount > 0 ? '✅ '+photoCount+'장' : '❌ 미보고';
       lines.push('  📍 '+r.task.site.site+' ('+r.task.dateStr+') '+status);
-      if(r.files.length){
-        r.files.forEach(function(f){
-          lines.push('    🔗 '+f.name+': '+f.webViewLink);
-        });
-      }
+      r.files.forEach(function(f){
+        lines.push('    🔗 '+f.name+': '+f.url);
+      });
     });
     lines.push('');
-    lines.push('—');
-    lines.push(appTitle+' 앱에서 자동 발송');
+    lines.push('— '+appTitle);
     callback({ text: lines.join('\n'), dateLabel: dateLabel, cos: cos });
   }
 }
@@ -2546,7 +2517,7 @@ function doSendEmail(){
   }
 
   var btn = document.getElementById('email-send-btn');
-  btn.textContent='📂 Drive 조회 중...'; btn.disabled=true;
+  btn.textContent='⏳ 링크 불러오는 중...'; btn.disabled=true;
 
   _buildReportContentAsync(function(content){
     if(!content){
@@ -2581,50 +2552,30 @@ function doSendEmail(){
   });
 }
 
-// ── 카카오톡 공유 (Web Share API → 네이티브 공유 시트) ──
+// ── 카카오톡 공유 (Web Share API, Firebase 링크 포함) ──
 function doShareKakao(){
   if(!_reportSelectedDates.length){ showToast('날짜를 하나 이상 추가해주세요.'); return; }
   var selectedCount = Object.values(_reportSelectedSites).filter(Boolean).length;
   if(!selectedCount){ showToast('현장을 하나 이상 선택해주세요.'); return; }
 
-  // 텍스트 빌드 (Drive 조회 없이 Firebase 카운트 기준으로 빠르게)
-  var selectedSiteList = sites.filter(function(s){ return _reportSelectedSites[s.id]; });
-  var cos = [...new Set(selectedSiteList.map(function(s){return s.company;}))].sort();
-  var dateLabel = _reportSelectedDates.length===1
-    ? _reportSelectedDates[0]
-    : _reportSelectedDates[0]+' ~ '+_reportSelectedDates[_reportSelectedDates.length-1]+' ('+_reportSelectedDates.length+'일)';
+  showToast('⏳ 사진 링크 불러오는 중...');
 
-  var lines = ['📋 청소 보고 — '+dateLabel, ''];
-  cos.forEach(function(co){
-    var coSites = selectedSiteList.filter(function(s){return s.company===co;});
-    lines.push('🏢 '+co);
-    coSites.forEach(function(s){
-      _reportSelectedDates.forEach(function(dateStr){
-        var dow = getDayOfWeek(dateStr);
-        if(!s.days || !s.days.includes(dow)) return;
-        var info = (reportPhotoData[dateStr]||{})[s.id]||{photos:0};
-        var status = info.photos > 0 ? '✅ '+info.photos+'장' : '❌ 미보고';
-        lines.push('  📍 '+s.site+' ('+dateStr+') '+status);
+  _buildReportContentAsync(function(content){
+    if(!content){ showToast('❌ 내용을 생성할 수 없습니다.'); return; }
+    var text = content.text;
+
+    if(navigator.share){
+      navigator.share({ title: appTitle+' 청소 보고', text: text })
+        .then(function(){ showToast('✅ 공유 완료!'); })
+        .catch(function(e){ if(e.name!=='AbortError') _showCopyFallback(text); });
+    } else {
+      navigator.clipboard.writeText(text).then(function(){
+        showToast('📋 보고 내용이 복사됐어요!\n카카오톡에 붙여넣기 하세요.');
+      }).catch(function(){
+        _showCopyFallback(text);
       });
-    });
-    lines.push('');
+    }
   });
-  lines.push('— '+appTitle);
-  var text = lines.join('\n');
-
-  // Web Share API (모바일에서 카카오톡 등 앱 선택 가능)
-  if(navigator.share){
-    navigator.share({ title: appTitle+' 청소 보고', text: text })
-      .then(function(){ showToast('✅ 공유 완료!'); })
-      .catch(function(e){ if(e.name!=='AbortError') _showCopyFallback(text); });
-  } else {
-    // PC 등 Web Share 미지원 → 클립보드 복사
-    navigator.clipboard.writeText(text).then(function(){
-      showToast('📋 보고 내용이 복사됐어요!\n카카오톡에 붙여넣기 하세요.');
-    }).catch(function(){
-      _showCopyFallback(text);
-    });
-  }
 }
 
 function _showCopyFallback(text){
