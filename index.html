@@ -2272,12 +2272,20 @@ function sendReportEmail(){
 // ── 보고 발송 모달 ──
 var _reportSelectedDates = [];
 var _reportSelectedSites = {};
+var _calPickerYear, _calPickerMonth;
+var _calRangeStart = null, _calRangeEnd = null;
 
 function openEmailModal(){
   var baseDateStr = (document.getElementById('report-date').value||todayStr());
+  // 기본: 오늘 하루
+  _calRangeStart = baseDateStr;
+  _calRangeEnd   = baseDateStr;
   _reportSelectedDates = [baseDateStr];
   _reportSelectedSites = {};
   sites.forEach(function(s){ _reportSelectedSites[s.id] = true; });
+  var d = new Date(baseDateStr+'T00:00:00');
+  _calPickerYear  = d.getFullYear();
+  _calPickerMonth = d.getMonth();
   _renderReportModal();
 }
 
@@ -2286,16 +2294,128 @@ function closeEmailModal(){
   if(w) w.remove();
 }
 
+// 범위 내 모든 날짜 배열 생성
+function _datesInRange(start, end){
+  if(!start || !end) return start ? [start] : [];
+  var s = new Date(start+'T00:00:00'), e = new Date(end+'T00:00:00');
+  if(s > e){ var t=s; s=e; e=t; }
+  var arr = [];
+  for(var d=new Date(s); d<=e; d.setDate(d.getDate()+1)){
+    arr.push(d.toISOString().slice(0,10));
+  }
+  return arr;
+}
+
+// 캘린더 픽커 렌더
+function _renderCalPicker(){
+  var el = document.getElementById('cal-picker-grid');
+  if(!el) return;
+  var yr = _calPickerYear, mo = _calPickerMonth;
+  var firstDay = new Date(yr, mo, 1).getDay();
+  var daysInMonth = new Date(yr, mo+1, 0).getDate();
+  var rangeArr = _datesInRange(_calRangeStart, _calRangeEnd);
+  var rangeSet = {};
+  rangeArr.forEach(function(d){ rangeSet[d]=true; });
+  var s = _calRangeStart && _calRangeEnd
+    ? (_calRangeStart < _calRangeEnd ? _calRangeStart : _calRangeEnd) : _calRangeStart;
+  var e = _calRangeStart && _calRangeEnd
+    ? (_calRangeStart > _calRangeEnd ? _calRangeStart : _calRangeEnd) : _calRangeEnd;
+
+  var html = '';
+  // 요일 헤더
+  ['일','월','화','수','목','금','토'].forEach(function(d,i){
+    html += '<div style="text-align:center;font-size:10px;font-weight:700;padding:5px 0;color:'+(i===0?'#ff8fa0':i===6?'#7ab8ff':'#777')+';">'+d+'</div>';
+  });
+  // 빈칸
+  for(var i=0;i<firstDay;i++) html+='<div></div>';
+  // 날짜
+  for(var day=1;day<=daysInMonth;day++){
+    var ds = yr+'-'+(mo+1<10?'0':'')+(mo+1)+'-'+(day<10?'0':'')+day;
+    var isStart = ds===s, isEnd = ds===e, inRange = rangeSet[ds];
+    var isToday = ds===todayStr();
+    var bg='transparent', color='#f0f0f0', border='transparent', radius='50%';
+    if(isStart||isEnd){ bg='#00e5a0'; color='#000'; border='#00e5a0'; }
+    else if(inRange){ bg='rgba(0,229,160,0.18)'; color='#00e5a0'; radius='0'; }
+    if(isStart && isEnd){ radius='50%'; }
+    else if(isStart){ radius='50% 0 0 50%'; }
+    else if(isEnd){ radius='0 50% 50% 0'; }
+    html += '<div onclick="calPickerClick(\''+ds+'\')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;height:32px;border-radius:'+radius+';background:'+bg+';color:'+(isToday&&!inRange?'#00e5a0':color)+';font-size:13px;font-weight:'+(isStart||isEnd?'900':'500')+';position:relative;transition:background 0.1s;"'
+      +' onmouseenter="this.style.filter=\'brightness(1.2)\'" onmouseleave="this.style.filter=\'\'">'
+      +(isToday&&!inRange?'<span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#00e5a0;"></span>':'')
+      +day+'</div>';
+  }
+  el.innerHTML = html;
+
+  // 헤더 타이틀 업데이트
+  var titleEl = document.getElementById('cal-picker-title');
+  if(titleEl) titleEl.textContent = yr+'년 '+(mo+1)+'월';
+
+  // 선택 범위 요약 업데이트
+  var summEl = document.getElementById('cal-picker-summary');
+  if(summEl){
+    if(s && e && s!==e){
+      var cnt = _datesInRange(s,e).length;
+      summEl.textContent = s+' ~ '+e+' ('+cnt+'일)';
+      summEl.style.color='#00e5a0';
+    } else if(s){
+      summEl.textContent = s;
+      summEl.style.color='#00e5a0';
+    } else {
+      summEl.textContent = '날짜를 선택하세요';
+      summEl.style.color='#555';
+    }
+  }
+}
+
+function calPickerClick(ds){
+  if(!_calRangeStart || (_calRangeStart && _calRangeEnd && _calRangeStart!==_calRangeEnd)){
+    // 새 범위 시작
+    _calRangeStart = ds; _calRangeEnd = null;
+  } else if(_calRangeStart && !_calRangeEnd){
+    // 종료일 설정
+    _calRangeEnd = ds;
+  } else {
+    // 같은 날 다시 클릭 → 리셋
+    _calRangeStart = ds; _calRangeEnd = null;
+  }
+  _renderCalPicker();
+}
+
+function calPickerPrev(){
+  _calPickerMonth--;
+  if(_calPickerMonth<0){ _calPickerMonth=11; _calPickerYear--; }
+  _renderCalPicker();
+}
+function calPickerNext(){
+  _calPickerMonth++;
+  if(_calPickerMonth>11){ _calPickerMonth=0; _calPickerYear++; }
+  _renderCalPicker();
+}
+function calPickerConfirm(){
+  var s = _calRangeStart, e = _calRangeEnd||_calRangeStart;
+  if(!s){ showToast('날짜를 선택해주세요.'); return; }
+  _reportSelectedDates = _datesInRange(s,e);
+  // 팝업 닫고 모달 날짜 요약 업데이트
+  var popup = document.getElementById('cal-picker-popup');
+  if(popup) popup.style.display='none';
+  _updateDateSummary();
+}
+
+function _updateDateSummary(){
+  var el = document.getElementById('report-date-summary');
+  if(!el) return;
+  var arr = _reportSelectedDates;
+  if(!arr.length){ el.textContent='날짜 미선택'; el.style.color='#555'; return; }
+  if(arr.length===1){ el.textContent=arr[0]; }
+  else { el.textContent=arr[0]+' ~ '+arr[arr.length-1]+' ('+arr.length+'일)'; }
+  el.style.color='#00e5a0';
+}
+
 function _renderReportModal(){
   var existing = document.getElementById('email-modal-wrap');
   if(existing) existing.remove();
 
   var cos = [...new Set(sites.map(function(s){return s.company;}))].sort();
-
-  var dateChipsHtml = _reportSelectedDates.map(function(d){
-    return '<span style="display:inline-flex;align-items:center;gap:5px;background:#004d36;color:#00e5a0;border:1px solid #00e5a0;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:700;font-family:DM Mono,monospace;">'
-      +d+'<span onclick="removeReportDate(\''+d+'\')" style="cursor:pointer;font-size:14px;line-height:1;opacity:0.7;margin-left:2px;">×</span></span>';
-  }).join('');
 
   var coListHtml = cos.map(function(co){
     var col = getCompanyColor(co);
@@ -2322,22 +2442,45 @@ function _renderReportModal(){
       +'</div>';
   }).join('');
 
+  // 초기 날짜 요약
+  var initSummary = _reportSelectedDates.length===1
+    ? _reportSelectedDates[0]
+    : _reportSelectedDates[0]+' ~ '+_reportSelectedDates[_reportSelectedDates.length-1]+' ('+_reportSelectedDates.length+'일)';
+
   var html = '<div id="email-modal-wrap" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:600;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(8px);">'
     +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">'
 
+    // 타이틀
     +'<div style="display:flex;align-items:center;justify-content:space-between;">'
     +'<div style="font-size:15px;font-weight:800;color:#00e5a0;">📤 보고 발송</div>'
     +'<button onclick="closeEmailModal()" style="width:30px;height:30px;border-radius:50%;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:15px;cursor:pointer;">✕</button>'
     +'</div>'
 
-    +'<div>'
-    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">📅 날짜 선택 <span style="font-size:10px;color:#555;">(여러 날짜 가능)</span></div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;" id="report-date-chips">'+dateChipsHtml+'</div>'
-    +'<div style="display:flex;gap:8px;align-items:center;">'
-    +'<input type="date" id="report-add-date" style="flex:1;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;color-scheme:dark;" value="'+todayStr()+'">'
-    +'<button onclick="addReportDate()" style="padding:8px 14px;border-radius:8px;border:1px solid #004d36;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ 추가</button>'
-    +'</div></div>'
+    // 날짜 선택 버튼 + 캘린더 팝업
+    +'<div style="position:relative;">'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">📅 날짜 범위 선택</div>'
+    +'<button onclick="toggleCalPicker()" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:\'Noto Sans KR\',sans-serif;">'
+    +'<span id="report-date-summary" style="color:#00e5a0;">'+initSummary+'</span>'
+    +'<span style="color:#555;font-size:11px;">📅 변경</span>'
+    +'</button>'
 
+    // 캘린더 팝업
+    +'<div id="cal-picker-popup" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#1a1a1a;border:1px solid #2c2c2c;border-radius:14px;padding:16px;z-index:10;box-shadow:0 8px 32px rgba(0,0,0,0.6);">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+    +'<button onclick="calPickerPrev()" style="width:32px;height:32px;border-radius:8px;border:1px solid #2c2c2c;background:#272727;color:#f0f0f0;font-size:13px;cursor:pointer;">◀</button>'
+    +'<div id="cal-picker-title" style="font-size:14px;font-weight:800;font-family:DM Mono,monospace;"></div>'
+    +'<button onclick="calPickerNext()" style="width:32px;height:32px;border-radius:8px;border:1px solid #2c2c2c;background:#272727;color:#f0f0f0;font-size:13px;cursor:pointer;">▶</button>'
+    +'</div>'
+    +'<div id="cal-picker-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:12px;"></div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid #2c2c2c;margin-bottom:10px;">'
+    +'<div style="font-size:11px;color:#555;">시작일 탭 → 종료일 탭</div>'
+    +'<div id="cal-picker-summary" style="font-size:12px;font-weight:700;font-family:DM Mono,monospace;color:#555;">날짜를 선택하세요</div>'
+    +'</div>'
+    +'<button onclick="calPickerConfirm()" style="width:100%;padding:10px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:14px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">✅ 완료</button>'
+    +'</div>'
+    +'</div>'
+
+    // 업체/현장 선택
     +'<div>'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
     +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;">🏢 업체 / 현장 선택</div>'
@@ -2348,6 +2491,7 @@ function _renderReportModal(){
     +'<div id="report-co-list">'+coListHtml+'</div>'
     +'</div>'
 
+    // 수신자 이메일
     +'<div>'
     +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">📧 수신자 이메일</div>'
     +'<input id="email-to" type="email" placeholder="example@email.com" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:13px;outline:none;">'
@@ -2366,31 +2510,25 @@ function _renderReportModal(){
   wrap.id = 'email-modal-wrap';
   wrap.innerHTML = html;
   document.body.appendChild(wrap);
+
+  // 캘린더 초기 렌더
+  _renderCalPicker();
 }
 
-// 날짜 추가/제거
-function addReportDate(){
-  var inp = document.getElementById('report-add-date');
-  if(!inp) return;
-  var d = inp.value;
-  if(!d){ showToast('날짜를 선택해주세요.'); return; }
-  if(_reportSelectedDates.indexOf(d) > -1){ showToast('이미 추가된 날짜입니다.'); return; }
-  _reportSelectedDates.push(d);
-  _reportSelectedDates.sort();
-  _updateDateChips();
+function toggleCalPicker(){
+  var popup = document.getElementById('cal-picker-popup');
+  if(!popup) return;
+  popup.style.display = popup.style.display==='none' ? '' : 'none';
+  if(popup.style.display!=='none') _renderCalPicker();
 }
+
+// 날짜 추가/제거 (레거시 호환, 미사용)
+function addReportDate(){}
 function removeReportDate(d){
   _reportSelectedDates = _reportSelectedDates.filter(function(x){return x!==d;});
-  _updateDateChips();
+  _updateDateSummary();
 }
-function _updateDateChips(){
-  var el = document.getElementById('report-date-chips');
-  if(!el) return;
-  el.innerHTML = _reportSelectedDates.map(function(d){
-    return '<span style="display:inline-flex;align-items:center;gap:5px;background:#004d36;color:#00e5a0;border:1px solid #00e5a0;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:700;font-family:DM Mono,monospace;">'
-      +d+'<span onclick="removeReportDate(\''+d+'\')" style="cursor:pointer;font-size:14px;line-height:1;opacity:0.7;margin-left:2px;">×</span></span>';
-  }).join('');
-}
+function _updateDateChips(){}
 
 function toggleReportCompany(co){
   var coSites = sites.filter(function(s){return s.company===co;});
