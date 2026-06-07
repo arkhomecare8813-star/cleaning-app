@@ -1861,14 +1861,50 @@ renderAll();
 </script>
 <script src="https://accounts.google.com/gsi/client"></script>
 <script>
-// GSI 로드 완료 후 버튼 바인딩
-(function waitForGSI(){
-  if(typeof google !== 'undefined' && google.accounts){
-    var btn = document.getElementById('glogin-btn-real');
-    if(btn) btn.onclick = googleLogin;
-  } else {
-    setTimeout(waitForGSI, 100);
-  }
+window.onGoogleLibraryLoad = function(){
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: function(response){ googleLoginWithCredential(response); }
+  });
+  google.accounts.oauth2 && renderGoogleBtn();
+};
+function renderGoogleBtn(){
+  var c = document.getElementById('g_id_signin_container');
+  if(c) google.accounts.id.renderButton(c, {
+    theme:'filled_black', size:'medium', text:'signin_with', shape:'rectangular'
+  });
+}
+// Token client 방식 (Drive/Gmail scope용)
+function googleLogin(){
+  if(typeof google === 'undefined'){ showToast('Google 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+  var client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPES,
+    callback: function(resp){
+      if(resp.error){ showToast('❌ Google 로그인 실패: ' + resp.error); return; }
+      googleAccessToken = resp.access_token;
+      googleTokenExpiry = Date.now() + (resp.expires_in * 1000);
+      localStorage.setItem('g-token', googleAccessToken);
+      localStorage.setItem('g-token-exp', googleTokenExpiry.toString());
+      updateGoogleUI(true);
+      showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
+    }
+  });
+  client.requestAccessToken({prompt:'consent'});
+}
+(function waitGSI(){
+  if(typeof google !== 'undefined' && google.accounts && google.accounts.oauth2){
+    var c = document.getElementById('g_id_signin_container');
+    if(c){ 
+      c.innerHTML = '';
+      var btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.style = 'min-height:34px;font-size:12px;padding:6px 14px;';
+      btn.innerHTML = '&#128279; Google 로그인';
+      btn.onclick = googleLogin;
+      c.appendChild(btn);
+    }
+  } else { setTimeout(waitGSI, 200); }
 })();
 </script>
 </body>
