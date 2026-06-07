@@ -158,6 +158,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <script>
 // ── 설정 ──
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxCmXc0Ad4prYecIhThnfiH6FqybBVi78GTsU23EfXJC_wJUiGifI2QLzCdS1IlWs_z/exec';
+var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 
 var params = {};
 var selectedFiles = [];
@@ -311,6 +312,24 @@ function onDone(done, failed){
   document.getElementById('prog-wrap').style.display = 'none';
 
   if(failed === 0){
+    // Firebase에 보고 완료 기록 (/data/photos/{date}/{siteId} 구조)
+    if(params.siteId && params.date && FB_URL){
+      var fbPath = FB_URL + '/data/photos/' + params.date + '/' + params.siteId + '.json';
+      fetch(fbPath)
+        .then(function(r){ return r.json(); })
+        .then(function(existing){
+          var prev = (existing && existing.photos) ? existing.photos : 0;
+          return fetch(fbPath, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ photos: prev + done, lastUpload: new Date().toISOString() })
+          });
+        })
+        .catch(function(){
+          // Firebase 실패해도 UI는 정상 표시
+        });
+    }
+
     // 완료 카드 표시, 업로드 카드 숨김
     document.getElementById('upload-card').style.display = 'none';
     var sc = document.getElementById('success-card');
