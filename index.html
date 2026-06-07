@@ -9,6 +9,16 @@
 <script>
 var GOOGLE_CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googleusercontent.com';
 var DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send';
+function googleLogin(){
+  var base = location.href.split('#')[0].split('?')[0];
+  var url = 'https://accounts.google.com/o/oauth2/v2/auth'
+    + '?client_id=' + GOOGLE_CLIENT_ID
+    + '&redirect_uri=' + encodeURIComponent(base)
+    + '&response_type=token'
+    + '&scope=' + encodeURIComponent(DRIVE_SCOPES)
+    + '&prompt=consent';
+  window.location.href = url;
+}
 </script>
 
 <style>
@@ -815,16 +825,6 @@ function isGoogleLoggedIn(){
   return googleAccessToken && Date.now() < googleTokenExpiry;
 }
 
-function googleLogin(){
-  var base = location.href.split('#')[0].split('?')[0];
-  var url = 'https://accounts.google.com/o/oauth2/v2/auth'
-    + '?client_id=' + GOOGLE_CLIENT_ID
-    + '&redirect_uri=' + encodeURIComponent(base)
-    + '&response_type=token'
-    + '&scope=' + encodeURIComponent(DRIVE_SCOPES)
-    + '&prompt=consent';
-  window.location.href = url;
-}
 
 // 페이지 로드시 URL에서 토큰 파싱
 (function parseTokenFromUrl(){
