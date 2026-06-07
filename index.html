@@ -14,7 +14,7 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
-var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '현장작업 종료후 아래 링크 클릭후\n현장 사진들을 업로드해주세요!\n\n{link}';
+var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n아래 링크에서 사진을 업로드해주세요!\n\n{link}';
 function saveSmsTemplate(t){ SMS_TEMPLATE=t; localStorage.setItem('cm-sms-template',t); }
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
@@ -1286,7 +1286,12 @@ function makeUploadLink(site, dateStr){
 }
 function makeSmsBody(site, dateStr){
   var link = makeUploadLink(site, dateStr);
-  var body = SMS_TEMPLATE.replace('{link}', link);
+  var body = SMS_TEMPLATE
+    .replace('{link}', link)
+    .replace('{date}', dateStr)
+    .replace('{site}', site.site||'')
+    .replace('{manager}', site.manager||'담당자')
+    .replace('{company}', site.company||'');
   return encodeURIComponent(body);
 }
 
@@ -1353,7 +1358,7 @@ function renderReport(){
       if(!isWork){bc='#2c2c2c';bg='transparent';badge='—';}
       else if(isExcluded){bc='#333';bg='rgba(255,255,255,0.01)';badge='📵';}
       else if(hasPhoto){bc='#00e5a0';bg='rgba(0,229,160,0.05)';badge='✅';}
-      else{bc='#ff4d6d';bg='rgba(255,77,109,0.06)';badge='❌';}
+      else{bc='#ff4d6d';bg='rgba(255,77,109,0.06)';badge='<span style="font-size:11px;font-weight:800;color:#ff4d6d;">미보고</span>';}
       cards+='<div style="border-radius:10px;padding:13px 14px;border:1px solid '+bc+';background:'+bg+';display:flex;flex-direction:column;gap:7px;">';
       cards+='<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
         +'<div>'
@@ -1361,7 +1366,7 @@ function renderReport(){
         +(s.manager?'<div style="font-size:11px;color:#777;margin-top:2px;">👤 '+s.manager+'</div>':'')
         +(s.phone?'<div style="font-size:11px;color:#777;">📞 '+s.phone+'</div>':'')
         +'</div>'
-        +'<div style="font-size:22px;line-height:1;">'+badge+'</div>'
+        +'<div style="line-height:1;padding-top:2px;">'+badge+'</div>'
         +'</div>';
       if(hasPhoto){cards+='<div style="background:rgba(0,229,160,0.12);border-radius:7px;padding:6px 10px;font-size:12px;color:#00e5a0;font-weight:700;">📷 '+info.photos+'장 업로드 완료</div>';}
       if(isWork&&!isExcluded){
@@ -1555,7 +1560,7 @@ function openSmsTemplateModal(){
   var box=document.createElement('div');
   box.style.cssText='background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:22px;width:100%;max-width:420px;';
   var title=document.createElement('div');title.style.cssText='font-size:15px;font-weight:800;margin-bottom:6px;color:#00e5a0;';title.textContent='⚙️ 문자 양식 수정';box.appendChild(title);
-  var hint=document.createElement('div');hint.style.cssText='font-size:11px;color:#777;margin-bottom:14px;line-height:1.6;';hint.textContent='{link} 위치에 업로드 링크가 자동 삽입됩니다.';box.appendChild(hint);
+  var hint=document.createElement('div');hint.style.cssText='font-size:11px;color:#777;margin-bottom:14px;line-height:1.6;';hint.textContent='{link}=업로드링크  {date}=날짜  {site}=현장명  {manager}=담당자  {company}=업체명';box.appendChild(hint);
   var ta=document.createElement('textarea');ta.id='sms-tpl-ta';
   ta.style.cssText='width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:14px;outline:none;resize:vertical;min-height:120px;font-family:Noto Sans KR,sans-serif;line-height:1.7;';
   ta.value=SMS_TEMPLATE.replace(/%0A/g,'\n');
