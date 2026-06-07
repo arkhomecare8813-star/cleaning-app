@@ -832,8 +832,10 @@ function isGoogleLoggedIn(){
   if(hash && hash.includes('access_token')){
     const params = {};
     hash.substring(1).split('&').forEach(p => {
-      const kv = p.split('=');
-      params[kv[0]] = kv[1];
+      const idx = p.indexOf('=');
+      if(idx > -1){
+        params[p.substring(0,idx)] = decodeURIComponent(p.substring(idx+1));
+      }
     });
     if(params.access_token){
       googleAccessToken = params.access_token;
@@ -841,8 +843,10 @@ function isGoogleLoggedIn(){
       localStorage.setItem('g-token', googleAccessToken);
       localStorage.setItem('g-token-exp', googleTokenExpiry.toString());
       history.replaceState({}, document.title, location.pathname);
-      updateGoogleUI(true);
-      showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
+      setTimeout(function(){
+        updateGoogleUI(true);
+        showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
+      }, 500);
     }
   }
 })();
