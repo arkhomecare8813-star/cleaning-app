@@ -192,7 +192,11 @@ function init(){
       accessToken = hp.access_token;
       sessionStorage.setItem('up-token', accessToken);
       sessionStorage.setItem('up-exp', String(Date.now() + parseInt(hp.expires_in||3600)*1000));
-      history.replaceState({}, '', location.pathname + location.search);
+      var savedParams = sessionStorage.getItem('up-params')||'';
+      sessionStorage.removeItem('up-params');
+      var newUrl = location.pathname + savedParams;
+      history.replaceState({}, '', newUrl);
+      if(savedParams) { location.replace(newUrl); return; }
     }
   }
 
@@ -225,7 +229,8 @@ function init(){
 
 // ── 로그인 (사장님 드라이브 접근용) ──
 function doLogin(){
-  var base = location.href.split('?')[0].split('#')[0];
+  var base = location.origin + location.pathname;
+  if(location.search) sessionStorage.setItem('up-params', location.search);
   window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth'
     + '?client_id=' + CLIENT_ID
     + '&redirect_uri=' + encodeURIComponent(base)
