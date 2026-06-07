@@ -436,7 +436,7 @@ main{padding:18px 14px;max-width:1400px;}
         </div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button id="google-login-btn" class="btn btn-primary" style="min-height:34px;font-size:12px;padding:6px 14px;" onclick="googleLogin()">&#128279; Google 로그인</button>
+        <button id="google-login-btn" class="btn btn-primary" style="min-height:34px;font-size:12px;padding:6px 14px;" id="glogin-btn-real">&#128279; Google 로그인</button>
         <button id="google-logout-btn" class="btn btn-ghost" style="min-height:34px;font-size:12px;padding:6px 14px;display:none;" onclick="googleLogout()">로그아웃</button>
       </div>
     </div>
@@ -812,6 +812,7 @@ function isGoogleLoggedIn(){
 }
 
 function googleLogin(){
+  // 버튼 클릭 이벤트도 여기서 처리
   if(typeof google === 'undefined'){ showToast('Google 라이브러리 로딩 중... 잠시 후 다시 시도해주세요.'); return; }
   const client = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
@@ -1859,5 +1860,16 @@ renderAll();
 
 </script>
 <script src="https://accounts.google.com/gsi/client"></script>
+<script>
+// GSI 로드 완료 후 버튼 바인딩
+(function waitForGSI(){
+  if(typeof google !== 'undefined' && google.accounts){
+    var btn = document.getElementById('glogin-btn-real');
+    if(btn) btn.onclick = googleLogin;
+  } else {
+    setTimeout(waitForGSI, 100);
+  }
+})();
+</script>
 </body>
 </html>
