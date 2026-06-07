@@ -2097,6 +2097,7 @@ function makeUploadLink(site, dateStr){
     + '?co=' + encodeURIComponent(site.company)
     + '&site=' + encodeURIComponent(site.site)
     + '&date=' + encodeURIComponent(dateStr)
+    + '&siteId=' + encodeURIComponent(site.id)
     + '&title=' + encodeURIComponent(appTitle);
   if(site.manager) url += '&mgr=' + encodeURIComponent(site.manager);
   return url;
