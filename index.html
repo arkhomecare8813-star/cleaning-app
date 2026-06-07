@@ -369,6 +369,7 @@ main{padding:18px 14px;max-width:1400px;}
         <div class="form-group"><label>연락처</label><input type="tel" id="f-phone" placeholder="010-0000-0000"></div>
         <div class="form-group"><label>사업자등록번호</label><input type="text" id="f-bizno" placeholder="예: 123-45-67890"></div>
         <div class="form-group"><label>이메일 / 주민등록번호</label><input type="text" id="f-email" placeholder="예: abc@company.com 또는 000000-0000000"></div>
+        <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="f-startdate" style="color-scheme:dark;"></div>
       </div>
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:12px;min-width:0;">
         <div class="form-group"><label>현장 주소</label><input type="text" id="f-addr" placeholder="예: 서울시 강남구 테헤란로 123"></div>
@@ -563,6 +564,7 @@ main{padding:18px 14px;max-width:1400px;}
       <div class="form-group"><label>연락처</label><input type="tel" id="e-phone"></div>
       <div class="form-group"><label>사업자등록번호</label><input type="text" id="e-bizno"></div>
       <div class="form-group"><label>이메일 / 주민등록번호</label><input type="text" id="e-email"></div>
+      <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="e-startdate" style="color-scheme:dark;"></div>
     </div>
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:12px;min-width:0;">
       <div class="form-group"><label>현장 주소</label><input type="text" id="e-addr"></div>
@@ -792,7 +794,7 @@ function closeConfirm(){document.getElementById('confirm-overlay').classList.rem
 
 // ADD SITE
 function resetForm(){
-  ['f-co','f-site','f-mgr','f-phone','f-addr','f-bizno','f-email','f-bank','f-account','f-price-main','f-price-sub','f-memo'].forEach(function(id){document.getElementById(id).value='';});
+  ['f-co','f-site','f-mgr','f-phone','f-addr','f-bizno','f-email','f-bank','f-account','f-price-main','f-price-sub','f-memo','f-startdate'].forEach(function(id){document.getElementById(id).value='';});
   const fst=document.getElementById('f-subtaxtype');if(fst)fst.value='none';
   document.querySelectorAll('#day-picker .day-btn').forEach(function(b){b.classList.remove('active');});
   var nr=document.getElementById('f-noreport');if(nr)nr.checked=false;
@@ -818,6 +820,7 @@ function addSite(){
     taxtype:'vat',
     subtaxtype:document.getElementById('f-subtaxtype').value||'none',
     days,memo:document.getElementById('f-memo').value.trim(),
+    startDate:document.getElementById('f-startdate').value||'',
     noReport:(function(){var el=document.getElementById('f-noreport');return el?el.checked:false;})()
   });
   save();resetForm();renderAll();
@@ -887,6 +890,7 @@ function openEdit(id){
   document.getElementById('e-price-sub').value=s.priceSub||'';
   document.getElementById('e-subtaxtype').value=s.subtaxtype||'none';
   document.getElementById('e-memo').value=s.memo||'';
+  document.getElementById('e-startdate').value=s.startDate||'';
   document.querySelectorAll('#e-day-picker .day-btn').forEach(function(b){b.classList.toggle('active',s.days.includes(parseInt(b.dataset.day)));});
   var enr=document.getElementById('e-noreport');if(enr)enr.checked=s.noReport||false;
   document.getElementById('edit-modal').classList.add('open');
@@ -927,6 +931,7 @@ function saveEdit(){
   s.bank=document.getElementById('e-bank').value.trim();
   s.account=document.getElementById('e-account').value.trim();
   s.memo=document.getElementById('e-memo').value.trim();
+  s.startDate=document.getElementById('e-startdate').value||'';
   var enr2=document.getElementById('e-noreport');s.noReport=enr2?enr2.checked:false;
   save();closeModal();renderAll();
 }
@@ -969,6 +974,7 @@ function renderSiteCard(s,col){
     +'</div></div>'
     +'<div class="site-meta">'
     +'<div class="meta-row"><span class="meta-lbl">요일</span><div style="display:flex;gap:4px;flex-wrap:wrap">'+s.days.sort().map(function(d){return '<span class="day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div>'
+    +(s.startDate?'<div class="meta-row"><span class="meta-lbl">시작일</span><span style="font-family:DM Mono,monospace;font-size:12px;color:#ffb547;">'+s.startDate+'</span></div>':'')
     +'<div class="meta-row"><span class="meta-lbl">금액</span>'
     +'<div class="price-row">'
     +'<div class="price-chip"><div class="price-chip-label">원청</div><div class="price-chip-val main-price">'+fmtW(s.priceMain)+'</div></div>'
@@ -1029,7 +1035,15 @@ function renderCalendar(){
     const dateRow=document.createElement('div');dateRow.className='cal-date-row';
     const dateEl=document.createElement('div');dateEl.className='cal-date';dateEl.textContent=cell.day;dateRow.appendChild(dateEl);
     if(!cell.other){
-      const daySites=sites.filter(function(s){return s.days.includes(dow);});
+      const daySites=sites.filter(function(s){
+        if(!s.days.includes(dow)) return false;
+        if(s.startDate){
+          var sd=new Date(s.startDate);
+          var cellDate=new Date(calYear,calMonth,cell.day);
+          if(cellDate < sd) return false;
+        }
+        return true;
+      });
       if(daySites.length>0){
         var badge=document.createElement('div');badge.className='cal-count-badge';badge.textContent=daySites.length+'건';dateRow.appendChild(badge);
         var dateKey=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(cell.day).padStart(2,'0');
@@ -1071,9 +1085,42 @@ function getDayCountInMonth(year, month, dow){
   for(let d=1;d<=dim;d++){if(new Date(year,month,d).getDay()===dow)count++;}
   return count;
 }
+
+// 시작일 이후의 실제 작업 횟수만 반환 (해당 월 기준)
+function getEffectiveDaysInMonth(site, year, month){
+  const dim = new Date(year, month+1, 0).getDate();
+  // 시작일 파싱 — 없으면 월 전체 적용
+  let startLimit = 1;
+  if(site.startDate){
+    const sd = new Date(site.startDate);
+    if(sd.getFullYear() === year && sd.getMonth() === month){
+      startLimit = sd.getDate(); // 시작일이 해당 월이면 그날부터
+    } else if(sd > new Date(year, month+1, 0)){
+      return 0; // 시작일이 해당 월 이후면 0
+    }
+    // 시작일이 해당 월 이전이면 월 전체 적용 (startLimit=1 유지)
+  }
+  let count = 0;
+  for(let d = startLimit; d <= dim; d++){
+    const dow = new Date(year, month, d).getDay();
+    if(site.days.includes(dow)) count++;
+  }
+  return count;
+}
+
+// 해당 월 전체 횟수 (일당 단가 계산용 분모)
 function totalCountInMonth(site, year, month){
   return site.days.reduce(function(sum,dow){return sum+getDayCountInMonth(year,month,dow);},0);
 }
+
+// 실제 참여 횟수 기준 정산 금액
+function effectivePrice(site, year, month, fullPrice){
+  const totalCount = totalCountInMonth(site, year, month);
+  if(!totalCount) return fullPrice;
+  const effectiveCount = getEffectiveDaysInMonth(site, year, month);
+  return Math.round(fullPrice / totalCount * effectiveCount);
+}
+
 function dailyPrice(site, year, month){
   const total=totalCountInMonth(site,year,month);
   return total>0?Math.round((site.priceMain||0)/total):0;
@@ -1105,7 +1152,15 @@ function renderWeekly(){
   }
   DAYS.forEach(function(_,idx){
     const cell=document.createElement('div');cell.className='week-cell';
-    sites.filter(function(s){return s.days.includes(idx);}).forEach(function(s){
+    sites.filter(function(s){
+      if(!s.days.includes(idx)) return false;
+      if(s.startDate){
+        var sd=new Date(s.startDate);
+        var wd=weekDates[idx];
+        if(wd < sd) return false;
+      }
+      return true;
+    }).forEach(function(s){
       const col=getCompanyColor(s.company);
       const daily=dailyPrice(s,baseYear,baseMonth);
       const cnt=totalCountInMonth(s,baseYear,baseMonth);
@@ -1158,32 +1213,46 @@ function renderSettle(){
     const coSupplyVat=coSupplyTotal-coSupplySupply;
 
     const rowsHtml = coSites.map(function(s){
-      const mt = calcMainTax(s.priceMain||0);
-      const st = calcSubTax(s.priceSub||0, s.subtaxtype||'none');
-      const profit = (s.priceMain||0) - st.payout;
+      var _yr2=document.getElementById('settle-year');var _mo2=document.getElementById('settle-month');
+      var _sYr=_yr2?parseInt(_yr2.value):today.getFullYear();
+      var _sMo=_mo2?parseInt(_mo2.value)-1:today.getMonth();
+
+      // 전체 횟수 / 실제 참여 횟수
+      var _totalCount = totalCountInMonth(s, _sYr, _sMo);
+      var _effectiveCount = getEffectiveDaysInMonth(s, _sYr, _sMo);
+      var isPartial = s.startDate && _effectiveCount < _totalCount && _effectiveCount > 0;
+
+      // 실제 참여 기준 금액
+      var effectiveMain = effectivePrice(s, _sYr, _sMo, s.priceMain||0);
+      var effectiveSub  = effectivePrice(s, _sYr, _sMo, s.priceSub||0);
+
+      const mt = calcMainTax(effectiveMain);
+      const st = calcSubTax(effectiveSub, s.subtaxtype||'none');
+      const profit = effectiveMain - st.payout;
       const subAdj = st.vat ? st.vat : st.deduct ? -st.deduct : 0;
 
-      cMain+=s.priceMain||0; cSupply+=mt.supply; cVat+=mt.vat;
-      cSubInput+=s.priceSub||0; cSubAdj+=subAdj; cSubPayout+=st.payout; cProfit+=profit;
+      cMain+=effectiveMain; cSupply+=mt.supply; cVat+=mt.vat;
+      cSubInput+=effectiveSub; cSubAdj+=subAdj; cSubPayout+=st.payout; cProfit+=profit;
       cSubSupply+=st.supply||0;
       cSubVat+=(s.subtaxtype==="vat"?st.vat:0);
 
-      var _yr2=document.getElementById('settle-year');var _mo2=document.getElementById('settle-month');var _sYr=_yr2?parseInt(_yr2.value):today.getFullYear();var _sMo=_mo2?parseInt(_mo2.value)-1:today.getMonth();var _tc=s.days.reduce(function(sum,dow){var cnt=0;var dim=new Date(_sYr,_sMo+1,0).getDate();for(var dd=1;dd<=dim;dd++){if(new Date(_sYr,_sMo,dd).getDay()===dow)cnt++;}return sum+cnt;},0);const daysStr=_tc+'회';
+      var daysStr = _effectiveCount+'회';
+      if(isPartial) daysStr += '<br><span style="font-size:10px;color:#ffb547;">(' + _effectiveCount + '/' + _totalCount + ', ' + s.startDate.slice(5) + '~)</span>';
       const subtaxLbl=s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'없음';
 
       return '<tr>'
-        +'<td>'+s.site+'</td>'
+        +'<td>'+s.site+(isPartial?'<br><span style="font-size:9px;color:#ffb547;">시작일 반영</span>':'')+'</td>'
         +'<td style="font-size:11px;color:var(--muted)">'+(s.addr||'—')+'</td>'
         +'<td style="font-size:11px;color:var(--muted)">'+(s.bizno||'—')+'</td>'
         +'<td style="font-size:11px;color:var(--muted)">'+(s.email||'—')+'</td>'
         +'<td style="font-size:11px;color:var(--muted)">'+(s.bank||'—')+'</td>'
         +'<td style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted)">'+(s.account||'—')+'</td>'
         +'<td style="text-align:center;white-space:nowrap;">'+daysStr+'</td>'
-        +'<td class="settle-num main">'+fmtN(s.priceMain)+'</td>'
+        +'<td class="settle-num main">'+fmtN(effectiveMain)+'</td>'
         +'<td class="settle-num vat">'+fmtN(mt.supply)+'</td>'
         +'<td class="settle-num vat">'+fmtN(mt.vat)+'</td>'
         +'<td><span class="settle-badge '+(s.subtaxtype==='t33'?'t33':'vat')+'">'+subtaxLbl+'</span></td>'
-        +'<td class="settle-num sub">'+(s.priceSub?fmtN(s.priceSub):'—')+'</td>'
+        +'<td class="settle-num sub">'+(s.priceSub?fmtN(effectiveSub):'—')+'</td>'
         +'<td class="settle-num sub">'+(s.priceSub?fmtN(st.supply):'—')+'</td>'
         +'<td class="'+(subAdj<0?'settle-num deduct':'settle-num sub')+'">'+(subAdj>0?'+'+fmtN(subAdj):subAdj<0?'-'+fmtN(-subAdj):'—')+'</td>'
         +'<td class="settle-num sub" style="font-weight:800">'+(s.priceSub?fmtN(st.payout):'—')+'</td>'
@@ -1243,12 +1312,19 @@ function renderStats(){
   const cos=[...new Set(sites.map(function(s){return s.company;}))];
   document.getElementById('st-co').textContent=cos.length;
   document.getElementById('st-site').textContent=sites.length;
-  let totalMain=0,totalSub=0;
-  sites.forEach(function(s){totalMain+=s.priceMain||0;totalSub+=s.priceSub||0;});
-  const totalProfit=totalMain-totalSub;
+  var curYr=today.getFullYear(), curMo=today.getMonth();
+  let totalMain=0,totalSubPayout=0;
+  sites.forEach(function(s){
+    var effMain = effectivePrice(s, curYr, curMo, s.priceMain||0);
+    var effSub  = effectivePrice(s, curYr, curMo, s.priceSub||0);
+    var st = calcSubTax(effSub, s.subtaxtype||'none');
+    totalMain += effMain;
+    totalSubPayout += st.payout;
+  });
+  const totalProfit=totalMain-totalSubPayout;
   const profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
   document.getElementById('st-main').textContent=totalMain.toLocaleString('ko-KR');
-  document.getElementById('st-sub').textContent=totalSub.toLocaleString('ko-KR');
+  document.getElementById('st-sub').textContent=totalSubPayout.toLocaleString('ko-KR');
   document.getElementById('st-profit').textContent=totalProfit.toLocaleString('ko-KR');
   document.getElementById('st-rate').textContent=profitRate+'%';
 }
@@ -1323,7 +1399,11 @@ function renderReport(){
   var dateStr=document.getElementById('report-date').value||todayStr();
   var dow=getDayOfWeek(dateStr);
   var dateData=reportPhotoData[dateStr]||{};
-  var workSites=sites.filter(function(s){return s.days&&s.days.includes(dow)&&!s.noReport;});
+  var workSites=sites.filter(function(s){
+    if(!s.days||!s.days.includes(dow)||s.noReport) return false;
+    if(s.startDate){ var sd=new Date(s.startDate); if(new Date(dateStr) < sd) return false; }
+    return true;
+  });
   var okCount=workSites.filter(function(s){return dateData[s.id]&&dateData[s.id].photos>0;}).length;
   var pendingCount=workSites.length-okCount;
 
