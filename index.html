@@ -11,6 +11,14 @@ var GOOGLE_CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googl
 var DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send';
 var googleAccessToken = localStorage.getItem('g-token') || null;
 var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
+
+// Firebase Realtime DB
+var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
+function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
+function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
+function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos)reportPhotoData=d.photos;}callback();});}
+function saveToFirebase(){fbSet('/data',{sites:sites,title:appTitle,photos:reportPhotoData});}
+
 function isGoogleLoggedIn(){ return googleAccessToken && Date.now() < googleTokenExpiry; }
 function googleLogin(){
   var base = location.href.split('#')[0].split('?')[0];
