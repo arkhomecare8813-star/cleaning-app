@@ -321,7 +321,6 @@ function initDrop(){
     e.preventDefault(); zone.classList.remove('drag');
     handleFiles(e.dataTransfer.files);
   });
-  zone.addEventListener('click', function(){ document.getElementById('file-input').click(); });
 }
 
 window.onload = function(){ init(); initDrop(); updateBtn(); };
