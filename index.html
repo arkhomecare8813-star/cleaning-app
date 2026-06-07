@@ -1160,6 +1160,54 @@ function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(repo
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function getDayOfWeek(d){ return new Date(d+'T00:00:00').getDay(); }
 function initReportDate(){ var el=document.getElementById('report-date'); if(el&&!el.value)el.value=todayStr(); }
+
+// 업로드 링크 생성 (upload.html?co=...&site=...&date=...&mgr=...&title=...)
+function makeUploadLink(site, dateStr){
+  var base = location.href.split('/index.html')[0].split('#')[0].split('?')[0];
+  if(base.slice(-1)==='/') base=base.slice(0,-1);
+  var url = base + '/upload.html'
+    + '?co=' + encodeURIComponent(site.company)
+    + '&site=' + encodeURIComponent(site.site)
+    + '&date=' + encodeURIComponent(dateStr)
+    + '&title=' + encodeURIComponent(appTitle);
+  if(site.manager) url += '&mgr=' + encodeURIComponent(site.manager);
+  return url;
+}
+
+// SMS 문자 발송 (문자앱 열기)
+function sendSmsOne(siteId, dateStr){
+  var site=sites.find(function(s){return s.id==siteId;});
+  if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
+  var link = makeUploadLink(site, dateStr);
+  var tel = site.phone.replace(/[^0-9+]/g,'');
+  var msg = '['+appTitle+'] 안녕하세요 '+site.manager+'님\n'
+    + '📍 '+site.site+' ('+site.company+')\n'
+    + '📅 '+dateStr+' 청소 완료 후\n'
+    + '아래 링크에서 사진을 업로드해 주세요 📷\n\n'
+    + link;
+  var smsUrl = 'sms:' + tel + '?body=' + encodeURIComponent(msg);
+  window.open(smsUrl);
+  // 발송 기록
+  if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
+  if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0};
+  reportPhotoData[dateStr][siteId].smsSent=true;
+  saveReportData();
+  renderReport();
+  showToast('📱 문자앱이 열립니다.');
+}
+
+// 링크 복사
+function copyUploadLink(siteId, dateStr){
+  var site=sites.find(function(s){return s.id==siteId;});
+  if(!site)return;
+  var link = makeUploadLink(site, dateStr);
+  navigator.clipboard.writeText(link).then(function(){
+    showToast('📋 업로드 링크가 복사됐어요!');
+  }).catch(function(){
+    showToast('링크: '+link);
+  });
+}
+
 function renderReport(){
   initReportDate();
   var dateStr = document.getElementById('report-date').value||todayStr();
@@ -1167,13 +1215,18 @@ function renderReport(){
   var dateData = reportPhotoData[dateStr]||{};
   var workSites = sites.filter(function(s){return s.days&&s.days.includes(dow);});
   var okCount = workSites.filter(function(s){return (dateData[s.id]&&dateData[s.id].photos>0);}).length;
-  var html = '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">'
-    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 16px;flex:1;min-width:100px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">작업현장</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#7ab8ff;">'+workSites.length+'</div></div>'
-    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 16px;flex:1;min-width:100px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">사진접수</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#00e5a0;">'+okCount+'</div></div>'
-    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 16px;flex:1;min-width:100px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">미접수</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#ff4d6d;">'+(workSites.length-okCount)+'</div></div>'
+  var smsSent = workSites.filter(function(s){return (dateData[s.id]&&dateData[s.id].smsSent);}).length;
+
+  var html = '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 14px;flex:1;min-width:80px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">작업현장</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#7ab8ff;">'+workSites.length+'</div></div>'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 14px;flex:1;min-width:80px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">문자발송</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#ffb547;">'+smsSent+'</div></div>'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 14px;flex:1;min-width:80px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">사진접수</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#00e5a0;">'+okCount+'</div></div>'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 14px;flex:1;min-width:80px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">미접수</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#ff4d6d;">'+(workSites.length-okCount)+'</div></div>'
     +'</div>';
+
   var cos=[...new Set(sites.map(function(s){return s.company;}))].sort();
   if(!sites.length){html+='<div style="text-align:center;padding:50px;color:#444;">등록된 현장이 없습니다.</div>';}
+
   cos.forEach(function(co){
     var col=getCompanyColor(co);
     var coSites=sites.filter(function(s){return s.company===co;});
@@ -1184,61 +1237,194 @@ function renderReport(){
       var isWork=s.days&&s.days.includes(dow);
       var info=dateData[s.id]||{photos:0};
       var hasPhoto=info.photos>0;
+      var wasSent=info.smsSent||false;
       var bc=!isWork?'#2c2c2c':hasPhoto?'#00e5a0':'#ff4d6d';
       var bg=!isWork?'rgba(0,0,0,0)':hasPhoto?'rgba(0,229,160,0.05)':'rgba(255,77,109,0.04)';
       var badge=!isWork?'—':hasPhoto?'✓':'✕';
+      var uploadLink = makeUploadLink(s, dateStr);
+
       cards+='<div style="border-radius:10px;padding:13px 14px;border:1px solid '+bc+';background:'+bg+';display:flex;flex-direction:column;gap:8px;">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+        +'<div>'
         +'<div style="font-size:13px;font-weight:700;">'+s.site+'</div>'
-        +'<div style="width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.3);color:'+bc+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0;">'+badge+'</div>'
+        +(s.manager?'<div style="font-size:11px;color:#777;margin-top:2px;">👤 '+s.manager+'</div>':'')
+        +(s.phone?'<div style="font-size:11px;color:#777;">📞 '+s.phone+'</div>':'')
         +'</div>'
-        +'<div style="font-size:11px;color:#777;">'+(s.mgr?'담당: '+s.mgr+'<br>':'')+(s.phone?'연락처: '+s.phone+'<br>':'')+(hasPhoto?'<span style="color:#00e5a0;font-weight:700;">📷 '+info.photos+'장</span>':'')+'</div>'
-        +(isWork?'<div style="display:flex;gap:6px;">'
-          +'<button onclick="manualUpload(\''+s.id+'\',\''+dateStr+'\')" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📷 사진추가</button>'
-          +(!hasPhoto?'<button onclick="sendSmsOne(\''+s.id+'\',\''+dateStr+'\',this)" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📱 문자발송</button>':'')
-          +'</div>':'<div style="font-size:10px;color:#444;text-align:center;">오늘 작업 없음</div>')
+        +'<div style="width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.3);color:'+bc+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0;">'+badge+'</div>'
         +'</div>';
+
+      if(hasPhoto){
+        cards+='<div style="background:rgba(0,229,160,0.1);border-radius:7px;padding:7px 10px;font-size:12px;color:#00e5a0;font-weight:700;">📷 '+info.photos+'장 업로드 완료</div>';
+      }
+
+      if(isWork){
+        cards+='<div style="display:flex;flex-direction:column;gap:5px;">';
+        // 문자 발송 버튼
+        if(s.phone){
+          cards+='<button onclick="sendSmsOne(\''+s.id+'\',\''+dateStr+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid '+(wasSent?'#004d36':'#2c2c2c')+';background:'+(wasSent?'rgba(0,77,54,0.5)':'#1e1e1e')+';color:'+(wasSent?'#00e5a0':'#ffb547')+';font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">'
+            +(wasSent?'✅ 문자 재발송':'📱 문자 발송')+'</button>';
+        }
+        // 링크 복사 버튼
+        cards+='<button onclick="copyUploadLink(\''+s.id+'\',\''+dateStr+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#7ab8ff;font-size:11px;font-weight:700;cursor:pointer;">🔗 업로드 링크 복사</button>';
+        // 링크 직접 열기
+        cards+='<a href="'+uploadLink+'" target="_blank" style="width:100%;padding:7px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;display:block;text-align:center;text-decoration:none;">🌐 업로드 페이지 열기</a>';
+        cards+='</div>';
+      } else {
+        cards+='<div style="font-size:10px;color:#444;text-align:center;">오늘 작업 없음</div>';
+      }
+      cards+='</div>';
     });
+
     html+='<div style="background:#161616;border:1px solid #2c2c2c;border-radius:12px;margin-bottom:14px;overflow:hidden;">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#1e1e1e;border-bottom:1px solid #2c2c2c;">'
       +'<div style="display:flex;align-items:center;gap:10px;"><div style="width:11px;height:11px;border-radius:50%;background:'+col.text+'"></div><div style="font-size:14px;font-weight:800;">'+co+'</div><div style="font-size:11px;color:#777;">(작업 '+coWork.length+'곳)</div></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+      +'<button onclick="sendSmsAll(\''+co+'\',\''+dateStr+'\')" style="padding:4px 10px;border-radius:6px;border:1px solid #3a2800;background:rgba(58,40,0,0.5);color:#ffb547;font-size:10px;font-weight:700;cursor:pointer;">📱 전체발송</button>'
       +'<div style="font-family:DM Mono,monospace;font-size:12px;color:'+(coOk===coWork.length&&coWork.length>0?'#00e5a0':'#ff4d6d')+';">'+coOk+'/'+coWork.length+' 접수</div>'
+      +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding:14px;">'+cards+'</div>'
       +'</div>';
   });
+
   document.getElementById('report-content').innerHTML = html;
 }
-function manualUpload(siteId, dateStr){
-  var site=sites.find(function(s){return s.id==siteId;});
-  if(!site)return;
-  var input=document.createElement('input');
-  input.type='file';input.accept='image/*';input.multiple=true;
-  input.onchange=function(e){
-    var files=[].slice.call(e.target.files);
-    if(!files.length)return;
+
+// 업체 전체 문자 발송
+function sendSmsAll(coName, dateStr){
+  var dow = getDayOfWeek(dateStr);
+  var coSites = sites.filter(function(s){return s.company===coName && s.days&&s.days.includes(dow) && s.phone;});
+  if(!coSites.length){showToast('📱 연락처가 있는 현장이 없습니다.');return;}
+  coSites.forEach(function(s){
+    var link = makeUploadLink(s, dateStr);
+    var tel = s.phone.replace(/[^0-9+]/g,'');
+    var msg = '['+appTitle+'] 안녕하세요 '+(s.manager||'담당자')+'님\n'
+      + '📍 '+s.site+' ('+s.company+')\n'
+      + '📅 '+dateStr+' 청소 완료 후\n'
+      + '아래 링크에서 사진을 업로드해 주세요 📷\n\n'
+      + link;
+    window.open('sms:'+tel+'?body='+encodeURIComponent(msg));
     if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
-    var cur=reportPhotoData[dateStr][siteId]||{photos:0};
-    cur.photos+=files.length;
-    reportPhotoData[dateStr][siteId]=cur;
-    saveReportData();renderReport();
-    showToast('📷 '+files.length+'장 기록됨');
-  };
-  input.click();
+    if(!reportPhotoData[dateStr][s.id])reportPhotoData[dateStr][s.id]={photos:0};
+    reportPhotoData[dateStr][s.id].smsSent=true;
+  });
+  saveReportData();renderReport();
+  showToast('📱 '+coSites.length+'곳 문자앱이 열립니다.');
 }
-function sendSmsOne(siteId, dateStr, btn){
-  var site=sites.find(function(s){return s.id==siteId;});
-  if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
-  if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
-  if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0,smsSent:false};
-  reportPhotoData[dateStr][siteId].smsSent=true;
-  saveReportData();
-  btn.textContent='✓ 발송됨';btn.style.color='#00e5a0';btn.style.borderColor='#004d36';
-  showToast('📱 '+site.phone+' 문자 발송\n(SMS API 연동 후 실제 발송)');
-}
+
+// 이메일 발송 모달 열기
 function sendReportEmail(){
   if(!isGoogleLoggedIn()){showToast('❌ Google 로그인 후 사용 가능합니다');return;}
-  showToast('📧 이메일 발송 기능 준비 중...');
+  openEmailModal();
+}
+
+// ── 이메일 발송 모달 ──
+function openEmailModal(){
+  var dateStr = document.getElementById('report-date').value||todayStr();
+  // 회사 목록 생성
+  var cos = [...new Set(sites.map(function(s){return s.company;}))].sort();
+  var folderOptions = cos.map(function(co){
+    return '<label style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;cursor:pointer;">'
+      +'<input type="checkbox" value="'+co+'" style="accent-color:#00e5a0;width:16px;height:16px;"> '
+      +'<span style="font-size:13px;font-weight:600;">'+co+'</span>'
+      +'</label>';
+  }).join('');
+
+  var modalHtml = '<div id="email-modal-overlay" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);">'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:22px;width:100%;max-width:440px;max-height:88vh;overflow-y:auto;">'
+    +'<div style="font-size:15px;font-weight:800;margin-bottom:4px;color:#00e5a0;">📧 이메일 보고 발송</div>'
+    +'<div style="font-size:12px;color:#777;margin-bottom:18px;">구글 드라이브 폴더 링크를 이메일로 보냅니다</div>'
+
+    +'<div style="margin-bottom:14px;">'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">수신자 이메일</div>'
+    +'<input id="email-to" type="email" placeholder="example@email.com" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:13px;outline:none;">'
+    +'</div>'
+
+    +'<div style="margin-bottom:14px;">'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">날짜</div>'
+    +'<div style="font-size:13px;font-weight:700;color:#00e5a0;">'+dateStr+'</div>'
+    +'</div>'
+
+    +'<div style="margin-bottom:18px;">'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">업체 선택</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;" id="email-co-list">'+folderOptions+'</div>'
+    +'</div>'
+
+    +'<div id="email-send-error" style="display:none;background:rgba(255,77,109,0.1);border:1px solid #3d1a1a;border-radius:8px;padding:9px 12px;font-size:12px;color:#ff4d6d;margin-bottom:12px;"></div>'
+
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="closeEmailModal()" style="flex:1;padding:11px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">취소</button>'
+    +'<button onclick="doSendEmail(\''+dateStr+'\')" id="email-send-btn" style="flex:2;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📧 발송하기</button>'
+    +'</div>'
+    +'</div></div>';
+
+  var wrap = document.createElement('div');
+  wrap.id = 'email-modal-wrap';
+  wrap.innerHTML = modalHtml;
+  document.body.appendChild(wrap);
+}
+
+function closeEmailModal(){
+  var w = document.getElementById('email-modal-wrap');
+  if(w) w.remove();
+}
+
+function doSendEmail(dateStr){
+  var toEl = document.getElementById('email-to');
+  var to = toEl ? toEl.value.trim() : '';
+  if(!to){
+    var errEl=document.getElementById('email-send-error');
+    errEl.textContent='수신자 이메일을 입력해주세요.';errEl.style.display='';return;
+  }
+  var checked = [...document.querySelectorAll('#email-co-list input:checked')].map(function(el){return el.value;});
+  if(!checked.length){
+    var errEl=document.getElementById('email-send-error');
+    errEl.textContent='업체를 하나 이상 선택해주세요.';errEl.style.display='';return;
+  }
+
+  var btn = document.getElementById('email-send-btn');
+  btn.textContent='발송 중...';btn.disabled=true;
+
+  // 각 업체별 드라이브 폴더 링크 생성
+  var lines = ['📋 청소 보고 - '+dateStr, ''];
+  checked.forEach(function(co){
+    var coSites = sites.filter(function(s){return s.company===co;});
+    lines.push('🏢 '+co);
+    coSites.forEach(function(s){
+      var folderPath = appTitle+' > '+co+' > '+s.site+' > '+dateStr;
+      lines.push('  📍 '+s.site+': 구글 드라이브 > '+folderPath);
+    });
+    lines.push('');
+  });
+  lines.push('---');
+  lines.push('이 메일은 '+appTitle+' 앱에서 자동 발송되었습니다.');
+
+  var subject = '['+appTitle+'] '+dateStr+' 청소 보고 - '+checked.join(', ');
+  var body = lines.join('\n');
+
+  // Gmail API로 발송
+  var message = 'To: '+to+'\r\nSubject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n'+body;
+  var encoded = btoa(unescape(encodeURIComponent(message))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+  fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method:'POST',
+    headers:{ Authorization:'Bearer '+googleAccessToken, 'Content-Type':'application/json' },
+    body: JSON.stringify({ raw: encoded })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if(d.id){
+      closeEmailModal();
+      showToast('✅ 이메일 발송 완료!\n→ '+to);
+    } else {
+      var errEl=document.getElementById('email-send-error');
+      errEl.textContent='발송 실패: '+(d.error&&d.error.message||'알 수 없는 오류');
+      errEl.style.display='';
+      btn.textContent='📧 발송하기';btn.disabled=false;
+    }
+  }).catch(function(e){
+    var errEl=document.getElementById('email-send-error');
+    errEl.textContent='네트워크 오류가 발생했습니다.';errEl.style.display='';
+    btn.textContent='📧 발송하기';btn.disabled=false;
+  });
 }
 
 function showToast(msg){
