@@ -812,23 +812,37 @@ function isGoogleLoggedIn(){
 }
 
 function googleLogin(){
-  // 버튼 클릭 이벤트도 여기서 처리
-  if(typeof google === 'undefined'){ showToast('Google 라이브러리 로딩 중... 잠시 후 다시 시도해주세요.'); return; }
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: DRIVE_SCOPES,
-    callback: (resp) => {
-      if(resp.error){ showToast('❌ Google 로그인 실패: ' + resp.error); return; }
-      googleAccessToken = resp.access_token;
-      googleTokenExpiry = Date.now() + (resp.expires_in * 1000);
+  // 리디렉션 방식으로 OAuth 로그인
+  const redirectUri = encodeURIComponent(location.href.split('?')[0]);
+  const scope = encodeURIComponent(DRIVE_SCOPES);
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth'
+    + '?client_id=' + GOOGLE_CLIENT_ID
+    + '&redirect_uri=' + redirectUri
+    + '&response_type=token'
+    + '&scope=' + scope;
+  location.href = url;
+}
+
+// 페이지 로드시 URL에서 토큰 파싱
+(function parseTokenFromUrl(){
+  const hash = location.hash;
+  if(hash && hash.includes('access_token')){
+    const params = {};
+    hash.substring(1).split('&').forEach(p => {
+      const kv = p.split('=');
+      params[kv[0]] = kv[1];
+    });
+    if(params.access_token){
+      googleAccessToken = params.access_token;
+      googleTokenExpiry = Date.now() + (parseInt(params.expires_in||3600) * 1000);
       localStorage.setItem('g-token', googleAccessToken);
       localStorage.setItem('g-token-exp', googleTokenExpiry.toString());
+      history.replaceState({}, document.title, location.pathname);
       updateGoogleUI(true);
       showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
     }
-  });
-  client.requestAccessToken();
-}
+  }
+})();
 
 function googleLogout(){
   google.accounts.oauth2.revoke(googleAccessToken, () => {});
