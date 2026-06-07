@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 var GOOGLE_CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googleusercontent.com';
-var DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send';
+var DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/gmail.send';
 var googleAccessToken = localStorage.getItem('g-token') || null;
 var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 
@@ -546,7 +546,7 @@ main{padding:18px 14px;max-width:1400px;}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-ghost" style="font-size:12px;min-height:34px;" onclick="renderReport()">&#8635; 새로고침</button>
         <button class="btn btn-ghost" style="font-size:12px;min-height:34px;" onclick="openSmsTemplateModal()">⚙️ 문자양식</button>
-        <button class="btn btn-ghost" style="font-size:12px;min-height:34px;border-color:#4ade80;color:#4ade80;" onclick="sendReportEmail()">📤 보고 발송</button>
+        <button class="btn btn-ghost" style="font-size:12px;min-height:34px;border-color:#4ade80;color:#4ade80;" onclick="sendReportEmail()">&#128231; 이메일 보고</button>
       </div>
     </div>
     <div id="report-content"></div>
@@ -2269,19 +2269,15 @@ function sendReportEmail(){
   openEmailModal();
 }
 
-// ── 이메일/카카오 보고 모달 ──
-var _reportSelectedDates = [];  // 선택된 날짜 배열
-var _reportSelectedSites = {};  // { siteId: true } 선택된 현장
+// ── 보고 발송 모달 ──
+var _reportSelectedDates = [];
+var _reportSelectedSites = {};
 
 function openEmailModal(){
-  // 기본 날짜: 현재 report-date 값
   var baseDateStr = (document.getElementById('report-date').value||todayStr());
   _reportSelectedDates = [baseDateStr];
   _reportSelectedSites = {};
-
-  // 전체 현장 기본 선택
   sites.forEach(function(s){ _reportSelectedSites[s.id] = true; });
-
   _renderReportModal();
 }
 
@@ -2296,100 +2292,80 @@ function _renderReportModal(){
 
   var cos = [...new Set(sites.map(function(s){return s.company;}))].sort();
 
-  // ── 날짜 칩 영역 ──
   var dateChipsHtml = _reportSelectedDates.map(function(d){
     return '<span style="display:inline-flex;align-items:center;gap:5px;background:#004d36;color:#00e5a0;border:1px solid #00e5a0;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:700;font-family:DM Mono,monospace;">'
-      + d
-      + '<span onclick="removeReportDate(\''+d+'\')" style="cursor:pointer;font-size:14px;line-height:1;opacity:0.7;margin-left:2px;">×</span>'
-      + '</span>';
+      +d+'<span onclick="removeReportDate(\''+d+'\')" style="cursor:pointer;font-size:14px;line-height:1;opacity:0.7;margin-left:2px;">×</span></span>';
   }).join('');
 
-  // ── 업체+현장 선택 영역 ──
   var coListHtml = cos.map(function(co){
     var col = getCompanyColor(co);
     var coSites = sites.filter(function(s){return s.company===co;});
     var allChecked = coSites.every(function(s){return _reportSelectedSites[s.id];});
-    var someChecked = coSites.some(function(s){return _reportSelectedSites[s.id];});
-
+    var coKey = co.replace(/[^a-zA-Z0-9]/g,'_');
     var sitesHtml = coSites.map(function(s){
-      var checked = _reportSelectedSites[s.id] ? 'checked' : '';
+      var chk = _reportSelectedSites[s.id] ? 'checked' : '';
       return '<label style="display:flex;align-items:center;gap:8px;padding:7px 12px 7px 20px;cursor:pointer;border-top:1px solid #222;">'
-        + '<input type="checkbox" data-site-id="'+s.id+'" '+checked+' onchange="toggleReportSite(this)" style="accent-color:#00e5a0;width:15px;height:15px;flex-shrink:0;">'
-        + '<span style="font-size:12px;font-weight:600;">'+s.site+'</span>'
-        + (s.manager ? '<span style="font-size:10px;color:#777;margin-left:auto;">👤 '+s.manager+'</span>' : '')
-        + '</label>';
+        +'<input type="checkbox" data-site-id="'+s.id+'" '+chk+' onchange="toggleReportSite(this)" style="accent-color:#00e5a0;width:15px;height:15px;flex-shrink:0;">'
+        +'<span style="font-size:12px;font-weight:600;">'+s.site+'</span>'
+        +(s.manager?'<span style="font-size:10px;color:#777;margin-left:auto;">👤 '+s.manager+'</span>':'')
+        +'</label>';
     }).join('');
-
-    var coIndeterminate = !allChecked && someChecked;
-    var coCheckState = allChecked ? 'checked' : '';
-
     return '<div style="background:#1e1e1e;border:1px solid #2c2c2c;border-radius:10px;overflow:hidden;margin-bottom:6px;">'
-      + '<div onclick="toggleReportCompany(\''+co+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;">'
-      + '<input type="checkbox" data-co="'+co+'" '+coCheckState+' onclick="event.stopPropagation();toggleReportCompany(\''+co+'\')" style="accent-color:#00e5a0;width:16px;height:16px;flex-shrink:0;">'
-      + '<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+';flex-shrink:0;"></div>'
-      + '<span style="font-size:13px;font-weight:700;flex:1;">'+co+'</span>'
-      + '<span style="font-size:11px;color:#777;">'+coSites.length+'곳</span>'
-      + '<span class="co-chevron-'+co.replace(/[^a-zA-Z0-9]/g,'_')+'" style="font-size:10px;color:#555;transition:transform 0.2s;">▼</span>'
-      + '</div>'
-      + '<div class="co-sites-'+co.replace(/[^a-zA-Z0-9]/g,'_')+'" style="display:none;">'+sitesHtml+'</div>'
-      + '</div>';
+      +'<div onclick="toggleReportCompany(\''+co+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;">'
+      +'<input type="checkbox" data-co="'+co+'" '+(allChecked?'checked':'')+' onclick="event.stopPropagation();toggleReportCompany(\''+co+'\')" style="accent-color:#00e5a0;width:16px;height:16px;flex-shrink:0;">'
+      +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+';flex-shrink:0;"></div>'
+      +'<span style="font-size:13px;font-weight:700;flex:1;">'+co+'</span>'
+      +'<span style="font-size:11px;color:#777;">'+coSites.length+'곳</span>'
+      +'<span id="chev-'+coKey+'" style="font-size:10px;color:#555;">▼</span>'
+      +'</div>'
+      +'<div id="cosites-'+coKey+'" style="display:none;">'+sitesHtml+'</div>'
+      +'</div>';
   }).join('');
 
   var html = '<div id="email-modal-wrap" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:600;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(8px);">'
-    + '<div style="background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">'
 
-    // 타이틀
-    + '<div style="display:flex;align-items:center;justify-content:space-between;">'
-    + '<div style="font-size:15px;font-weight:800;color:#00e5a0;">📤 보고 발송</div>'
-    + '<button onclick="closeEmailModal()" style="width:30px;height:30px;border-radius:50%;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:15px;cursor:pointer;">✕</button>'
-    + '</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+    +'<div style="font-size:15px;font-weight:800;color:#00e5a0;">📤 보고 발송</div>'
+    +'<button onclick="closeEmailModal()" style="width:30px;height:30px;border-radius:50%;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:15px;cursor:pointer;">✕</button>'
+    +'</div>'
 
-    // 날짜 선택
-    + '<div>'
-    + '<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">📅 날짜 선택 <span style="font-size:10px;color:#555;">(여러 날짜 가능)</span></div>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;" id="report-date-chips">' + dateChipsHtml + '</div>'
-    + '<div style="display:flex;gap:8px;align-items:center;">'
-    + '<input type="date" id="report-add-date" style="flex:1;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;color-scheme:dark;" value="'+todayStr()+'">'
-    + '<button onclick="addReportDate()" style="padding:8px 14px;border-radius:8px;border:1px solid #004d36;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ 추가</button>'
-    + '</div>'
-    + '</div>'
+    +'<div>'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">📅 날짜 선택 <span style="font-size:10px;color:#555;">(여러 날짜 가능)</span></div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;" id="report-date-chips">'+dateChipsHtml+'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;">'
+    +'<input type="date" id="report-add-date" style="flex:1;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;color-scheme:dark;" value="'+todayStr()+'">'
+    +'<button onclick="addReportDate()" style="padding:8px 14px;border-radius:8px;border:1px solid #004d36;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ 추가</button>'
+    +'</div></div>'
 
-    // 업체/현장 선택
-    + '<div>'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
-    + '<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;">🏢 업체 / 현장 선택</div>'
-    + '<div style="display:flex;gap:6px;">'
-    + '<button onclick="selectAllReportSites(true)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#1e1e1e;color:#00e5a0;cursor:pointer;">전체선택</button>'
-    + '<button onclick="selectAllReportSites(false)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;cursor:pointer;">전체해제</button>'
-    + '</div>'
-    + '</div>'
-    + '<div id="report-co-list">' + coListHtml + '</div>'
-    + '</div>'
+    +'<div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;">🏢 업체 / 현장 선택</div>'
+    +'<div style="display:flex;gap:6px;">'
+    +'<button onclick="selectAllReportSites(true)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#1e1e1e;color:#00e5a0;cursor:pointer;">전체선택</button>'
+    +'<button onclick="selectAllReportSites(false)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;cursor:pointer;">전체해제</button>'
+    +'</div></div>'
+    +'<div id="report-co-list">'+coListHtml+'</div>'
+    +'</div>'
 
-    // 수신자 이메일
-    + '<div>'
-    + '<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">📧 수신자 이메일</div>'
-    + '<input id="email-to" type="email" placeholder="example@email.com" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:13px;outline:none;">'
-    + '</div>'
+    +'<div>'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">📧 수신자 이메일</div>'
+    +'<input id="email-to" type="email" placeholder="example@email.com" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:13px;outline:none;">'
+    +'</div>'
 
-    // 에러
-    + '<div id="email-send-error" style="display:none;background:rgba(255,77,109,0.1);border:1px solid #3d1a1a;border-radius:8px;padding:9px 12px;font-size:12px;color:#ff4d6d;"></div>'
+    +'<div id="email-send-error" style="display:none;background:rgba(255,77,109,0.1);border:1px solid #3d1a1a;border-radius:8px;padding:9px 12px;font-size:12px;color:#ff4d6d;"></div>'
 
-    // 버튼 영역
-    + '<div style="display:flex;gap:8px;">'
-    + '<button onclick="closeEmailModal()" style="flex:1;padding:11px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">취소</button>'
-    + '<button onclick="doShareKakao()" style="flex:1.2;padding:11px;border-radius:9px;border:none;background:#FEE500;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🟡 카카오 공유</button>'
-    + '<button onclick="doSendEmail()" id="email-send-btn" style="flex:1.5;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📧 이메일 발송</button>'
-    + '</div>'
-
-    + '</div></div>';
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="closeEmailModal()" style="flex:1;padding:11px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">취소</button>'
+    +'<button onclick="doShareKakao()" style="flex:1.2;padding:11px;border-radius:9px;border:none;background:#FEE500;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">💬 카카오 공유</button>'
+    +'<button onclick="doSendEmail()" id="email-send-btn" style="flex:1.5;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📧 이메일 발송</button>'
+    +'</div>'
+    +'</div></div>';
 
   var wrap = document.createElement('div');
   wrap.id = 'email-modal-wrap';
   wrap.innerHTML = html;
   document.body.appendChild(wrap);
-
-  // 업체 chevron/expand 클릭 이벤트 바인딩 (이미 onclick으로 처리됨)
 }
 
 // 날짜 추가/제거
@@ -2412,20 +2388,15 @@ function _updateDateChips(){
   if(!el) return;
   el.innerHTML = _reportSelectedDates.map(function(d){
     return '<span style="display:inline-flex;align-items:center;gap:5px;background:#004d36;color:#00e5a0;border:1px solid #00e5a0;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:700;font-family:DM Mono,monospace;">'
-      + d
-      + '<span onclick="removeReportDate(\''+d+'\')" style="cursor:pointer;font-size:14px;line-height:1;opacity:0.7;margin-left:2px;">×</span>'
-      + '</span>';
+      +d+'<span onclick="removeReportDate(\''+d+'\')" style="cursor:pointer;font-size:14px;line-height:1;opacity:0.7;margin-left:2px;">×</span></span>';
   }).join('');
 }
 
-// 업체 전체 토글
 function toggleReportCompany(co){
   var coSites = sites.filter(function(s){return s.company===co;});
   var allChecked = coSites.every(function(s){return _reportSelectedSites[s.id];});
   var newState = !allChecked;
   coSites.forEach(function(s){ _reportSelectedSites[s.id] = newState; });
-
-  // 체크박스 UI 업데이트
   var coKey = co.replace(/[^a-zA-Z0-9]/g,'_');
   var coChk = document.querySelector('[data-co="'+co+'"]');
   if(coChk) coChk.checked = newState;
@@ -2433,22 +2404,17 @@ function toggleReportCompany(co){
     var el = document.querySelector('[data-site-id="'+s.id+'"]');
     if(el) el.checked = newState;
   });
-
-  // 하위 현장 토글 (accordion)
-  var sitesDiv = document.querySelector('.co-sites-'+coKey);
-  var chevron  = document.querySelector('.co-chevron-'+coKey);
+  var sitesDiv = document.getElementById('cosites-'+coKey);
+  var chevron  = document.getElementById('chev-'+coKey);
   if(sitesDiv){
     var isOpen = sitesDiv.style.display !== 'none';
     sitesDiv.style.display = isOpen ? 'none' : '';
     if(chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
   }
 }
-
-// 개별 현장 토글
 function toggleReportSite(el){
   var id = parseInt(el.dataset.siteId);
   _reportSelectedSites[id] = el.checked;
-  // 업체 체크박스 상태 갱신
   var site = sites.find(function(s){return s.id===id;});
   if(!site) return;
   var co = site.company;
@@ -2457,46 +2423,107 @@ function toggleReportSite(el){
   var coChk = document.querySelector('[data-co="'+co+'"]');
   if(coChk) coChk.checked = allChecked;
 }
-
-// 전체 선택/해제
 function selectAllReportSites(state){
   sites.forEach(function(s){ _reportSelectedSites[s.id] = state; });
   document.querySelectorAll('[data-site-id]').forEach(function(el){ el.checked = state; });
   document.querySelectorAll('[data-co]').forEach(function(el){ el.checked = state; });
 }
 
-// ── 보고 본문 생성 (공통) ──
-function _buildReportContent(){
+// ── Drive API: 폴더 ID 검색 → 파일 목록 → 공유 링크 조회 ──
+function driveSearchFolder(name, parentId){
+  var q = 'mimeType="application/vnd.google-apps.folder" and name="'+name+'" and trashed=false'
+    + (parentId ? ' and "'+parentId+'" in parents' : '');
+  return fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)',{
+    headers:{ Authorization:'Bearer '+googleAccessToken }
+  }).then(function(r){return r.json();}).then(function(d){
+    return (d.files && d.files.length) ? d.files[0].id : null;
+  });
+}
+function driveListFiles(folderId){
+  var q = '"'+folderId+'" in parents and mimeType!="application/vnd.google-apps.folder" and trashed=false';
+  return fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,webViewLink)&pageSize=50',{
+    headers:{ Authorization:'Bearer '+googleAccessToken }
+  }).then(function(r){return r.json();}).then(function(d){
+    return d.files || [];
+  });
+}
+
+// 현장+날짜 → Drive 파일 목록 반환 (Promise)
+// 폴더 구조: appTitle > company > site > date
+function getDrivePhotos(company, siteName, dateStr){
+  return driveSearchFolder(appTitle, null)
+    .then(function(rootId){ return rootId ? driveSearchFolder(company, rootId) : null; })
+    .then(function(coId){ return coId ? driveSearchFolder(siteName, coId) : null; })
+    .then(function(siteId){ return siteId ? driveSearchFolder(dateStr, siteId) : null; })
+    .then(function(dateId){ return dateId ? driveListFiles(dateId) : []; })
+    .catch(function(){ return []; });
+}
+
+// ── 보고 본문 빌드 (Drive 사진 링크 포함, async) ──
+function _buildReportContentAsync(callback){
   var selectedSiteList = sites.filter(function(s){ return _reportSelectedSites[s.id]; });
-  if(!selectedSiteList.length) return null;
+  if(!selectedSiteList.length){ callback(null); return; }
 
   var cos = [...new Set(selectedSiteList.map(function(s){return s.company;}))].sort();
   var dateLabel = _reportSelectedDates.length === 1
     ? _reportSelectedDates[0]
-    : _reportSelectedDates[0] + ' ~ ' + _reportSelectedDates[_reportSelectedDates.length-1] + ' ('+_reportSelectedDates.length+'일)';
+    : _reportSelectedDates[0]+' ~ '+_reportSelectedDates[_reportSelectedDates.length-1]+' ('+_reportSelectedDates.length+'일)';
 
-  var lines = ['📋 청소 보고 — ' + dateLabel, ''];
-
+  // 모든 현장×날짜 조합의 Drive 조회를 병렬로
+  var tasks = [];
   cos.forEach(function(co){
     var coSites = selectedSiteList.filter(function(s){return s.company===co;});
-    lines.push('🏢 ' + co);
     coSites.forEach(function(s){
       _reportSelectedDates.forEach(function(dateStr){
         var dow = getDayOfWeek(dateStr);
         if(!s.days || !s.days.includes(dow)) return;
-        var info = (reportPhotoData[dateStr]||{})[s.id]||{photos:0};
-        var status = info.photos > 0 ? '✅ '+info.photos+'장' : '❌ 미보고';
-        var folderPath = appTitle+' > '+co+' > '+s.site+' > '+dateStr;
-        lines.push('  📍 '+s.site+' ('+dateStr+') '+status);
-        lines.push('     Drive: '+folderPath);
+        tasks.push({ co:co, site:s, dateStr:dateStr });
       });
     });
-    lines.push('');
   });
 
-  lines.push('—');
-  lines.push(appTitle + ' 앱에서 자동 발송');
-  return { text: lines.join('\n'), dateLabel: dateLabel, cos: cos };
+  if(!tasks.length){ callback({ text:'선택한 날짜에 해당 현장 작업일이 없습니다.', dateLabel:dateLabel, cos:cos }); return; }
+
+  var results = new Array(tasks.length);
+  var remaining = tasks.length;
+
+  tasks.forEach(function(task, i){
+    var photoInfo = (reportPhotoData[task.dateStr]||{})[task.site.id]||{photos:0};
+    if(!isGoogleLoggedIn()){
+      // Google 미로그인: Firebase 카운트만 사용
+      results[i] = { task:task, files:[], count: photoInfo.photos };
+      if(--remaining === 0) buildText();
+      return;
+    }
+    getDrivePhotos(task.co, task.site.site, task.dateStr).then(function(files){
+      results[i] = { task:task, files:files, count: photoInfo.photos };
+      if(--remaining === 0) buildText();
+    });
+  });
+
+  function buildText(){
+    var lines = ['📋 청소 보고 — '+dateLabel, ''];
+    var prevCo = null;
+    results.forEach(function(r){
+      if(r.task.co !== prevCo){
+        if(prevCo !== null) lines.push('');
+        lines.push('🏢 '+r.task.co);
+        prevCo = r.task.co;
+      }
+      var photoCount = r.files.length || r.count;
+      var status = photoCount > 0 ? '✅ '+photoCount+'장' : '❌ 미보고';
+      lines.push('  📍 '+r.task.site.site+' ('+r.task.dateStr+') '+status);
+      if(r.files.length){
+        r.files.forEach(function(f){
+          lines.push('    🔗 '+f.name+': '+f.webViewLink);
+        });
+      }
+    });
+    lines.push('');
+    lines.push('—');
+    lines.push(appTitle+' 앱에서 자동 발송');
+    callback({ text: lines.join('\n'), dateLabel: dateLabel, cos: cos });
+  }
 }
 
 // ── 이메일 발송 ──
@@ -2512,65 +2539,89 @@ function doSendEmail(){
     var errEl=document.getElementById('email-send-error');
     errEl.textContent='날짜를 하나 이상 추가해주세요.'; errEl.style.display=''; return;
   }
-  var content = _buildReportContent();
-  if(!content){
+  var selectedCount = Object.values(_reportSelectedSites).filter(Boolean).length;
+  if(!selectedCount){
     var errEl=document.getElementById('email-send-error');
     errEl.textContent='현장을 하나 이상 선택해주세요.'; errEl.style.display=''; return;
   }
 
   var btn = document.getElementById('email-send-btn');
-  btn.textContent='발송 중...'; btn.disabled=true;
+  btn.textContent='📂 Drive 조회 중...'; btn.disabled=true;
 
-  var subject = '['+appTitle+'] '+content.dateLabel+' 청소 보고 — '+content.cos.join(', ');
-  var message = 'To: '+to+'\r\nSubject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n'+content.text;
-  var encoded = btoa(unescape(encodeURIComponent(message))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-
-  fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method:'POST',
-    headers:{ Authorization:'Bearer '+googleAccessToken, 'Content-Type':'application/json' },
-    body: JSON.stringify({ raw: encoded })
-  }).then(function(r){ return r.json(); }).then(function(d){
-    if(d.id){
-      closeEmailModal();
-      showToast('✅ 이메일 발송 완료!\n→ '+to);
-    } else {
+  _buildReportContentAsync(function(content){
+    if(!content){
       var errEl=document.getElementById('email-send-error');
-      errEl.textContent='발송 실패: '+(d.error&&d.error.message||'알 수 없는 오류');
-      errEl.style.display='';
-      btn.textContent='📧 이메일 발송'; btn.disabled=false;
+      errEl.textContent='보고 내용을 생성할 수 없습니다.'; errEl.style.display='';
+      btn.textContent='📧 이메일 발송'; btn.disabled=false; return;
     }
-  }).catch(function(){
-    var errEl=document.getElementById('email-send-error');
-    errEl.textContent='네트워크 오류가 발생했습니다.'; errEl.style.display='';
-    btn.textContent='📧 이메일 발송'; btn.disabled=false;
+    btn.textContent='📧 발송 중...';
+    var subject = '['+appTitle+'] '+content.dateLabel+' 청소 보고 — '+content.cos.join(', ');
+    var message = 'To: '+to+'\r\nSubject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n'+content.text;
+    var encoded = btoa(unescape(encodeURIComponent(message))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+    fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
+      method:'POST',
+      headers:{ Authorization:'Bearer '+googleAccessToken, 'Content-Type':'application/json' },
+      body: JSON.stringify({ raw: encoded })
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.id){
+        closeEmailModal();
+        showToast('✅ 이메일 발송 완료!\n→ '+to);
+      } else {
+        var errEl=document.getElementById('email-send-error');
+        errEl.textContent='발송 실패: '+(d.error&&d.error.message||'알 수 없는 오류');
+        errEl.style.display='';
+        btn.textContent='📧 이메일 발송'; btn.disabled=false;
+      }
+    }).catch(function(){
+      var errEl=document.getElementById('email-send-error');
+      errEl.textContent='네트워크 오류가 발생했습니다.'; errEl.style.display='';
+      btn.textContent='📧 이메일 발송'; btn.disabled=false;
+    });
   });
 }
 
-// ── 카카오톡 공유 ──
+// ── 카카오톡 공유 (Web Share API → 네이티브 공유 시트) ──
 function doShareKakao(){
-  if(!_reportSelectedDates.length){
-    showToast('날짜를 하나 이상 추가해주세요.'); return;
-  }
-  var content = _buildReportContent();
-  if(!content){ showToast('현장을 하나 이상 선택해주세요.'); return; }
+  if(!_reportSelectedDates.length){ showToast('날짜를 하나 이상 추가해주세요.'); return; }
+  var selectedCount = Object.values(_reportSelectedSites).filter(Boolean).length;
+  if(!selectedCount){ showToast('현장을 하나 이상 선택해주세요.'); return; }
 
-  // 카카오톡 공유: KakaoTalk URL Scheme (모바일) → 불가시 클립보드 복사
-  var text = content.text;
-  var kakaoUrl = 'kakaolink://send?text=' + encodeURIComponent(text);
+  // 텍스트 빌드 (Drive 조회 없이 Firebase 카운트 기준으로 빠르게)
+  var selectedSiteList = sites.filter(function(s){ return _reportSelectedSites[s.id]; });
+  var cos = [...new Set(selectedSiteList.map(function(s){return s.company;}))].sort();
+  var dateLabel = _reportSelectedDates.length===1
+    ? _reportSelectedDates[0]
+    : _reportSelectedDates[0]+' ~ '+_reportSelectedDates[_reportSelectedDates.length-1]+' ('+_reportSelectedDates.length+'일)';
 
-  // 모바일이면 카카오 URL Scheme 시도, 아니면 클립보드 복사
-  var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if(isMobile){
-    // URL Scheme 열기 — 카카오앱이 없으면 무반응이므로 클립보드도 함께 복사
-    navigator.clipboard.writeText(text).catch(function(){});
-    window.location.href = kakaoUrl;
-    showToast('📋 내용이 복사됐어요!\n카카오톡 앱에서 붙여넣기 하세요.');
+  var lines = ['📋 청소 보고 — '+dateLabel, ''];
+  cos.forEach(function(co){
+    var coSites = selectedSiteList.filter(function(s){return s.company===co;});
+    lines.push('🏢 '+co);
+    coSites.forEach(function(s){
+      _reportSelectedDates.forEach(function(dateStr){
+        var dow = getDayOfWeek(dateStr);
+        if(!s.days || !s.days.includes(dow)) return;
+        var info = (reportPhotoData[dateStr]||{})[s.id]||{photos:0};
+        var status = info.photos > 0 ? '✅ '+info.photos+'장' : '❌ 미보고';
+        lines.push('  📍 '+s.site+' ('+dateStr+') '+status);
+      });
+    });
+    lines.push('');
+  });
+  lines.push('— '+appTitle);
+  var text = lines.join('\n');
+
+  // Web Share API (모바일에서 카카오톡 등 앱 선택 가능)
+  if(navigator.share){
+    navigator.share({ title: appTitle+' 청소 보고', text: text })
+      .then(function(){ showToast('✅ 공유 완료!'); })
+      .catch(function(e){ if(e.name!=='AbortError') _showCopyFallback(text); });
   } else {
-    // PC: 클립보드 복사 후 안내
+    // PC 등 Web Share 미지원 → 클립보드 복사
     navigator.clipboard.writeText(text).then(function(){
       showToast('📋 보고 내용이 복사됐어요!\n카카오톡에 붙여넣기 하세요.');
     }).catch(function(){
-      // 클립보드 실패 시 textarea로 표시
       _showCopyFallback(text);
     });
   }
@@ -2581,12 +2632,12 @@ function _showCopyFallback(text){
   w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:700;display:flex;align-items:center;justify-content:center;padding:16px;';
   var box = document.createElement('div');
   box.style.cssText='background:#161616;border:1px solid #2c2c2c;border-radius:14px;padding:20px;width:100%;max-width:420px;';
-  box.innerHTML='<div style="font-size:14px;font-weight:800;color:#FEE500;margin-bottom:10px;">🟡 카카오톡 공유 내용</div>'
+  box.innerHTML='<div style="font-size:14px;font-weight:800;color:#FEE500;margin-bottom:10px;">💬 카카오톡 공유 내용</div>'
     +'<div style="font-size:12px;color:#777;margin-bottom:10px;">아래 내용을 복사해서 카카오톡에 붙여넣기 하세요.</div>'
-    +'<textarea readonly style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px;color:#f0f0f0;font-size:12px;height:200px;resize:none;outline:none;font-family:Noto Sans KR,sans-serif;line-height:1.6;">'+text+'</textarea>'
+    +'<textarea readonly id="fallback-ta" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px;color:#f0f0f0;font-size:12px;height:200px;resize:none;outline:none;font-family:Noto Sans KR,sans-serif;line-height:1.6;">'+text+'</textarea>'
     +'<div style="display:flex;gap:8px;margin-top:12px;">'
-    +'<button onclick="this.closest(\'div[style*=position]\').remove()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:13px;cursor:pointer;">닫기</button>'
-    +'<button onclick="navigator.clipboard.writeText(this.closest(\'div[style*=position]\').querySelector(\'textarea\').value).then(function(){showToast(\'📋 복사됐어요!\');})" style="flex:2;padding:10px;border-radius:8px;border:none;background:#FEE500;color:#000;font-size:13px;font-weight:900;cursor:pointer;">📋 복사하기</button>'
+    +'<button onclick="this.closest(\'div\').parentElement.parentElement.remove()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:13px;cursor:pointer;">닫기</button>'
+    +'<button onclick="navigator.clipboard.writeText(document.getElementById(\'fallback-ta\').value).then(function(){showToast(\'📋 복사됐어요!\');})" style="flex:2;padding:10px;border-radius:8px;border:none;background:#FEE500;color:#000;font-size:13px;font-weight:900;cursor:pointer;">📋 복사하기</button>'
     +'</div>';
   w.appendChild(box);
   document.body.appendChild(w);
