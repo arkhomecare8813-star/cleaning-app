@@ -812,15 +812,14 @@ function isGoogleLoggedIn(){
 }
 
 function googleLogin(){
-  // 리디렉션 방식으로 OAuth 로그인
-  const redirectUri = encodeURIComponent(location.href.split('?')[0]);
-  const scope = encodeURIComponent(DRIVE_SCOPES);
-  const url = 'https://accounts.google.com/o/oauth2/v2/auth'
+  var base = location.href.split('#')[0].split('?')[0];
+  var url = 'https://accounts.google.com/o/oauth2/v2/auth'
     + '?client_id=' + GOOGLE_CLIENT_ID
-    + '&redirect_uri=' + redirectUri
+    + '&redirect_uri=' + encodeURIComponent(base)
     + '&response_type=token'
-    + '&scope=' + scope;
-  location.href = url;
+    + '&scope=' + encodeURIComponent(DRIVE_SCOPES)
+    + '&prompt=consent';
+  window.location.href = url;
 }
 
 // 페이지 로드시 URL에서 토큰 파싱
