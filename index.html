@@ -9,18 +9,41 @@
 <script>
 var GOOGLE_CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googleusercontent.com';
 var DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send';
+var googleAccessToken = localStorage.getItem('g-token') || null;
+var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
+function isGoogleLoggedIn(){ return googleAccessToken && Date.now() < googleTokenExpiry; }
 function googleLogin(){
   var base = location.href.split('#')[0].split('?')[0];
-  var url = 'https://accounts.google.com/o/oauth2/v2/auth'
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth'
     + '?client_id=' + GOOGLE_CLIENT_ID
     + '&redirect_uri=' + encodeURIComponent(base)
     + '&response_type=token'
     + '&scope=' + encodeURIComponent(DRIVE_SCOPES)
     + '&prompt=consent';
-  window.location.href = url;
+}
+function googleLogout(){
+  googleAccessToken = null; googleTokenExpiry = 0;
+  localStorage.removeItem('g-token'); localStorage.removeItem('g-token-exp');
+  updateGoogleUI(false);
+}
+function updateGoogleUI(on){
+  var dot = document.getElementById('g-dot');
+  var txt = document.getElementById('g-txt');
+  var sub = document.getElementById('g-sub');
+  var lbtn = document.getElementById('g-login-btn');
+  var obtn = document.getElementById('g-logout-btn');
+  if(!dot) return;
+  if(on){
+    dot.style.background='#00e5a0'; txt.textContent='Google 연동 완료 ✓';
+    sub.textContent='Drive 사진 저장 · Gmail 발송 활성화됨';
+    lbtn.style.display='none'; obtn.style.display='';
+  } else {
+    dot.style.background='#ff4d6d'; txt.textContent='Google 연동 필요';
+    sub.textContent='Drive 사진 저장 · Gmail 발송을 사용하려면 로그인하세요';
+    lbtn.style.display=''; obtn.style.display='none';
+  }
 }
 </script>
-
 <style>
 :root{
   --bg:#0a0a0a;--sf:#161616;--sf2:#1e1e1e;--sf3:#272727;
@@ -268,58 +291,6 @@ main{padding:18px 14px;max-width:1400px;}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px;}
-
-/* REPORT TAB */
-.report-topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
-.report-date-input{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;color-scheme:dark;}
-.report-date-input:focus{border-color:var(--accent);}
-.report-legend{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
-.rleg-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0;}
-.rleg-dot.ok{background:var(--accent);}
-.rleg-dot.miss{background:var(--danger);}
-.report-sms-all-btn{display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:8px;border:1px solid #3d1a1a;background:transparent;color:var(--danger);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;}
-.report-sms-all-btn:hover{background:#3d1a1a;}
-.report-refresh-btn{padding:7px 11px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:13px;cursor:pointer;transition:all 0.15s;}
-.report-refresh-btn:hover{color:var(--text);}
-.report-auto-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:11px 16px;margin-bottom:16px;flex-wrap:wrap;}
-.report-toggle-wrap{position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0;}
-.report-toggle-wrap input{opacity:0;width:0;height:0;}
-.report-toggle-slider{position:absolute;inset:0;background:var(--sf3);border-radius:12px;transition:0.3s;border:1px solid var(--bd);}
-.report-toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:0.3s;}
-.report-toggle-wrap input:checked + .report-toggle-slider{background:var(--a2);border-color:var(--accent);}
-.report-toggle-wrap input:checked + .report-toggle-slider:before{transform:translateX(20px);background:var(--accent);}
-.report-co-block{background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:14px;overflow:hidden;}
-.report-co-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--sf2);border-bottom:1px solid var(--bd);}
-.report-co-left{display:flex;align-items:center;gap:10px;}
-.report-co-name{font-size:14px;font-weight:800;}
-.report-co-score{font-size:12px;font-family:'DM Mono',monospace;}
-.report-sites-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding:14px;}
-.report-site-card{border-radius:10px;padding:13px 14px;border:1px solid var(--bd);background:var(--sf3);position:relative;display:flex;flex-direction:column;gap:8px;}
-.report-site-card.ok{border-color:var(--accent);background:rgba(0,229,160,0.05);}
-.report-site-card.miss{border-color:var(--danger);background:rgba(255,77,109,0.04);}
-.report-site-card.nowork{opacity:0.35;}
-.report-site-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;}
-.report-site-name{font-size:13px;font-weight:700;line-height:1.3;}
-.report-status-badge{flex-shrink:0;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;}
-.report-status-badge.ok{background:rgba(0,229,160,0.15);color:var(--accent);}
-.report-status-badge.miss{background:rgba(255,77,109,0.15);color:var(--danger);}
-.report-status-badge.nowork{background:var(--sf2);color:var(--dim);}
-.report-site-meta{font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:3px;}
-.report-site-actions{display:flex;gap:6px;margin-top:2px;}
-.report-site-sms-btn{flex:1;padding:6px 8px;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;text-align:center;}
-.report-site-sms-btn:hover{border-color:var(--accent);color:var(--accent);}
-.report-site-sms-btn.sent{border-color:var(--a2);color:var(--accent);background:var(--a2);}
-.report-photo-count{font-size:11px;font-family:'DM Mono',monospace;color:var(--accent);font-weight:700;}
-.report-upload-btn{flex:1;padding:6px 8px;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;text-align:center;}
-.report-upload-btn:hover{border-color:#7ab8ff;color:#7ab8ff;}
-.report-summary-bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
-.report-sum-card{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:10px 16px;flex:1;min-width:110px;}
-.report-sum-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px;}
-.report-sum-val{font-family:'DM Mono',monospace;font-size:18px;font-weight:900;}
-.report-sum-val.ok{color:var(--accent);}
-.report-sum-val.miss{color:var(--danger);}
-.report-sum-val.neutral{color:#7ab8ff;}
-
 @media(max-width:600px){
   main{padding:14px 10px;}
   .form-grid{grid-template-columns:1fr 1fr;}
@@ -440,62 +411,28 @@ main{padding:18px 14px;max-width:1400px;}
   </div>
   <!-- REPORT -->
   <div class="view" id="view-report">
-    <!-- Google 연동 배너 -->
-    <div id="google-auth-banner" style="display:flex;align-items:center;justify-content:space-between;background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:10px 16px;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+    <div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:11px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <div id="google-status-dot" style="width:9px;height:9px;border-radius:50%;background:var(--danger);flex-shrink:0;"></div>
+        <div id="g-dot" style="width:9px;height:9px;border-radius:50%;background:#ff4d6d;flex-shrink:0;"></div>
         <div>
-          <div id="google-status-text" style="font-size:13px;font-weight:700;">Google 연동 필요</div>
-          <div id="google-status-sub" style="font-size:11px;color:var(--muted);">Drive 사진 저장 · Gmail 발송을 사용하려면 로그인하세요</div>
+          <div id="g-txt" style="font-size:13px;font-weight:700;">Google 연동 필요</div>
+          <div id="g-sub" style="font-size:11px;color:#777;">Drive 사진 저장 · Gmail 발송을 사용하려면 로그인하세요</div>
         </div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button onclick="googleLogin()" class="btn btn-primary" style="min-height:34px;font-size:12px;padding:6px 14px;">&#128279; Google 로그인</button>
-        <button id="google-logout-btn" class="btn btn-ghost" style="min-height:34px;font-size:12px;padding:6px 14px;display:none;" onclick="googleLogout()">로그아웃</button>
+        <button id="g-login-btn" class="btn btn-primary" style="min-height:34px;font-size:12px;padding:6px 14px;" onclick="googleLogin()">&#128279; Google 로그인</button>
+        <button id="g-logout-btn" class="btn btn-ghost" style="min-height:34px;font-size:12px;padding:6px 14px;display:none;" onclick="googleLogout()">로그아웃</button>
       </div>
     </div>
-
-    <div class="report-topbar">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
         <div style="font-size:15px;font-weight:800;">&#128247; 현장 보고 현황</div>
-        <input type="date" id="report-date" class="report-date-input" onchange="renderReport()">
+        <input type="date" id="report-date" onchange="renderReport()" style="background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:7px 12px;color:#f0f0f0;font-size:13px;outline:none;color-scheme:dark;">
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <div class="report-legend"><span class="rleg-dot ok"></span>사진 접수</div>
-        <div class="report-legend"><span class="rleg-dot miss"></span>미접수</div>
-        <button class="report-sms-all-btn" onclick="sendAllSms()">&#128241; 미접수 전체 문자</button>
-        <button class="report-refresh-btn" onclick="renderReport()">&#8635; 새로고침</button>
-        <button class="report-refresh-btn" style="border-color:#4ade80;color:#4ade80;" onclick="sendReportEmail(document.getElementById('report-date').value||todayStr())">&#128231; 이메일 보고</button>
-        <button class="report-refresh-btn" style="border-color:#7ab8ff;color:#7ab8ff;" onclick="openSmsTest()">&#9881; SMS 설정/테스트</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="font-size:12px;min-height:34px;" onclick="renderReport()">&#8635; 새로고침</button>
+        <button class="btn btn-ghost" style="font-size:12px;min-height:34px;border-color:#4ade80;color:#4ade80;" onclick="sendReportEmail()">&#128231; 이메일 보고</button>
       </div>
-    </div>
-
-    <!-- SMS 설정/테스트 패널 -->
-    <div id="sms-config-panel" style="display:none;background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
-      <div style="font-size:13px;font-weight:800;color:#7ab8ff;margin-bottom:14px;">&#9881;&#65039; SMS 설정 &amp; 테스트</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div class="form-group"><label>API KEY</label><input type="text" id="cfg-apikey" value="NCS8HYGUCLJBXZU0"></div>
-        <div class="form-group"><label>API SECRET</label><input type="password" id="cfg-secret" value="SPTCPSWBN4DTCBKTVYBVI8URHNCOVEGC"></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-        <div class="form-group"><label>발신번호</label><input type="text" id="cfg-from" value="01092925782"></div>
-        <div class="form-group"><label>테스트 수신번호</label><input type="text" id="cfg-testnum" placeholder="010-0000-0000"></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <button class="btn btn-primary" style="min-height:38px;font-size:12px;" onclick="saveSmsConfig()">&#128190; 저장</button>
-        <button class="btn" style="background:#1a2a3a;color:#7ab8ff;border:1px solid #1a3a5a;min-height:38px;font-size:12px;" onclick="testSmsSend()">&#128241; 테스트 문자 발송</button>
-        <div id="sms-test-result" style="font-size:12px;color:var(--muted);"></div>
-      </div>
-    </div>
-    <div class="report-auto-banner" id="report-auto-banner">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span id="report-auto-status-text">&#9899; 자동 문자 꺼짐</span>
-        <span style="font-size:11px;color:var(--muted)">— 미접수 현장에 1시간마다 자동 발송</span>
-      </div>
-      <label class="report-toggle-wrap">
-        <input type="checkbox" id="report-auto-toggle" onchange="toggleAutoSms()">
-        <span class="report-toggle-slider"></span>
-      </label>
     </div>
     <div id="report-content"></div>
   </div>
@@ -711,457 +648,125 @@ function importData(e){
         showConfirm('백업 불러오기','현재 데이터를 백업 파일로 교체합니다. 계속할까요?',()=>{
           sites=data.sites;
           if(data.title){appTitle=data.title;localStorage.setItem('cm-title',appTitle);}
-          save();
-// ── REPORT TAB ──
-let reportPhotoData = JSON.parse(localStorage.getItem('cm-photos') || '{}');
-// 구조: { 'YYYY-MM-DD': { siteId: { photos: N, smsSent: bool } } }
-let autoSmsTimer = null;
-
+          save();// ── REPORT TAB ──
+var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); }
-
-function todayStr(){
-  const d = new Date();
-  return d.toISOString().slice(0,10);
-}
-
-function initReportDate(){
-  const el = document.getElementById('report-date');
-  if(el && !el.value) el.value = todayStr();
-}
-
-function getDayOfWeek(dateStr){
-  // returns 0(Sun)~6(Sat)
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.getDay();
-}
-
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function getDayOfWeek(d){ return new Date(d+'T00:00:00').getDay(); }
+function initReportDate(){ var el=document.getElementById('report-date'); if(el&&!el.value)el.value=todayStr(); }
 function renderReport(){
   initReportDate();
-  const dateStr = document.getElementById('report-date').value || todayStr();
-  const dow = getDayOfWeek(dateStr);
-  const dateData = reportPhotoData[dateStr] || {};
-
-  // 오늘 작업하는 현장만 (해당 요일 포함)
-  const workSites = sites.filter(s => s.days && s.days.includes(dow));
-  const cos = [...new Set(sites.map(s => s.company))].sort();
-
-  // 요약 카드
-  const totalWork = workSites.length;
-  const okCount = workSites.filter(s => (dateData[s.id]?.photos || 0) > 0).length;
-  const missCount = totalWork - okCount;
-
-  let html = `<div class="report-summary-bar">
-    <div class="report-sum-card"><div class="report-sum-label">작업 현장</div><div class="report-sum-val neutral">${totalWork}</div></div>
-    <div class="report-sum-card"><div class="report-sum-label">사진 접수</div><div class="report-sum-val ok">${okCount}</div></div>
-    <div class="report-sum-card"><div class="report-sum-label">미접수</div><div class="report-sum-val miss">${missCount}</div></div>
-    <div class="report-sum-card"><div class="report-sum-label">접수율</div><div class="report-sum-val ${okCount===totalWork&&totalWork>0?'ok':'miss'}">${totalWork?Math.round(okCount/totalWork*100):0}%</div></div>
-  </div>`;
-
-  if(!sites.length){
-    html += '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">등록된 현장이 없습니다.</div></div>';
-    document.getElementById('report-content').innerHTML = html;
-    return;
-  }
-
-  cos.forEach(co => {
-    const col = getCompanyColor(co);
-    const coSites = sites.filter(s => s.company === co);
-    const coWork = coSites.filter(s => s.days && s.days.includes(dow));
-    const coOk = coWork.filter(s => (dateData[s.id]?.photos||0)>0).length;
-
-    let cardsHtml = '';
-    coSites.forEach(s => {
-      const isWork = s.days && s.days.includes(dow);
-      const info = dateData[s.id] || { photos: 0, smsSent: false };
-      const hasPhoto = info.photos > 0;
-      const cardClass = !isWork ? 'nowork' : hasPhoto ? 'ok' : 'miss';
-      const badgeClass = !isWork ? 'nowork' : hasPhoto ? 'ok' : 'miss';
-      const badgeIcon = !isWork ? '—' : hasPhoto ? '✓' : '✕';
-      const daysStr = (s.days||[]).sort().map(d=>DAYS[d]).join('·');
-
-      cardsHtml += `<div class="report-site-card ${cardClass}">
-        <div class="report-site-top">
-          <div class="report-site-name">${s.site}</div>
-          <div class="report-status-badge ${badgeClass}">${badgeIcon}</div>
-        </div>
-        <div class="report-site-meta">
-          <span>작업요일: ${daysStr||'—'}</span>
-          ${s.mgr?`<span>담당: ${s.mgr}</span>`:''}
-          ${s.phone?`<span>연락처: ${s.phone}</span>`:''}
-          ${hasPhoto?`<span class="report-photo-count">📷 사진 ${info.photos}장</span>`:''}
-        </div>
-        ${isWork ? `<div class="report-site-actions">
-          <button class="report-upload-btn" onclick="manualUpload('${s.id}','${dateStr}')">📷 사진 추가</button>
-          ${!hasPhoto ? `<button class="report-site-sms-btn ${info.smsSent?'sent':''}" onclick="sendSms('${s.id}','${dateStr}',this)">${info.smsSent?'✓ 발송됨':'문자 발송'}</button>` : ''}
-        </div>` : `<div class="report-no-work-label">오늘 작업 없음</div>`}
-      </div>`;
+  var dateStr = document.getElementById('report-date').value||todayStr();
+  var dow = getDayOfWeek(dateStr);
+  var dateData = reportPhotoData[dateStr]||{};
+  var workSites = sites.filter(function(s){return s.days&&s.days.includes(dow);});
+  var okCount = workSites.filter(function(s){return (dateData[s.id]&&dateData[s.id].photos>0);}).length;
+  var html = '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 16px;flex:1;min-width:100px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">작업현장</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#7ab8ff;">'+workSites.length+'</div></div>'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 16px;flex:1;min-width:100px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">사진접수</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#00e5a0;">'+okCount+'</div></div>'
+    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:10px 16px;flex:1;min-width:100px;"><div style="font-size:10px;color:#777;text-transform:uppercase;margin-bottom:4px;">미접수</div><div style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#ff4d6d;">'+(workSites.length-okCount)+'</div></div>'
+    +'</div>';
+  var cos=[...new Set(sites.map(function(s){return s.company;}))].sort();
+  if(!sites.length){html+='<div style="text-align:center;padding:50px;color:#444;">등록된 현장이 없습니다.</div>';}
+  cos.forEach(function(co){
+    var col=getCompanyColor(co);
+    var coSites=sites.filter(function(s){return s.company===co;});
+    var coWork=coSites.filter(function(s){return s.days&&s.days.includes(dow);});
+    var coOk=coWork.filter(function(s){return (dateData[s.id]&&dateData[s.id].photos>0);}).length;
+    var cards='';
+    coSites.forEach(function(s){
+      var isWork=s.days&&s.days.includes(dow);
+      var info=dateData[s.id]||{photos:0};
+      var hasPhoto=info.photos>0;
+      var bc=!isWork?'#2c2c2c':hasPhoto?'#00e5a0':'#ff4d6d';
+      var bg=!isWork?'rgba(0,0,0,0)':hasPhoto?'rgba(0,229,160,0.05)':'rgba(255,77,109,0.04)';
+      var badge=!isWork?'—':hasPhoto?'✓':'✕';
+      cards+='<div style="border-radius:10px;padding:13px 14px;border:1px solid '+bc+';background:'+bg+';display:flex;flex-direction:column;gap:8px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+        +'<div style="font-size:13px;font-weight:700;">'+s.site+'</div>'
+        +'<div style="width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.3);color:'+bc+';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0;">'+badge+'</div>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#777;">'+(s.mgr?'담당: '+s.mgr+'<br>':'')+(s.phone?'연락처: '+s.phone+'<br>':'')+(hasPhoto?'<span style="color:#00e5a0;font-weight:700;">📷 '+info.photos+'장</span>':'')+'</div>'
+        +(isWork?'<div style="display:flex;gap:6px;">'
+          +'<button onclick="manualUpload(''+s.id+'',''+dateStr+'')" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📷 사진추가</button>'
+          +(!hasPhoto?'<button onclick="sendSmsOne(''+s.id+'',''+dateStr+'',this)" style="flex:1;padding:6px;border-radius:7px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:11px;font-weight:700;cursor:pointer;">📱 문자발송</button>':'')
+          +'</div>':'<div style="font-size:10px;color:#444;text-align:center;">오늘 작업 없음</div>')
+        +'</div>';
     });
-
-    html += `<div class="report-co-block">
-      <div class="report-co-hdr">
-        <div class="report-co-left">
-          <div class="company-dot" style="background:${col.text}"></div>
-          <div class="report-co-name">${co}</div>
-          <div style="font-size:11px;color:var(--muted);margin-left:4px">(작업현장 ${coWork.length}곳)</div>
-        </div>
-        <div class="report-co-score" style="color:${coOk===coWork.length&&coWork.length>0?'var(--accent)':'var(--danger)'}">
-          ${coOk} / ${coWork.length} 접수
-        </div>
-      </div>
-      <div class="report-sites-grid">${cardsHtml}</div>
-    </div>`;
+    html+='<div style="background:#161616;border:1px solid #2c2c2c;border-radius:12px;margin-bottom:14px;overflow:hidden;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#1e1e1e;border-bottom:1px solid #2c2c2c;">'
+      +'<div style="display:flex;align-items:center;gap:10px;"><div style="width:11px;height:11px;border-radius:50%;background:'+col.text+'"></div><div style="font-size:14px;font-weight:800;">'+co+'</div><div style="font-size:11px;color:#777;">(작업 '+coWork.length+'곳)</div></div>'
+      +'<div style="font-family:DM Mono,monospace;font-size:12px;color:'+(coOk===coWork.length&&coWork.length>0?'#00e5a0':'#ff4d6d')+';">'+coOk+'/'+coWork.length+' 접수</div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding:14px;">'+cards+'</div>'
+      +'</div>';
   });
-
   document.getElementById('report-content').innerHTML = html;
 }
-
-// ── GOOGLE 연동 ──
-const GOOGLE_CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googleusercontent.com';
-const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send';
-let googleAccessToken = localStorage.getItem('g-token') || null;
-let googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
-
-function isGoogleLoggedIn(){
-  return googleAccessToken && Date.now() < googleTokenExpiry;
-}
-
-
-// parseTokenFromUrl - 아래로 이동
-
-function googleLogout(){
-  google.accounts.oauth2.revoke(googleAccessToken, () => {});
-  googleAccessToken = null; googleTokenExpiry = 0;
-  localStorage.removeItem('g-token'); localStorage.removeItem('g-token-exp');
-  updateGoogleUI(false);
-  showToast('Google 로그아웃 완료');
-}
-
-function updateGoogleUI(loggedIn){
-  const dot  = document.getElementById('google-status-dot');
-  const txt  = document.getElementById('google-status-text');
-  const sub  = document.getElementById('google-status-sub');
-  const lBtn = document.getElementById('google-login-btn');
-  const oBtn = document.getElementById('google-logout-btn');
-  if(!dot) return;
-  if(loggedIn){
-    dot.style.background = 'var(--accent)';
-    txt.textContent = 'Google 연동 완료 ✓';
-    sub.textContent = 'Drive 사진 저장 · Gmail 발송 활성화됨';
-    lBtn.style.display = 'none';
-    oBtn.style.display = '';
-  } else {
-    dot.style.background = 'var(--danger)';
-    txt.textContent = 'Google 연동 필요';
-    sub.textContent = 'Drive 사진 저장 · Gmail 발송을 사용하려면 로그인하세요';
-    lBtn.style.display = '';
-    oBtn.style.display = 'none';
-  }
-}
-
-async function driveGetOrCreateFolder(name, parentId){
-  const q = parentId
-    ? `name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`
-    : `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const res = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)', {
-    headers: { Authorization: 'Bearer ' + googleAccessToken }
-  });
-  const data = await res.json();
-  if(data.files && data.files.length > 0) return data.files[0].id;
-  const body = { name, mimeType: 'application/vnd.google-apps.folder' };
-  if(parentId) body.parents = [parentId];
-  const cRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  const created = await cRes.json();
-  return created.id;
-}
-
-async function driveUploadPhoto(file, companyName, siteName, dateStr){
-  const rootId  = await driveGetOrCreateFolder('청소팀 보고', null);
-  const coId    = await driveGetOrCreateFolder(companyName, rootId);
-  const siteId2 = await driveGetOrCreateFolder(siteName, coId);
-  const dateId  = await driveGetOrCreateFolder(dateStr, siteId2);
-  const metadata = { name: file.name, parents: [dateId] };
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', file);
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + googleAccessToken },
-    body: form
-  });
-  return await res.json();
-}
-
-async function gmailSendReport(toEmail, subject, bodyHtml){
-  const from = 'soulhoon@gmail.com';
-  const message = [
-    'Content-Type: text/html; charset=utf-8',
-    'MIME-Version: 1.0',
-    'To: ' + toEmail,
-    'From: ' + from,
-    'Subject: =?utf-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=',
-    '',
-    bodyHtml
-  ].join('\r\n');
-  const encoded = btoa(unescape(encodeURIComponent(message))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw: encoded })
-  });
-  return await res.json();
-}
-
 function manualUpload(siteId, dateStr){
-  const site = sites.find(s => s.id === siteId);
-  if(!site) return;
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*'; input.multiple = true;
-  input.onchange = async e => {
-    const files = [...e.target.files];
-    if(!files.length) return;
-    if(!reportPhotoData[dateStr]) reportPhotoData[dateStr] = {};
-    const cur = reportPhotoData[dateStr][siteId] || { photos:0, smsSent:false, driveLinks:[] };
-    if(isGoogleLoggedIn()){
-      showToast('☁️ Google Drive에 ' + files.length + '장 업로드 중...');
-      let ok=0; const links=[];
-      for(const file of files){
-        try{
-          const uploaded = await driveUploadPhoto(file, site.company, site.site, dateStr);
-          links.push(uploaded.webViewLink || '');
-          ok++;
-        } catch(err){ showToast('❌ 업로드 실패: ' + err.message); }
-      }
-      cur.photos += ok;
-      cur.driveLinks = [...(cur.driveLinks||[]), ...links];
-      reportPhotoData[dateStr][siteId] = cur;
-      saveReportData(); renderReport();
-      showToast('✅ Drive 업로드 완료! ' + ok + '장\n📁 청소팀 보고 > ' + site.company + ' > ' + site.site + ' > ' + dateStr);
-    } else {
-      cur.photos += files.length;
-      reportPhotoData[dateStr][siteId] = cur;
-      saveReportData(); renderReport();
-      showToast('📷 ' + files.length + '장 기록됨\n⚠️ Google 로그인하면 Drive에 자동 저장됩니다');
-    }
+  var site=sites.find(function(s){return s.id===siteId;});
+  if(!site)return;
+  var input=document.createElement('input');
+  input.type='file';input.accept='image/*';input.multiple=true;
+  input.onchange=function(e){
+    var files=[].slice.call(e.target.files);
+    if(!files.length)return;
+    if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
+    var cur=reportPhotoData[dateStr][siteId]||{photos:0};
+    cur.photos+=files.length;
+    reportPhotoData[dateStr][siteId]=cur;
+    saveReportData();renderReport();
+    showToast('📷 '+files.length+'장 기록됨');
   };
   input.click();
 }
-
-async function sendReportEmail(dateStr){
-  if(!isGoogleLoggedIn()){ showToast('❌ Google 로그인 후 사용 가능합니다'); return; }
-  const dateData = reportPhotoData[dateStr] || {};
-  const dow = getDayOfWeek(dateStr);
-  const workSites = sites.filter(s => s.days && s.days.includes(dow));
-  let rows = '';
-  workSites.forEach(s => {
-    const info = dateData[s.id] || { photos:0 };
-    const status = info.photos > 0 ? '✅ 접수' : '❌ 미접수';
-    const links = (info.driveLinks||[]).map((l,i) => l ? '<a href="' + l + '">사진' + (i+1) + '</a>' : '').join(' ');
-    rows += '<tr><td style="padding:8px 12px;border-bottom:1px solid #eee">' + s.company + '</td>'
-          + '<td style="padding:8px 12px;border-bottom:1px solid #eee">' + s.site + '</td>'
-          + '<td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">' + status + '</td>'
-          + '<td style="padding:8px 12px;border-bottom:1px solid #eee">' + info.photos + '장 ' + links + '</td></tr>';
-  });
-  const okCount = workSites.filter(s=>(dateData[s.id]?.photos||0)>0).length;
-  const html = '<div style="font-family:sans-serif;max-width:600px">'
-    + '<h2 style="color:#00b37a">청소팀 현장 보고 — ' + dateStr + '</h2>'
-    + '<p>작업현장 <b>' + workSites.length + '곳</b> 중 <b style="color:#00b37a">' + okCount + '곳</b> 사진 접수 완료</p>'
-    + '<table style="width:100%;border-collapse:collapse;margin-top:16px">'
-    + '<thead><tr style="background:#f5f5f5"><th style="padding:8px 12px;text-align:left">업체</th><th style="padding:8px 12px;text-align:left">현장</th><th style="padding:8px 12px;text-align:center">상태</th><th style="padding:8px 12px;text-align:left">사진</th></tr></thead>'
-    + '<tbody>' + rows + '</tbody></table>'
-    + '<p style="color:#999;font-size:12px;margin-top:20px">청소팀 관리 앱에서 자동 생성된 보고서입니다.</p></div>';
-  try{
-    showToast('📧 이메일 발송 중...');
-    await gmailSendReport('soulhoon@gmail.com', '[청소팀 보고] ' + dateStr + ' 현장 사진 접수 현황', html);
-    showToast('✅ 이메일 발송 완료!\n수신: soulhoon@gmail.com');
-  } catch(err){
-    showToast('❌ 이메일 발송 실패: ' + err.message);
+function sendSmsOne(siteId, dateStr, btn){
+  var site=sites.find(function(s){return s.id===siteId;});
+  if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
+  if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
+  if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0,smsSent:false};
+  reportPhotoData[dateStr][siteId].smsSent=true;
+  saveReportData();
+  btn.textContent='✓ 발송됨';btn.style.color='#00e5a0';btn.style.borderColor='#004d36';
+  showToast('📱 '+site.phone+' 문자 발송
+(SMS API 연동 후 실제 발송)');
+}
+function sendReportEmail(){
+  if(!isGoogleLoggedIn()){showToast('❌ Google 로그인 후 사용 가능합니다');return;}
+  showToast('📧 이메일 발송 기능 준비 중...');
+}
+// 토큰 파싱은 renderAll 후에 실행
+function checkGoogleToken(){
+  var h=location.hash;
+  if(h&&h.indexOf('access_token')>-1){
+    var p={};
+    h.slice(1).split('&').forEach(function(s){
+      var i=s.indexOf('=');
+      if(i>-1)p[s.slice(0,i)]=decodeURIComponent(s.slice(i+1));
+    });
+    if(p.access_token){
+      googleAccessToken=p.access_token;
+      googleTokenExpiry=Date.now()+(parseInt(p.expires_in||3600)*1000);
+      localStorage.setItem('g-token',googleAccessToken);
+      localStorage.setItem('g-token-exp',String(googleTokenExpiry));
+      history.replaceState({},document.title,location.pathname);
+      updateGoogleUI(true);
+      showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
+    }
   }
 }
 
-// ── SOLAPI SMS 설정 ──
-const SOLAPI_KEY    = 'NCS8HYGUCLJBXZU0';
-const SOLAPI_SECRET = 'SPTCPSWBN4DTCBKTVYBVI8URHNCOVEGC';
-const SMS_FROM      = '01092925782';
-
-async function solapiSend(to, text){
-  // 런타임 설정 우선 (설정 패널에서 변경한 경우)
-  const apiKey    = window._smsKey    || SOLAPI_KEY;
-  const apiSecret = window._smsSecret || SOLAPI_SECRET;
-  const fromNum   = window._smsFrom   || SMS_FROM;
-  // HMAC-SHA256 서명 생성
-  const date = new Date().toISOString();
-  const salt = Math.random().toString(36).substring(2, 12);
-  const sigStr = date + salt;
-
-  // SubtleCrypto로 HMAC-SHA256
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw', enc.encode(apiSecret),
-    { name:'HMAC', hash:'SHA-256' }, false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(sigStr));
-  const sigHex = Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('');
-
-  const authHeader = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${sigHex}`;
-
-  // 수신번호 정규화 (하이픈 제거)
-  const toNum = to.replace(/-/g,'');
-
-  const res = await fetch('https://api.solapi.com/messages/v4/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': authHeader
-    },
-    body: JSON.stringify({
-      message: {
-        to: toNum,
-        from: fromNum,
-        text: text
-      }
-    })
-  });
-  const data = await res.json();
-  if(!res.ok) throw new Error(data.message || JSON.stringify(data));
-  return data;
-}
-
-async function sendSms(siteId, dateStr, btn){
-  const site = sites.find(s => s.id === siteId);
-  if(!site){ showToast('❌ 현장 정보를 찾을 수 없습니다.'); return; }
-  if(!site.phone){ showToast(`❌ [${site.site}] 담당자 연락처가 없습니다.\n업체 목록에서 연락처를 추가해 주세요.`); return; }
-
-  btn.textContent = '발송 중...'; btn.disabled = true;
-
-  const uploadUrl = `https://cmreport.page.link/upload?s=${encodeURIComponent(siteId)}&d=${dateStr}`;
-  const text = `[청소팀 보고] ${site.site} 현장 사진을 업로드해 주세요.\n▶ ${uploadUrl}`;
-
-  try {
-    await solapiSend(site.phone, text);
-    if(!reportPhotoData[dateStr]) reportPhotoData[dateStr] = {};
-    if(!reportPhotoData[dateStr][siteId]) reportPhotoData[dateStr][siteId] = { photos:0, smsSent:false };
-    reportPhotoData[dateStr][siteId].smsSent = true;
-    saveReportData();
-    btn.classList.add('sent'); btn.textContent = '✓ 발송됨'; btn.disabled = false;
-    showToast(`✅ ${site.phone} 문자 발송 성공!`);
-  } catch(err){
-    btn.textContent = '문자 발송'; btn.disabled = false;
-    showToast(`❌ 발송 실패: ${err.message}`);
-  }
-}
-
-async function sendAllSms(){
-  const dateStr = document.getElementById('report-date')?.value || todayStr();
-  const dow = getDayOfWeek(dateStr);
-  const dateData = reportPhotoData[dateStr] || {};
-  const missWork = sites.filter(s => s.days && s.days.includes(dow) && !(dateData[s.id]?.photos > 0));
-  if(!missWork.length){ showToast('✅ 모든 현장에서 사진이 접수되었습니다!'); return; }
-
-  const noPhone  = missWork.filter(s => !s.phone);
-  const withPhone = missWork.filter(s => s.phone);
-
-  if(!withPhone.length){
-    showToast(`⚠️ 연락처 등록된 현장이 없습니다.\n미접수 ${noPhone.length}곳: ${noPhone.map(s=>s.site).join(', ')}`);
-    return;
-  }
-
-  showToast(`📱 ${withPhone.length}곳에 문자 발송 중...`);
-
-  let ok = 0, fail = 0, failNames = [];
-  for(const s of withPhone){
-    const uploadUrl = `https://cmreport.page.link/upload?s=${encodeURIComponent(s.id)}&d=${dateStr}`;
-    const text = `[청소팀 보고] ${s.site} 현장 사진을 업로드해 주세요.\n▶ ${uploadUrl}`;
-    try {
-      await solapiSend(s.phone, text);
-      if(!reportPhotoData[dateStr]) reportPhotoData[dateStr] = {};
-      if(!reportPhotoData[dateStr][s.id]) reportPhotoData[dateStr][s.id] = { photos:0, smsSent:false };
-      reportPhotoData[dateStr][s.id].smsSent = true;
-      ok++;
-    } catch(e){ fail++; failNames.push(s.site); }
-  }
-
-  saveReportData(); renderReport();
-  let msg = `✅ ${ok}곳 발송 완료`;
-  if(fail)   msg += `\n❌ ${fail}곳 실패: ${failNames.join(', ')}`;
-  if(noPhone.length) msg += `\n⚠️ 연락처 없음 ${noPhone.length}곳: ${noPhone.map(s=>s.site).join(', ')}`;
-  showToast(msg);
-}
-
-function toggleAutoSms(){
-  const on = document.getElementById('report-auto-toggle').checked;
-  const txt = document.getElementById('report-auto-status-text');
-  if(on){
-    txt.textContent = '🟢 자동 문자 켜짐';
-    autoSmsTimer = setInterval(async ()=>{
-      const dateStr = document.getElementById('report-date')?.value || todayStr();
-      const dow = getDayOfWeek(dateStr);
-      const dateData = reportPhotoData[dateStr] || {};
-      const miss = sites.filter(s => s.days && s.days.includes(dow) && !(dateData[s.id]?.photos > 0) && s.phone);
-      if(miss.length){
-        showToast(`⏰ 자동 발송 시작: 미접수 ${miss.length}곳`);
-        await sendAllSms();
-      }
-    }, 3600000); // 1시간
-    showToast('⏰ 자동 문자 발송이 켜졌습니다. 미접수 현장에 1시간마다 자동으로 문자를 발송합니다.');
-  } else {
-    txt.textContent = '⚫ 자동 문자 꺼짐';
-    if(autoSmsTimer){ clearInterval(autoSmsTimer); autoSmsTimer = null; }
-    showToast('자동 문자 발송이 꺼졌습니다.');
-  }
-}
-
-
-function openSmsTest(){
-  const p = document.getElementById('sms-config-panel');
-  p.style.display = p.style.display==='none' ? 'block' : 'none';
-}
-function saveSmsConfig(){
-  // 런타임 변수 갱신 (페이지 리로드 없이 적용)
-  window._smsKey    = document.getElementById('cfg-apikey').value.trim();
-  window._smsSecret = document.getElementById('cfg-secret').value.trim();
-  window._smsFrom   = document.getElementById('cfg-from').value.trim();
-  showToast('✅ SMS 설정 저장 완료');
-}
-async function testSmsSend(){
-  const to = document.getElementById('cfg-testnum').value.trim();
-  if(!to){ showToast('❌ 테스트 수신번호를 입력해 주세요.'); return; }
-  const res = document.getElementById('sms-test-result');
-  res.textContent = '발송 중...'; res.style.color='var(--muted)';
-  try{
-    await solapiSend(to, '[청소팀 관리] 솔라피 SMS 연동 테스트 메시지입니다. 정상 수신되었습니다 ✓');
-    res.textContent = '✅ 테스트 문자 발송 성공!'; res.style.color='var(--accent)';
-    showToast('✅ 테스트 문자가 ' + to + ' 로 발송되었습니다!');
-  }catch(e){
-    res.textContent = '❌ ' + e.message; res.style.color='var(--danger)';
-    showToast('❌ 발송 실패: ' + e.message);
-  }
-}
-
-// 토스트 메시지
 function showToast(msg){
-  let t = document.getElementById('toast-msg');
-  if(!t){
-    t = document.createElement('div');
-    t.id = 'toast-msg';
-    t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1e1e1e;border:1px solid var(--bd);color:var(--text);padding:11px 20px;border-radius:10px;font-size:13px;z-index:9999;max-width:340px;text-align:center;line-height:1.5;white-space:pre-line;box-shadow:0 4px 20px rgba(0,0,0,0.5);';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg; t.style.opacity = '1';
-  clearTimeout(t._timer);
-  t._timer = setTimeout(()=>{ t.style.opacity='0'; }, 3000);
+  var t=document.getElementById('cm-toast');
+  if(!t){t=document.createElement('div');t.id='cm-toast';
+  t.style.cssText='position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1e1e1e;border:1px solid #2c2c2c;color:#f0f0f0;padding:11px 20px;border-radius:10px;font-size:13px;z-index:9999;max-width:340px;text-align:center;line-height:1.5;white-space:pre-line;box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:opacity 0.3s;';
+  document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._t);t._t=setTimeout(function(){t.style.opacity='0';},3000);
 }
-
-
-if(isGoogleLoggedIn()) updateGoogleUI(true);
-
 renderAll();
-
-// 페이지 로드시 URL에서 토큰 파싱 (모든 함수 선언 후 실행)
-(function(){
+if(isGoogleLoggedIn())updateGoogleUI(true);
+checkGoogleToken();
         });
       }else{alert('올바른 백업 파일이 아닙니다.');}
     }catch{alert('파일을 읽을 수 없습니다.');}
@@ -1858,59 +1463,7 @@ function switchTab(name){
 }
 renderAll();
 
-// 구글 로그인 후 토큰 파싱
-(function(){
-  var h = location.hash;
-  if(h && h.indexOf('access_token') > -1){
-    var p = {};
-    h.slice(1).split('&').forEach(function(s){
-      var i = s.indexOf('=');
-      if(i>-1) p[s.slice(0,i)] = decodeURIComponent(s.slice(i+1));
-    });
-    if(p.access_token){
-      googleAccessToken = p.access_token;
-      googleTokenExpiry = Date.now() + (parseInt(p.expires_in||3600)*1000);
-      localStorage.setItem('g-token', googleAccessToken);
-      localStorage.setItem('g-token-exp', String(googleTokenExpiry));
-      history.replaceState({}, '', location.pathname);
-      updateGoogleUI(true);
-      showToast('✅ Google 로그인 성공!');
-    }
-  }
-})();
 
-
-</script>
-<script src="https://accounts.google.com/gsi/client"></script>
-<script>
-window.onGoogleLibraryLoad = function(){
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: function(response){ googleLoginWithCredential(response); }
-  });
-  google.accounts.oauth2 && renderGoogleBtn();
-};
-function renderGoogleBtn(){
-  var c = document.getElementById('g_id_signin_container');
-  if(c) google.accounts.id.renderButton(c, {
-    theme:'filled_black', size:'medium', text:'signin_with', shape:'rectangular'
-  });
-}
-// Token client 방식 (Drive/Gmail scope용)
-(function waitGSI(){
-  if(typeof google !== 'undefined' && google.accounts && google.accounts.oauth2){
-    var c = document.getElementById('g_id_signin_container');
-    if(c){ 
-      c.innerHTML = '';
-      var btn = document.createElement('button');
-      btn.className = 'btn btn-primary';
-      btn.style = 'min-height:34px;font-size:12px;padding:6px 14px;';
-      btn.innerHTML = '&#128279; Google 로그인';
-      btn.onclick = googleLogin;
-      c.appendChild(btn);
-    }
-  } else { setTimeout(waitGSI, 200); }
-})();
 </script>
 </body>
 </html>
