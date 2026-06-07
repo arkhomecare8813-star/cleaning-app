@@ -157,15 +157,9 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 <script>
 // ── 설정 ──
-// 사장님 구글 드라이브 공유 폴더 ID
-var ROOT_FOLDER_ID = '1q6wXEiRkPymWI4waM5PnLFpqtUhfEX5r';
-
-// 사장님 Google OAuth Client ID (기존 앱과 동일)
-var CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googleusercontent.com';
-var SCOPE = 'https://www.googleapis.com/auth/drive.file';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxCmXc0Ad4prYecIhThnfiH6FqybBVi78GTsU23EfXJC_wJUiGifI2QLzCdS1IlWs_z/exec';
 
 var params = {};
-var accessToken = null;
 var selectedFiles = [];
 
 // ── URL 파라미터 파싱 ──
@@ -179,31 +173,6 @@ function parseParams(){
 // ── 초기화 ──
 function init(){
   parseParams();
-
-  // OAuth 토큰 수신 (사장님 앱에서 전달)
-  var hash = location.hash;
-  if(hash && hash.indexOf('access_token') > -1){
-    var hp = {};
-    hash.slice(1).split('&').forEach(function(s){
-      var i = s.indexOf('=');
-      if(i > -1) hp[s.slice(0,i)] = decodeURIComponent(s.slice(i+1));
-    });
-    if(hp.access_token){
-      accessToken = hp.access_token;
-      sessionStorage.setItem('up-token', accessToken);
-      sessionStorage.setItem('up-exp', String(Date.now() + parseInt(hp.expires_in||3600)*1000));
-      var savedParams = sessionStorage.getItem('up-params')||'';
-      sessionStorage.removeItem('up-params');
-      var newUrl = location.pathname + savedParams;
-      history.replaceState({}, '', newUrl);
-      if(savedParams) { location.replace(newUrl); return; }
-    }
-  }
-
-  // 세션 토큰 복원
-  var saved = sessionStorage.getItem('up-token');
-  var exp = parseInt(sessionStorage.getItem('up-exp')||'0');
-  if(saved && Date.now() < exp) accessToken = saved;
 
   // 파라미터 검증
   if(!params.co || !params.site || !params.date){
@@ -222,21 +191,6 @@ function init(){
     document.getElementById('info-mgr').textContent = params.mgr;
     document.getElementById('mgr-row').style.display = '';
   }
-
-  // 토큰 없으면 사장님 계정으로 자동 로그인 시도
-  if(!accessToken) doLogin();
-}
-
-// ── 로그인 (사장님 드라이브 접근용) ──
-function doLogin(){
-  var base = location.origin + location.pathname;
-  if(location.search) sessionStorage.setItem('up-params', location.search);
-  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth'
-    + '?client_id=' + CLIENT_ID
-    + '&redirect_uri=' + encodeURIComponent(base)
-    + '&response_type=token'
-    + '&scope=' + encodeURIComponent(SCOPE)
-    + '&prompt=none'; // 자동 로그인 시도 (이미 로그인된 경우 팝업 없음)
 }
 
 // ── 파일 선택 ──
@@ -282,149 +236,95 @@ function renderPreviews(){
 
 function updateBtn(){
   var btn = document.getElementById('upload-btn');
-  var txt = document.getElementById('upload-btn-text');
-  if(selectedFiles.length === 0){
-    btn.disabled = true;
-    txt.textContent = '사진을 먼저 선택해주세요';
-  } else {
-    btn.disabled = false;
-    txt.textContent = '📤 ' + selectedFiles.length + '장 업로드하기';
-  }
+  if(!btn) return;
+  btn.disabled = selectedFiles.length === 0;
+  btn.textContent = selectedFiles.length > 0 ? '📤 ' + selectedFiles.length + '장 업로드' : '사진을 먼저 선택해주세요';
 }
 
-// ── 드래그앤드롭 ──
-document.addEventListener('DOMContentLoaded', function(){
-  var z = document.getElementById('upload-zone');
-  if(!z) return;
-  z.addEventListener('dragover', function(e){ e.preventDefault(); z.classList.add('drag'); });
-  z.addEventListener('dragleave', function(){ z.classList.remove('drag'); });
-  z.addEventListener('drop', function(e){
-    e.preventDefault(); z.classList.remove('drag');
-    handleFiles(e.dataTransfer.files);
-  });
-});
-
-// ── 드라이브 API ──
-function searchFolder(name, parentId, cb){
-  var q = "name='" + name.replace(/'/g,"\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-  if(parentId) q += " and '" + parentId + "' in parents";
-  fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id)', {
-    headers: { Authorization: 'Bearer ' + accessToken }
-  }).then(function(r){ return r.json(); }).then(function(d){
-    cb(d.files && d.files.length ? d.files[0].id : null);
-  }).catch(function(){ cb(null); });
-}
-
-function createFolder(name, parentId, cb){
-  fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] })
-  }).then(function(r){ return r.json(); }).then(function(d){ cb(d.id || null); }).catch(function(){ cb(null); });
-}
-
-function getOrCreate(name, parentId, cb){
-  searchFolder(name, parentId, function(id){
-    if(id) cb(id);
-    else createFolder(name, parentId, cb);
-  });
-}
-
-function uploadFile(file, folderId, cb){
-  var meta = JSON.stringify({ name: file.name, parents: [folderId] });
-  var form = new FormData();
-  form.append('metadata', new Blob([meta], { type: 'application/json' }));
-  form.append('file', file);
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
-  xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
-  xhr.onload = function(){ cb(xhr.status === 200); };
-  xhr.onerror = function(){ cb(false); };
-  xhr.send(form);
-}
-
-// ── 업로드 시작 ──
+// ── 업로드 ──
 function startUpload(){
   if(!selectedFiles.length) return;
-
-  // 토큰 없으면 로그인 먼저
-  if(!accessToken){
-    doLogin();
-    return;
-  }
-
   document.getElementById('upload-btn').disabled = true;
   document.getElementById('err-box').style.display = 'none';
   document.getElementById('prog-wrap').style.display = '';
 
-  // 폴더 구조: ROOT > 업체명 > 현장명 > 날짜
-  getOrCreate(params.co, ROOT_FOLDER_ID, function(coId){
-    if(!coId){ showErr('업체 폴더 생성 실패. 다시 시도해주세요.'); return; }
-    getOrCreate(params.site, coId, function(siteId){
-      if(!siteId){ showErr('현장 폴더 생성 실패. 다시 시도해주세요.'); return; }
-      getOrCreate(params.date, siteId, function(dateId){
-        if(!dateId){ showErr('날짜 폴더 생성 실패. 다시 시도해주세요.'); return; }
-        uploadAll(dateId);
-      });
-    });
-  });
-}
-
-function uploadAll(folderId){
   var total = selectedFiles.length;
-  var done = 0, failed = 0;
+  var done = 0;
+  var failed = 0;
 
+  function uploadOne(file, cb){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var base64 = e.target.result.split(',')[1];
+      var body = JSON.stringify({
+        co: params.co,
+        site: params.site,
+        date: params.date,
+        name: file.name || ('photo_' + Date.now() + '.jpg'),
+        data: base64,
+        mime: file.type || 'image/jpeg'
+      });
+      fetch(GAS_URL, {method:'POST', body:body})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if(d.ok) done++;
+          else failed++;
+          cb();
+        })
+        .catch(function(){ failed++; cb(); });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  var idx = 0;
   function next(){
-    var idx = done + failed;
+    updateProgress(idx, total);
     if(idx >= total){
-      setProgress(100, '완료!', '');
-      showSuccess(done);
+      onDone(done, failed);
       return;
     }
-    var file = selectedFiles[idx];
-    setProgress(Math.round(idx/total*100), (idx+1)+'/'+total+' 업로드 중...', file.name);
-    uploadFile(file, folderId, function(ok){
-      if(ok) done++; else failed++;
-      next();
-    });
+    uploadOne(selectedFiles[idx++], next);
   }
   next();
 }
 
-function setProgress(pct, text, filename){
-  document.getElementById('prog-fill').style.width = pct + '%';
-  document.getElementById('prog-pct').textContent = pct + '%';
-  document.getElementById('prog-text').textContent = text;
-  document.getElementById('prog-file').textContent = filename;
+function updateProgress(done, total){
+  var pct = total > 0 ? Math.round(done/total*100) : 0;
+  var bar = document.getElementById('prog-bar');
+  var txt = document.getElementById('prog-txt');
+  if(bar) bar.style.width = pct + '%';
+  if(txt) txt.textContent = done + ' / ' + total + '장';
 }
 
-function showSuccess(count){
-  document.getElementById('upload-card').style.display = 'none';
-  document.getElementById('success-card').style.display = '';
-  document.getElementById('success-count').textContent = count + '장';
-  document.getElementById('success-path').innerHTML =
-    '<strong>' + params.co + '</strong> › <strong>' + params.site + '</strong> › ' + params.date + '<br>폴더에 저장되었습니다 ✓';
-}
-
-function showErr(msg){
-  var el = document.getElementById('err-box');
-  el.textContent = '❌ ' + msg;
-  el.style.display = '';
-  document.getElementById('upload-btn').disabled = false;
-}
-
-function resetUpload(){
-  selectedFiles = [];
-  document.getElementById('preview-grid').innerHTML = '';
+function onDone(done, failed){
   document.getElementById('prog-wrap').style.display = 'none';
-  document.getElementById('err-box').style.display = 'none';
-  document.getElementById('upload-zone').classList.remove('has-files');
-  document.getElementById('success-card').style.display = 'none';
-  document.getElementById('upload-card').style.display = '';
-  updateBtn();
+  document.getElementById('upload-card').style.display = 'none';
+  if(failed === 0){
+    document.getElementById('done-card').style.display = '';
+    document.getElementById('done-count').textContent = done;
+  } else {
+    var eb = document.getElementById('err-box');
+    eb.textContent = done + '장 성공, ' + failed + '장 실패. 다시 시도해주세요.';
+    eb.style.display = '';
+    document.getElementById('upload-card').style.display = '';
+    document.getElementById('upload-btn').disabled = false;
+  }
 }
 
-init();
+// 드래그앤드롭
+function initDrop(){
+  var zone = document.getElementById('upload-zone');
+  if(!zone) return;
+  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', function(){ zone.classList.remove('drag'); });
+  zone.addEventListener('drop', function(e){
+    e.preventDefault(); zone.classList.remove('drag');
+    handleFiles(e.dataTransfer.files);
+  });
+  zone.addEventListener('click', function(){ document.getElementById('file-input').click(); });
+}
+
+window.onload = function(){ init(); initDrop(); updateBtn(); };
 </script>
 </body>
 </html>
