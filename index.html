@@ -440,7 +440,7 @@ main{padding:18px 14px;max-width:1400px;}
         </div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button id="google-login-btn" class="btn btn-primary" style="min-height:34px;font-size:12px;padding:6px 14px;" id="glogin-btn-real">&#128279; Google 로그인</button>
+        <button onclick="googleLogin()" class="btn btn-primary" style="min-height:34px;font-size:12px;padding:6px 14px;">&#128279; Google 로그인</button>
         <button id="google-logout-btn" class="btn btn-ghost" style="min-height:34px;font-size:12px;padding:6px 14px;display:none;" onclick="googleLogout()">로그아웃</button>
       </div>
     </div>
@@ -1892,23 +1892,6 @@ function renderGoogleBtn(){
   });
 }
 // Token client 방식 (Drive/Gmail scope용)
-function googleLogin(){
-  if(typeof google === 'undefined'){ showToast('Google 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.'); return; }
-  var client = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: DRIVE_SCOPES,
-    callback: function(resp){
-      if(resp.error){ showToast('❌ Google 로그인 실패: ' + resp.error); return; }
-      googleAccessToken = resp.access_token;
-      googleTokenExpiry = Date.now() + (resp.expires_in * 1000);
-      localStorage.setItem('g-token', googleAccessToken);
-      localStorage.setItem('g-token-exp', googleTokenExpiry.toString());
-      updateGoogleUI(true);
-      showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
-    }
-  });
-  client.requestAccessToken({prompt:'consent'});
-}
 (function waitGSI(){
   if(typeof google !== 'undefined' && google.accounts && google.accounts.oauth2){
     var c = document.getElementById('g_id_signin_container');
