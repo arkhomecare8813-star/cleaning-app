@@ -826,30 +826,7 @@ function isGoogleLoggedIn(){
 }
 
 
-// 페이지 로드시 URL에서 토큰 파싱
-(function parseTokenFromUrl(){
-  const hash = location.hash;
-  if(hash && hash.includes('access_token')){
-    const params = {};
-    hash.substring(1).split('&').forEach(p => {
-      const idx = p.indexOf('=');
-      if(idx > -1){
-        params[p.substring(0,idx)] = decodeURIComponent(p.substring(idx+1));
-      }
-    });
-    if(params.access_token){
-      googleAccessToken = params.access_token;
-      googleTokenExpiry = Date.now() + (parseInt(params.expires_in||3600) * 1000);
-      localStorage.setItem('g-token', googleAccessToken);
-      localStorage.setItem('g-token-exp', googleTokenExpiry.toString());
-      history.replaceState({}, document.title, location.pathname);
-      setTimeout(function(){
-        updateGoogleUI(true);
-        showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
-      }, 500);
-    }
-  }
-})();
+// parseTokenFromUrl - 아래로 이동
 
 function googleLogout(){
   google.accounts.oauth2.revoke(googleAccessToken, () => {});
@@ -1182,6 +1159,9 @@ function showToast(msg){
 if(isGoogleLoggedIn()) updateGoogleUI(true);
 
 renderAll();
+
+// 페이지 로드시 URL에서 토큰 파싱 (모든 함수 선언 후 실행)
+(function(){
         });
       }else{alert('올바른 백업 파일이 아닙니다.');}
     }catch{alert('파일을 읽을 수 없습니다.');}
@@ -1877,6 +1857,27 @@ function switchTab(name){
   if(name==='report'){initReportDate();renderReport();}
 }
 renderAll();
+
+// 구글 로그인 후 토큰 파싱
+(function(){
+  var h = location.hash;
+  if(h && h.indexOf('access_token') > -1){
+    var p = {};
+    h.slice(1).split('&').forEach(function(s){
+      var i = s.indexOf('=');
+      if(i>-1) p[s.slice(0,i)] = decodeURIComponent(s.slice(i+1));
+    });
+    if(p.access_token){
+      googleAccessToken = p.access_token;
+      googleTokenExpiry = Date.now() + (parseInt(p.expires_in||3600)*1000);
+      localStorage.setItem('g-token', googleAccessToken);
+      localStorage.setItem('g-token-exp', String(googleTokenExpiry));
+      history.replaceState({}, '', location.pathname);
+      updateGoogleUI(true);
+      showToast('✅ Google 로그인 성공!');
+    }
+  }
+})();
 
 
 </script>
