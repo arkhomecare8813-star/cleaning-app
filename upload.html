@@ -236,9 +236,10 @@ function renderPreviews(){
 
 function updateBtn(){
   var btn = document.getElementById('upload-btn');
+  var txt = document.getElementById('upload-btn-text');
   if(!btn) return;
   btn.disabled = selectedFiles.length === 0;
-  btn.textContent = selectedFiles.length > 0 ? '📤 ' + selectedFiles.length + '장 업로드' : '사진을 먼저 선택해주세요';
+  if(txt) txt.textContent = selectedFiles.length > 0 ? '📤 ' + selectedFiles.length + '장 업로드' : '사진을 먼저 선택해주세요';
 }
 
 // ── 업로드 ──
