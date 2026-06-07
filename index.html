@@ -335,22 +335,13 @@ main{padding:18px 14px;max-width:1400px;}
     </div>
     <input class="title-input" id="title-input" style="display:none" onblur="saveTitle()" onkeydown="if(event.key==='Enter')saveTitle()">
   </div>
+  <button onclick="openSettings()" style="margin-left:auto;width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">⚙️</button>
 </header>
-<div class="stats-bar">
-  <div class="stat-card"><div class="stat-card-label">업체 수</div><div class="stat-card-val" id="st-co">0</div></div>
-  <div class="stat-card"><div class="stat-card-label">현장 수</div><div class="stat-card-val" id="st-site">0</div></div>
-  <div class="stat-card"><div class="stat-card-label">월 원청</div><div class="stat-card-val" id="st-main">0</div></div>
-  <div class="stat-card sub"><div class="stat-card-label">월 하청</div><div class="stat-card-val" id="st-sub">0</div></div>
-  <div class="stat-card profit"><div class="stat-card-label">월 이익</div><div class="stat-card-val" id="st-profit">0</div></div>
-  <div class="stat-card profit"><div class="stat-card-label">이익률</div><div class="stat-card-val" id="st-rate">0%</div></div>
-</div>
-<div class="backup-bar">
-  <button class="backup-btn export" onclick="exportData()">&#11015;&#65039; 백업 내보내기</button>
-  <button class="backup-btn import-btn" onclick="document.getElementById('file-import').click()">&#11014;&#65039; 백업 불러오기</button>
-  <input type="file" id="file-import" accept=".json" onchange="importData(event)">
-</div>
+<input type="file" id="file-import" accept=".json" onchange="importData(event)" style="display:none">
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('list')">&#128203; 업체 목록</button>
+  <button class="tab active" onclick="switchTab('dashboard')">📊 대시보드</button>
+  <button class="tab" onclick="switchTab('list')">&#128203; 업체/현장</button>
+  <button class="tab" onclick="switchTab('contacts')">📞 주소록</button>
   <button class="tab" onclick="switchTab('calendar')">&#128197; 월간 캘린더</button>
   <button class="tab" onclick="switchTab('weekly')">&#128198; 요일별 현황</button>
   <button class="tab" onclick="switchTab('report')">&#128247; 보고</button>
@@ -358,8 +349,87 @@ main{padding:18px 14px;max-width:1400px;}
   <button class="tab" onclick="switchTab('settle')">&#128176; 정산</button>
 </div>
 <main>
+  <!-- DASHBOARD -->
+  <div class="view active" id="view-dashboard">
+    <!-- 핵심 KPI -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;" id="db-kpi"></div>
+    <!-- 미보고 알림 -->
+    <div id="db-alert" style="margin-bottom:14px;"></div>
+    <!-- 월간 매출 차트 -->
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:14px;font-weight:800;">📈 월간 매출 추이</div>
+        <div style="font-family:DM Mono,monospace;font-size:12px;color:#ffb547;" id="db-annual"></div>
+      </div>
+      <div id="db-chart" style="display:flex;align-items:flex-end;gap:4px;height:120px;"></div>
+      <div id="db-chart-labels" style="display:flex;gap:4px;margin-top:5px;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <!-- 업체별 매출 -->
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:800;">🏢 업체별 매출</div>
+          <button onclick="dbSortCo()" id="db-co-sort-btn" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;">↓ 내림차순</button>
+        </div>
+        <div id="db-co-list"></div>
+      </div>
+      <!-- 지역별 매출 -->
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">📍 지역별 매출</div>
+        <div id="db-region-list"></div>
+      </div>
+    </div>
+    <!-- 사진보고 실행률 -->
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:13px;font-weight:800;">📷 사진보고 실행률 <span style="font-size:11px;color:var(--muted);font-weight:400;">(최근 30일)</span></div>
+        <button onclick="dbSortReport()" id="db-rep-sort-btn" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;">↓ 내림차순</button>
+      </div>
+      <div id="db-report-list"></div>
+    </div>
+    <!-- 지역 커버리지 -->
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🗺️ 지역 커버리지 <span style="font-size:11px;color:var(--muted);font-weight:400;">— 문의 온 지역 빠른 확인</span></div>
+      <div id="db-coverage"></div>
+    </div>
+    <!-- 문의중 현장 + 저이익률 경고 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🟡 문의중 현장</div>
+        <div id="db-inquiry"></div>
+      </div>
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">⚠️ 저이익률 현장 <span style="font-size:10px;color:var(--muted);">(&lt;20%)</span></div>
+        <div id="db-lowprofit"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTACTS -->
+  <div class="view" id="view-contacts">
+    <!-- 검색 + 필터 -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="flex:2;min-width:160px;position:relative;">
+        <input type="text" id="ct-search" placeholder="🔍 현장명 / 담당자 / 업체명" oninput="renderContacts()"
+          style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;">
+      </div>
+      <select id="ct-sido" onchange="renderContacts()" style="flex:1;min-width:110px;background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:10px 10px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;-webkit-appearance:none;">
+        <option value="">📍 전체 지역</option>
+      </select>
+      <select id="ct-sort" onchange="renderContacts()" style="flex:1;min-width:100px;background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:10px 10px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;-webkit-appearance:none;">
+        <option value="company">업체별</option>
+        <option value="name">현장명순</option>
+        <option value="region">지역별</option>
+      </select>
+    </div>
+    <!-- 통계 -->
+    <div id="ct-stats" style="margin-bottom:12px;"></div>
+    <!-- 목록 -->
+    <div id="ct-list"></div>
+  </div>
+
   <!-- LIST -->
-  <div class="view active" id="view-list">
+  <div class="view" id="view-list">
     <div class="form-card">
       <div class="form-title">&#127970; 업체 / 현장 추가</div>
       <div class="form-grid">
@@ -370,9 +440,22 @@ main{padding:18px 14px;max-width:1400px;}
         <div class="form-group"><label>사업자등록번호</label><input type="text" id="f-bizno" placeholder="예: 123-45-67890"></div>
         <div class="form-group"><label>이메일 / 주민등록번호</label><input type="text" id="f-email" placeholder="예: abc@company.com 또는 000000-0000000"></div>
         <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="f-startdate" style="color-scheme:dark;"></div>
+        <div class="form-group"><label>서비스 종료일 🔚</label><input type="date" id="f-enddate" style="color-scheme:dark;"></div>
       </div>
       <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:12px;min-width:0;">
-        <div class="form-group"><label>현장 주소</label><input type="text" id="f-addr" placeholder="예: 서울시 강남구 테헤란로 123"></div>
+        <div class="form-group"><label>현장 주소</label>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;gap:5px;">
+              <select id="f-sido" style="flex:1;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 8px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;-webkit-appearance:none;" onchange="onSidoChange('f-sido','f-gungu')">
+                <option value="">시/도</option>
+              </select>
+              <select id="f-gungu" style="flex:1;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 8px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;-webkit-appearance:none;">
+                <option value="">구/군</option>
+              </select>
+            </div>
+            <input type="text" id="f-addr" placeholder="상세주소 (동, 번지, 건물명 등)">
+          </div>
+        </div>
         <div class="form-group"><label>은행명</label><input type="text" id="f-bank" placeholder="예: 국민은행"></div>
         <div class="form-group"><label>계좌번호</label><input type="text" id="f-account" placeholder="예: 123-456-789012"></div>
       </div>
@@ -401,6 +484,14 @@ main{padding:18px 14px;max-width:1400px;}
         </div>
       </div>
       <div class="form-group"><label>기타 메모</label><textarea id="f-memo" placeholder="출입코드, 특이사항 등"></textarea></div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label>현장 상태</label>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button type="button" class="status-btn active" data-status="active" onclick="setStatusBtn(this,'f')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #00e5a0;background:rgba(0,229,160,0.12);color:#00e5a0;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🟢 운영중</button>
+          <button type="button" class="status-btn" data-status="inquiry" onclick="setStatusBtn(this,'f')" style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--bd);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🟡 문의중</button>
+        </div>
+        <input type="hidden" id="f-status" value="active">
+      </div>
       <div class="toggle-row" onclick="var c=document.getElementById('f-noreport');c.checked=!c.checked;" style="margin-bottom:8px;">
         <input type="checkbox" id="f-noreport" onclick="event.stopPropagation()">
         <label style="font-size:13px;cursor:pointer;user-select:none;">📵 사진 보고 제외 (문자 발송 안 함)</label>
@@ -565,9 +656,22 @@ main{padding:18px 14px;max-width:1400px;}
       <div class="form-group"><label>사업자등록번호</label><input type="text" id="e-bizno"></div>
       <div class="form-group"><label>이메일 / 주민등록번호</label><input type="text" id="e-email"></div>
       <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="e-startdate" style="color-scheme:dark;"></div>
+      <div class="form-group"><label>서비스 종료일 🔚</label><input type="date" id="e-enddate" style="color-scheme:dark;"></div>
     </div>
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:12px;min-width:0;">
-      <div class="form-group"><label>현장 주소</label><input type="text" id="e-addr"></div>
+      <div class="form-group"><label>현장 주소</label>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="display:flex;gap:5px;">
+            <select id="e-sido" style="flex:1;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 8px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;-webkit-appearance:none;" onchange="onSidoChange('e-sido','e-gungu')">
+              <option value="">시/도</option>
+            </select>
+            <select id="e-gungu" style="flex:1;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 8px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;-webkit-appearance:none;">
+              <option value="">구/군</option>
+            </select>
+          </div>
+          <input type="text" id="e-addr" placeholder="상세주소 (동, 번지, 건물명 등)">
+        </div>
+      </div>
       <div class="form-group"><label>은행명</label><input type="text" id="e-bank"></div>
       <div class="form-group"><label>계좌번호</label><input type="text" id="e-account"></div>
     </div>
@@ -604,6 +708,14 @@ main{padding:18px 14px;max-width:1400px;}
       </div>
     </div>
     <div class="form-group" style="margin-bottom:12px;"><label>기타 메모</label><textarea id="e-memo"></textarea></div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>현장 상태</label>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button type="button" class="status-btn-e" data-status="active" onclick="setStatusBtn(this,'e')" style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--bd);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🟢 운영중</button>
+        <button type="button" class="status-btn-e" data-status="inquiry" onclick="setStatusBtn(this,'e')" style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--bd);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🟡 문의중</button>
+      </div>
+      <input type="hidden" id="e-status" value="active">
+    </div>
     <div class="toggle-row" onclick="var c=document.getElementById('e-noreport');c.checked=!c.checked;" style="margin-bottom:14px;">
       <input type="checkbox" id="e-noreport" onclick="event.stopPropagation()">
       <label style="font-size:13px;cursor:pointer;user-select:none;">📵 사진 보고 제외 (문자 발송 안 함)</label>
@@ -623,6 +735,80 @@ const PALETTE=[
   {bg:'#3a2a1a',text:'#fb923c'},{bg:'#2a3a1a',text:'#a3e635'},
 ];
 const DAYS=['일','월','화','수','목','금','토'];
+
+// ── 행정구역 데이터 ──
+const REGION_DATA={
+  '서울특별시':['강남구','강동구','강북구','강서구','관악구','광진구','구로구','금천구','노원구','도봉구','동대문구','동작구','마포구','서대문구','서초구','성동구','성북구','송파구','양천구','영등포구','용산구','은평구','종로구','중구','중랑구'],
+  '부산광역시':['강서구','금정구','기장군','남구','동구','동래구','부산진구','북구','사상구','사하구','서구','수영구','연제구','영도구','중구','해운대구'],
+  '대구광역시':['군위군','남구','달서구','달성군','동구','북구','서구','수성구','중구'],
+  '인천광역시':['강화군','계양구','남동구','동구','미추홀구','부평구','서구','연수구','옹진군','중구'],
+  '광주광역시':['광산구','남구','동구','북구','서구'],
+  '대전광역시':['대덕구','동구','서구','유성구','중구'],
+  '울산광역시':['남구','동구','북구','울주군','중구'],
+  '세종특별자치시':['세종시'],
+  '경기도':['가평군','고양시 덕양구','고양시 일산동구','고양시 일산서구','과천시','광명시','광주시','구리시','군포시','김포시','남양주시','동두천시','부천시','성남시 분당구','성남시 수정구','성남시 중원구','수원시 권선구','수원시 영통구','수원시 장안구','수원시 팔달구','시흥시','안산시 단원구','안산시 상록구','안성시','안양시 동안구','안양시 만안구','양주시','양평군','여주시','연천군','오산시','용인시 기흥구','용인시 수지구','용인시 처인구','의왕시','의정부시','이천시','파주시','평택시','포천시','하남시','화성시'],
+  '강원특별자치도':['강릉시','고성군','동해시','삼척시','속초시','양구군','양양군','영월군','원주시','인제군','정선군','철원군','춘천시','태백시','평창군','홍천군','화천군','횡성군'],
+  '충청북도':['괴산군','단양군','보은군','영동군','옥천군','음성군','제천시','증평군','진천군','청주시 상당구','청주시 서원구','청주시 청원구','청주시 흥덕구','충주시'],
+  '충청남도':['계룡시','공주시','금산군','논산시','당진시','보령시','부여군','서산시','서천군','아산시','예산군','천안시 동남구','천안시 서북구','청양군','태안군','홍성군'],
+  '전북특별자치도':['고창군','군산시','김제시','남원시','무주군','부안군','순창군','완주군','익산시','임실군','장수군','전주시 덕진구','전주시 완산구','정읍시','진안군'],
+  '전라남도':['강진군','고흥군','곡성군','광양시','구례군','나주시','담양군','목포시','무안군','보성군','순천시','신안군','여수시','영광군','영암군','완도군','장성군','장흥군','진도군','함평군','해남군','화순군'],
+  '경상북도':['경산시','경주시','고령군','구미시','군위군','김천시','문경시','봉화군','상주시','성주군','안동시','영덕군','영양군','영주시','영천시','예천군','울릉군','울진군','의성군','청도군','청송군','칠곡군','포항시 남구','포항시 북구'],
+  '경상남도':['거제시','거창군','고성군','김해시','남해군','밀양시','사천시','산청군','양산시','의령군','진주시','창녕군','창원시 마산합포구','창원시 마산회원구','창원시 성산구','창원시 의창구','창원시 진해구','통영시','하동군','함안군','함양군','합천군'],
+  '제주특별자치도':['서귀포시','제주시'],
+};
+
+function buildSidoOptions(selId, selectedVal){
+  var sel=document.getElementById(selId);
+  if(!sel)return;
+  sel.innerHTML='<option value="">시/도 선택</option>';
+  Object.keys(REGION_DATA).forEach(function(sido){
+    var o=document.createElement('option');
+    o.value=sido;o.textContent=sido;
+    if(sido===selectedVal)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function buildGunguOptions(selId, sido, selectedVal){
+  var sel=document.getElementById(selId);
+  if(!sel)return;
+  sel.innerHTML='<option value="">구/군 선택</option>';
+  if(!sido||!REGION_DATA[sido])return;
+  REGION_DATA[sido].forEach(function(gu){
+    var o=document.createElement('option');
+    o.value=gu;o.textContent=gu;
+    if(gu===selectedVal)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function onSidoChange(sidoId, gunguId){
+  var sido=document.getElementById(sidoId).value;
+  buildGunguOptions(gunguId,sido,'');
+}
+function getFullAddr(sidoId, gunguId, detailId){
+  var sido=document.getElementById(sidoId)?document.getElementById(sidoId).value:'';
+  var gungu=document.getElementById(gunguId)?document.getElementById(gunguId).value:'';
+  var detail=document.getElementById(detailId)?document.getElementById(detailId).value.trim():'';
+  return [sido,gungu,detail].filter(Boolean).join(' ');
+}
+function parseAddrParts(addr){
+  // 기존 저장된 addr에서 시/도, 구/군 분리 시도
+  if(!addr)return{sido:'',gungu:'',detail:''};
+  var sido='',gungu='',detail=addr;
+  Object.keys(REGION_DATA).forEach(function(s){
+    if(addr.startsWith(s)){
+      sido=s;
+      var rest=addr.slice(s.length).trim();
+      REGION_DATA[s].forEach(function(g){
+        if(rest.startsWith(g)){
+          gungu=g;
+          detail=rest.slice(g.length).trim();
+        }
+      });
+      if(!gungu) detail=rest;
+    }
+  });
+  return{sido:sido,gungu:gungu,detail:detail};
+}
 let sites=JSON.parse(localStorage.getItem('cm-sites')||'[]');
 let appTitle=localStorage.getItem('cm-title')||'청소팀 관리';
 let calYear,calMonth,popupSiteId=null,editingSiteId=null;
@@ -648,6 +834,20 @@ function fmtN(n){return n?Number(n).toLocaleString('ko-KR'):'0';}
 function toggleDay(b){b.classList.toggle('active');}
 function toggleEditDay(b){b.classList.toggle('active');}
 function getDays(id){return[...document.querySelectorAll('#'+id+' .day-btn.active')].map(b=>parseInt(b.dataset.day));}
+
+// 상태 버튼 선택
+function setStatusBtn(btn, prefix){
+  var cls = prefix==='f' ? '.status-btn' : '.status-btn-e';
+  document.querySelectorAll(cls).forEach(function(b){
+    b.style.borderColor='var(--bd)';b.style.background='transparent';b.style.color='var(--muted)';
+  });
+  var st = btn.dataset.status;
+  var accentColor = st==='active'?'#00e5a0':'#ffb547';
+  btn.style.borderColor=accentColor;
+  btn.style.background='rgba('+(st==='active'?'0,229,160':'255,181,71')+',0.12)';
+  btn.style.color=accentColor;
+  document.getElementById(prefix+'-status').value=st;
+}
 function getCompanyColor(name){
   const cos=[...new Set(sites.map(s=>s.company))].sort();
   const idx=cos.indexOf(name)%PALETTE.length;return PALETTE[idx<0?0:idx];
@@ -794,7 +994,14 @@ function closeConfirm(){document.getElementById('confirm-overlay').classList.rem
 
 // ADD SITE
 function resetForm(){
-  ['f-co','f-site','f-mgr','f-phone','f-addr','f-bizno','f-email','f-bank','f-account','f-price-main','f-price-sub','f-memo','f-startdate'].forEach(function(id){document.getElementById(id).value='';});
+  ['f-co','f-site','f-mgr','f-phone','f-addr','f-bizno','f-email','f-bank','f-account','f-price-main','f-price-sub','f-memo','f-startdate','f-enddate'].forEach(function(id){document.getElementById(id).value='';});
+  var fs=document.getElementById('f-sido');if(fs)fs.value='';
+  var fg=document.getElementById('f-gungu');if(fg)fg.innerHTML='<option value="">구/군</option>';
+  document.getElementById('f-status').value='active';
+  document.querySelectorAll('.status-btn').forEach(function(b){
+    b.style.borderColor='var(--bd)';b.style.background='transparent';b.style.color='var(--muted)';
+    if(b.dataset.status==='active'){b.style.borderColor='#00e5a0';b.style.background='rgba(0,229,160,0.12)';b.style.color='#00e5a0';}
+  });
   const fst=document.getElementById('f-subtaxtype');if(fst)fst.value='none';
   document.querySelectorAll('#day-picker .day-btn').forEach(function(b){b.classList.remove('active');});
   var nr=document.getElementById('f-noreport');if(nr)nr.checked=false;
@@ -804,10 +1011,12 @@ function addSite(){
   const site=document.getElementById('f-site').value.trim();
   const priceMain=parseInt(document.getElementById('f-price-main').value)||0;
   const days=getDays('day-picker');
+  const status=document.getElementById('f-status').value||'active';
+  const isInquiry=status==='inquiry';
   if(!company){alert('업체명을 입력해주세요.');return;}
   if(!site){alert('현장명을 입력해주세요.');return;}
-  if(!priceMain){alert('원청 금액을 입력해주세요.');return;}
-  if(!days.length){alert('청소 요일을 선택해주세요.');return;}
+  if(!isInquiry&&!priceMain){alert('원청 금액을 입력해주세요.');return;}
+  if(!isInquiry&&!days.length){alert('청소 요일을 선택해주세요.');return;}
   sites.push({id:Date.now(),company,site,
     manager:document.getElementById('f-mgr').value.trim(),
     phone:document.getElementById('f-phone').value.trim(),
@@ -820,7 +1029,12 @@ function addSite(){
     taxtype:'vat',
     subtaxtype:document.getElementById('f-subtaxtype').value||'none',
     days,memo:document.getElementById('f-memo').value.trim(),
+    addr:getFullAddr('f-sido','f-gungu','f-addr'),
+    sido:document.getElementById('f-sido').value||'',
+    gungu:document.getElementById('f-gungu').value||'',
     startDate:document.getElementById('f-startdate').value||'',
+    endDate:document.getElementById('f-enddate').value||'',
+    status:status,
     noReport:(function(){var el=document.getElementById('f-noreport');return el?el.checked:false;})()
   });
   save();resetForm();renderAll();
@@ -881,7 +1095,11 @@ function openEdit(id){
   document.getElementById('e-site').value=s.site;
   document.getElementById('e-mgr').value=s.manager||'';
   document.getElementById('e-phone').value=s.phone||'';
-  document.getElementById('e-addr').value=s.addr||'';
+  // 주소 파싱 — sido/gungu 저장값 우선, 없으면 addr에서 파싱
+  var addrParts = s.sido ? {sido:s.sido, gungu:s.gungu||'', detail:s.addr||''} : parseAddrParts(s.addr||'');
+  buildSidoOptions('e-sido', addrParts.sido);
+  buildGunguOptions('e-gungu', addrParts.sido, addrParts.gungu);
+  document.getElementById('e-addr').value=addrParts.detail;
   document.getElementById('e-bizno').value=s.bizno||'';
   document.getElementById('e-email').value=s.email||'';
   document.getElementById('e-bank').value=s.bank||'';
@@ -891,6 +1109,17 @@ function openEdit(id){
   document.getElementById('e-subtaxtype').value=s.subtaxtype||'none';
   document.getElementById('e-memo').value=s.memo||'';
   document.getElementById('e-startdate').value=s.startDate||'';
+  document.getElementById('e-enddate').value=s.endDate||'';
+  // 상태 버튼 초기화
+  var curStatus=s.status||'active';
+  document.getElementById('e-status').value=curStatus;
+  document.querySelectorAll('.status-btn-e').forEach(function(b){
+    b.style.borderColor='var(--bd)';b.style.background='transparent';b.style.color='var(--muted)';
+    if(b.dataset.status===curStatus){
+      var ac=curStatus==='active'?'#00e5a0':'#ffb547';
+      b.style.borderColor=ac;b.style.background='rgba('+(curStatus==='active'?'0,229,160':'255,181,71')+',0.12)';b.style.color=ac;
+    }
+  });
   document.querySelectorAll('#e-day-picker .day-btn').forEach(function(b){b.classList.toggle('active',s.days.includes(parseInt(b.dataset.day)));});
   var enr=document.getElementById('e-noreport');if(enr)enr.checked=s.noReport||false;
   document.getElementById('edit-modal').classList.add('open');
@@ -925,13 +1154,17 @@ function saveEdit(){
   s.subtaxtype=document.getElementById('e-subtaxtype').value;
   s.manager=document.getElementById('e-mgr').value.trim();
   s.phone=document.getElementById('e-phone').value.trim();
-  s.addr=document.getElementById('e-addr').value.trim();
+  s.sido=document.getElementById('e-sido').value||'';
+  s.gungu=document.getElementById('e-gungu').value||'';
+  s.addr=getFullAddr('e-sido','e-gungu','e-addr');
   s.bizno=document.getElementById('e-bizno').value.trim();
   s.email=document.getElementById('e-email').value.trim();
   s.bank=document.getElementById('e-bank').value.trim();
   s.account=document.getElementById('e-account').value.trim();
   s.memo=document.getElementById('e-memo').value.trim();
   s.startDate=document.getElementById('e-startdate').value||'';
+  s.endDate=document.getElementById('e-enddate').value||'';
+  s.status=document.getElementById('e-status').value||'active';
   var enr2=document.getElementById('e-noreport');s.noReport=enr2?enr2.checked:false;
   save();closeModal();renderAll();
 }
@@ -944,14 +1177,30 @@ function renderList(){
   el.innerHTML=companies.map(function(co){
     const col=getCompanyColor(co);
     const coSites=sites.filter(function(s){return s.company===co;});
+    const inquiryCount=coSites.filter(function(s){return (s.status||'active')==='inquiry';}).length;
+    // 운영중 현장만 금액 합산
+    const activeSites=coSites.filter(function(s){return (s.status||'active')==='active';});
+    const sumMain=activeSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+    const sumSub=activeSites.reduce(function(a,s){
+      return a+calcSubTax(s.priceSub||0,s.subtaxtype||'none').payout;
+    },0);
+    const sumProfit=sumMain-sumSub;
+    const summaryHtml='<div style="display:flex;gap:10px;font-family:DM Mono,monospace;font-size:11px;flex-wrap:wrap;margin-top:2px;">'
+      +'<span style="color:#00e5a0;">원 '+sumMain.toLocaleString('ko-KR')+'</span>'
+      +(sumSub?'<span style="color:#7ab8ff;">하 '+sumSub.toLocaleString('ko-KR')+'</span>':'')
+      +(sumMain?'<span style="color:#ffb547;">익 '+sumProfit.toLocaleString('ko-KR')+'</span>':'')
+      +'</div>';
     return '<div class="company-block">'
       +'<button class="company-header" onclick="toggleCompany(this)">'
-      +'<div class="company-name-row">'
+      +'<div class="company-name-row" style="flex-direction:column;align-items:flex-start;gap:2px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
       +'<div class="company-dot" style="background:'+col.text+'"></div>'
       +'<div class="company-name">'+co+'</div>'
-      +'<div class="company-site-count">(현장 '+coSites.length+'곳)</div>'
-      +'</div><div class="company-chevron open">&#9660;</div></button>'
-      +'<div class="company-sites">'
+      +'<div class="company-site-count">(현장 '+coSites.length+'곳'+(inquiryCount?' · 🟡문의 '+inquiryCount:'')+')</div>'
+      +'</div>'
+      +(sumMain?summaryHtml:'')
+      +'</div><div class="company-chevron">&#9660;</div></button>'
+      +'<div class="company-sites" style="display:none;">'
       +coSites.map(function(s){return renderSiteCard(s,col);}).join('')
       +'<button class="add-site-btn" data-co="'+encodeURIComponent(co)+'" onclick="prefillCompany(decodeURIComponent(this.dataset.co))">+ 현장 추가</button>'
       +'</div></div>';
@@ -963,10 +1212,19 @@ function renderSiteCard(s,col){
   const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
   const profit=(s.priceMain||0)-st.payout;
   const profitRate=s.priceMain?Math.round(profit/(s.priceMain)*100):0;
-  return '<div class="site-card">'
-    +'<div style="position:absolute;top:0;left:0;width:3px;height:100%;background:'+col.text+';border-radius:3px 0 0 3px;"></div>'
+  const isTerminated = s.endDate && new Date(s.endDate) < new Date(today.toISOString().slice(0,10));
+  const isInquiry = (s.status||'active')==='inquiry';
+  const cardOpacity = (isTerminated||isInquiry) ? 'opacity:0.6;' : '';
+  const leftBarColor = isInquiry ? '#ffb547' : isTerminated ? '#555' : col.text;
+  return '<div class="site-card" style="'+cardOpacity+'">'
+    +'<div style="position:absolute;top:0;left:0;width:3px;height:100%;background:'+leftBarColor+';border-radius:3px 0 0 3px;"></div>'
     +'<div class="site-header">'
-    +'<div><div class="site-name">'+s.site+(s.priceSub&&s.subtaxtype&&s.subtaxtype!=='none'?'<span class="tax-badge '+(s.subtaxtype==='t33'?'t33':'vat')+'" style="margin-left:4px">'+(s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'')+'</span>':'')+'</div>'+(s.addr?'<div style="font-size:11px;color:var(--muted);margin-top:2px">&#128205; '+s.addr+'</div>':'')+(s.bizno?'<div style="font-size:11px;color:var(--muted)">&#128196; '+s.bizno+'</div>':'')
+    +'<div><div class="site-name">'+s.site
+    +(isInquiry?'<span style="margin-left:6px;background:#3a2e00;color:#ffb547;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;">문의중</span>':'')
+    +(isTerminated&&!isInquiry?'<span style="margin-left:6px;background:#3a1a1a;color:#ff4d6d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;">종료</span>':'')
+    +(s.priceSub&&s.subtaxtype&&s.subtaxtype!=='none'?'<span class="tax-badge '+(s.subtaxtype==='t33'?'t33':'vat')+'" style="margin-left:4px">'+(s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'')+'</span>':'')+'</div>'
+    +(s.addr?'<div style="font-size:11px;color:var(--muted);margin-top:2px">&#128205; '+s.addr+'</div>':'')
+    +(s.bizno?'<div style="font-size:11px;color:var(--muted)">&#128196; '+s.bizno+'</div>':'')
     +((s.bank||s.account)?'<div style="font-size:11px;color:var(--muted)">&#127984; '+(s.bank||'')+' '+(s.account||'')+'</div>':'')+'</div>'
     +'<div class="site-actions">'
     +'<button class="icon-btn" onclick="openEdit('+s.id+')">&#9999;&#65039;</button>'
@@ -975,6 +1233,7 @@ function renderSiteCard(s,col){
     +'<div class="site-meta">'
     +'<div class="meta-row"><span class="meta-lbl">요일</span><div style="display:flex;gap:4px;flex-wrap:wrap">'+s.days.sort().map(function(d){return '<span class="day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div>'
     +(s.startDate?'<div class="meta-row"><span class="meta-lbl">시작일</span><span style="font-family:DM Mono,monospace;font-size:12px;color:#ffb547;">'+s.startDate+'</span></div>':'')
+    +(s.endDate?'<div class="meta-row"><span class="meta-lbl">종료일</span><span style="font-family:DM Mono,monospace;font-size:12px;color:#ff4d6d;">'+s.endDate+'</span></div>':'')
     +'<div class="meta-row"><span class="meta-lbl">금액</span>'
     +'<div class="price-row">'
     +'<div class="price-chip"><div class="price-chip-label">원청</div><div class="price-chip-val main-price">'+fmtW(s.priceMain)+'</div></div>'
@@ -990,7 +1249,16 @@ function renderSiteCard(s,col){
 }
 function toggleCompany(hdr){
   const body=hdr.nextElementSibling;const chev=hdr.querySelector('.company-chevron');
-  const h=body.style.display==='none';body.style.display=h?'':'none';chev.classList.toggle('open',h);
+  const isHidden=body.style.display==='none';
+  body.style.display=isHidden?'':'none';
+  chev.classList.toggle('open',isHidden);
+}
+function toggleSettleCo(hdr){
+  const body=hdr.nextElementSibling;
+  const chev=hdr.querySelector('.settle-co-chevron');
+  const isHidden=body.style.display==='none';
+  body.style.display=isHidden?'':'none';
+  if(chev) chev.style.transform=isHidden?'':'rotate(-90deg)';
 }
 function prefillCompany(name){
   document.getElementById('f-co').value=name;switchTab('list');
@@ -1036,12 +1304,11 @@ function renderCalendar(){
     const dateEl=document.createElement('div');dateEl.className='cal-date';dateEl.textContent=cell.day;dateRow.appendChild(dateEl);
     if(!cell.other){
       const daySites=sites.filter(function(s){
+        if((s.status||'active')==='inquiry') return false;
         if(!s.days.includes(dow)) return false;
-        if(s.startDate){
-          var sd=new Date(s.startDate);
-          var cellDate=new Date(calYear,calMonth,cell.day);
-          if(cellDate < sd) return false;
-        }
+        var cellDate=new Date(calYear,calMonth,cell.day);
+        if(s.startDate && cellDate < new Date(s.startDate)) return false;
+        if(s.endDate && cellDate > new Date(s.endDate)) return false;
         return true;
       });
       if(daySites.length>0){
@@ -1086,22 +1353,32 @@ function getDayCountInMonth(year, month, dow){
   return count;
 }
 
-// 시작일 이후의 실제 작업 횟수만 반환 (해당 월 기준)
+// 시작일~종료일 범위의 실제 작업 횟수만 반환 (해당 월 기준)
 function getEffectiveDaysInMonth(site, year, month){
   const dim = new Date(year, month+1, 0).getDate();
-  // 시작일 파싱 — 없으면 월 전체 적용
   let startLimit = 1;
+  let endLimit = dim;
+
   if(site.startDate){
     const sd = new Date(site.startDate);
     if(sd.getFullYear() === year && sd.getMonth() === month){
-      startLimit = sd.getDate(); // 시작일이 해당 월이면 그날부터
+      startLimit = sd.getDate();
     } else if(sd > new Date(year, month+1, 0)){
-      return 0; // 시작일이 해당 월 이후면 0
+      return 0; // 시작일이 해당 월 이후
     }
-    // 시작일이 해당 월 이전이면 월 전체 적용 (startLimit=1 유지)
   }
+
+  if(site.endDate){
+    const ed = new Date(site.endDate);
+    if(ed < new Date(year, month, 1)){
+      return 0; // 종료일이 해당 월 이전
+    } else if(ed.getFullYear() === year && ed.getMonth() === month){
+      endLimit = ed.getDate(); // 종료 월은 종료일까지만
+    }
+  }
+
   let count = 0;
-  for(let d = startLimit; d <= dim; d++){
+  for(let d = startLimit; d <= endLimit; d++){
     const dow = new Date(year, month, d).getDay();
     if(site.days.includes(dow)) count++;
   }
@@ -1153,12 +1430,11 @@ function renderWeekly(){
   DAYS.forEach(function(_,idx){
     const cell=document.createElement('div');cell.className='week-cell';
     sites.filter(function(s){
+      if((s.status||'active')==='inquiry') return false;
       if(!s.days.includes(idx)) return false;
-      if(s.startDate){
-        var sd=new Date(s.startDate);
-        var wd=weekDates[idx];
-        if(wd < sd) return false;
-      }
+      var wd=weekDates[idx];
+      if(s.startDate && wd < new Date(s.startDate)) return false;
+      if(s.endDate && wd > new Date(s.endDate)) return false;
       return true;
     }).forEach(function(s){
       const col=getCompanyColor(s.company);
@@ -1206,7 +1482,7 @@ function renderSettle(){
 
   content.innerHTML = companies.map(function(co){
     const col=getCompanyColor(co);
-    const coSites=sites.filter(function(s){return s.company===co;});
+    const coSites=sites.filter(function(s){return s.company===co&&(s.status||'active')!=='inquiry';});
     let cMain=0,cSupply=0,cVat=0,cSubInput=0,cSubAdj=0,cSubPayout=0,cProfit=0,cSubSupply=0,cSubVat=0;
     const coSupplyTotal=supplies.filter(function(s){return s.co===co;}).reduce(function(sum,s){return sum+s.amount;},0);
     const coSupplySupply=Math.round(coSupplyTotal/1.1);
@@ -1220,7 +1496,9 @@ function renderSettle(){
       // 전체 횟수 / 실제 참여 횟수
       var _totalCount = totalCountInMonth(s, _sYr, _sMo);
       var _effectiveCount = getEffectiveDaysInMonth(s, _sYr, _sMo);
-      var isPartial = s.startDate && _effectiveCount < _totalCount && _effectiveCount > 0;
+      var isPartial = _effectiveCount < _totalCount && _effectiveCount > 0;
+      var isTerminated = s.endDate && _effectiveCount === 0 &&
+        new Date(s.endDate) < new Date(_sYr, _sMo, 1); // 종료 후 월은 0회
 
       // 실제 참여 기준 금액
       var effectiveMain = effectivePrice(s, _sYr, _sMo, s.priceMain||0);
@@ -1236,12 +1514,32 @@ function renderSettle(){
       cSubSupply+=st.supply||0;
       cSubVat+=(s.subtaxtype==="vat"?st.vat:0);
 
+      // 횟수 표시 — 시작일/종료일 중 어느 쪽이 적용됐는지 구분
       var daysStr = _effectiveCount+'회';
-      if(isPartial) daysStr += '<br><span style="font-size:10px;color:#ffb547;">(' + _effectiveCount + '/' + _totalCount + ', ' + s.startDate.slice(5) + '~)</span>';
+      var partialLabel = '';
+      if(isTerminated){
+        daysStr = '0회';
+        partialLabel = '<br><span style="font-size:9px;color:#ff4d6d;">종료</span>';
+      } else if(isPartial){
+        var rangeHint = '';
+        if(s.startDate && s.endDate){
+          rangeHint = s.startDate.slice(5)+'~'+s.endDate.slice(5);
+        } else if(s.startDate){
+          rangeHint = s.startDate.slice(5)+'~';
+        } else if(s.endDate){
+          rangeHint = '~'+s.endDate.slice(5);
+        }
+        daysStr += '<br><span style="font-size:10px;color:#ffb547;">('+_effectiveCount+'/'+_totalCount+', '+rangeHint+')</span>';
+        var hasStart = s.startDate && new Date(s.startDate) >= new Date(_sYr, _sMo, 1) && new Date(s.startDate) <= new Date(_sYr, _sMo+1, 0);
+        var hasEnd   = s.endDate   && new Date(s.endDate)   >= new Date(_sYr, _sMo, 1) && new Date(s.endDate)   <= new Date(_sYr, _sMo+1, 0);
+        if(hasStart && hasEnd) partialLabel = '<br><span style="font-size:9px;color:#ffb547;">시작+종료 반영</span>';
+        else if(hasStart)      partialLabel = '<br><span style="font-size:9px;color:#ffb547;">시작일 반영</span>';
+        else if(hasEnd)        partialLabel = '<br><span style="font-size:9px;color:#ff4d6d;">종료일 반영</span>';
+      }
       const subtaxLbl=s.subtaxtype==='vat'?'VAT':s.subtaxtype==='t33'?'3.3%':'없음';
 
       return '<tr>'
-        +'<td>'+s.site+(isPartial?'<br><span style="font-size:9px;color:#ffb547;">시작일 반영</span>':'')+'</td>'
+        +'<td>'+s.site+partialLabel+'</td>'
         +'<td style="font-size:11px;color:var(--muted)">'+(s.addr||'—')+'</td>'
         +'<td style="font-size:11px;color:var(--muted)">'+(s.bizno||'—')+'</td>'
         +'<td style="font-size:11px;color:var(--muted)">'+(s.email||'—')+'</td>'
@@ -1264,10 +1562,13 @@ function renderSettle(){
     gSubVat+=cSubVat+coSupplyVat;
 
     return '<div class="settle-company-block">'
-      +'<div class="settle-company-hdr">'
+      +'<div class="settle-company-hdr" style="cursor:pointer;" onclick="toggleSettleCo(this)">'
       +'<div class="settle-co-left"><div class="company-dot" style="background:'+col.text+'"></div><div class="settle-co-name">'+co+'</div><div style="font-size:11px;color:var(--muted);margin-left:4px">(현장 '+coSites.length+'곳)</div></div>'
-      +'<div class="settle-co-total" style="color:#7ab8ff;">지급 '+fmtN(cSubPayout+coSupplyTotal)+'원</div></div>'
-      +'<div style="overflow-x:auto;">'
+      +'<div style="display:flex;align-items:center;gap:12px;">'
+      +'<div class="settle-co-total" style="color:#7ab8ff;">지급 '+fmtN(cSubPayout+coSupplyTotal)+'원</div>'
+      +'<div class="settle-co-chevron" style="color:var(--muted);font-size:11px;transition:transform 0.2s;">&#9660;</div>'
+      +'</div></div>'
+      +'<div class="settle-co-body" style="overflow-x:auto;">'
       +'<table class="settle-table"><thead><tr>'
       +'<th>현장명</th><th>주소</th><th>사업자번호</th><th>이메일/주민번호</th><th>은행명</th><th>계좌번호</th><th style="text-align:center">횟수</th>'
       +'<th style="text-align:right">원청금액</th><th style="text-align:right">공급가</th><th style="text-align:right">부가세</th>'
@@ -1307,35 +1608,475 @@ function renderSettle(){
   +'</tr></tbody></table></div></div>';
 }
 
-// RENDER STATS
-function renderStats(){
-  const cos=[...new Set(sites.map(function(s){return s.company;}))];
-  document.getElementById('st-co').textContent=cos.length;
-  document.getElementById('st-site').textContent=sites.length;
-  var curYr=today.getFullYear(), curMo=today.getMonth();
-  let totalMain=0,totalSubPayout=0;
-  sites.forEach(function(s){
-    var effMain = effectivePrice(s, curYr, curMo, s.priceMain||0);
-    var effSub  = effectivePrice(s, curYr, curMo, s.priceSub||0);
-    var st = calcSubTax(effSub, s.subtaxtype||'none');
-    totalMain += effMain;
-    totalSubPayout += st.payout;
+// ── 대시보드 ──
+var dbCoSortAsc = false;
+var dbRepSortAsc = false;
+
+function renderDashboard(){
+  var now = new Date();
+  var curYr = now.getFullYear(), curMo = now.getMonth();
+  var activeSites = sites.filter(function(s){return (s.status||'active')==='active';});
+  var inquirySites = sites.filter(function(s){return (s.status||'active')==='inquiry';});
+
+  // ── KPI ──
+  var totalMain=0, totalSubPayout=0, totalSites=activeSites.length;
+  activeSites.forEach(function(s){
+    var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
+    var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+    totalMain+=em; totalSubPayout+=calcSubTax(es,s.subtaxtype||'none').payout;
   });
-  const totalProfit=totalMain-totalSubPayout;
-  const profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
-  document.getElementById('st-main').textContent=totalMain.toLocaleString('ko-KR');
-  document.getElementById('st-sub').textContent=totalSubPayout.toLocaleString('ko-KR');
-  document.getElementById('st-profit').textContent=totalProfit.toLocaleString('ko-KR');
-  document.getElementById('st-rate').textContent=profitRate+'%';
+  var totalProfit=totalMain-totalSubPayout;
+  var profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
+  var coCount=[...new Set(activeSites.map(function(s){return s.company;}))].length;
+
+  // 오늘 미보고
+  var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
+  var todayWork=activeSites.filter(function(s){
+    if(!s.days||!s.days.includes(todayDow)||s.noReport)return false;
+    var dt=new Date(todayS);
+    if(s.startDate&&dt<new Date(s.startDate))return false;
+    if(s.endDate&&dt>new Date(s.endDate))return false;
+    return true;
+  });
+  var todayData=reportPhotoData[todayS]||{};
+  var todayDone=todayWork.filter(function(s){return todayData[s.id]&&todayData[s.id].photos>0;}).length;
+  var todayPending=todayWork.length-todayDone;
+
+  var kpiEl=document.getElementById('db-kpi');
+  // KPI 데이터 — 클릭 시 팝업 키 포함
+  var kpiItems=[
+    {label:'이번달 원청',val:fmtN(totalMain)+'원',color:'#00e5a0',key:'main'},
+    {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',color:'#7ab8ff',key:'sub'},
+    {label:'이번달 이익',val:fmtN(totalProfit)+'원',color:'#ffb547',key:'profit'},
+    {label:'이익률',val:profitRate+'%',color:profitRate>=30?'#00e5a0':profitRate>=15?'#ffb547':'#ff4d6d',key:'rate'},
+    {label:'운영 현장',val:totalSites+'곳',color:'#00e5a0',key:'sites'},
+    {label:'업체 수',val:coCount+'개',color:'#7ab8ff',key:'companies'},
+    {label:'문의중',val:inquirySites.length+'곳',color:'#ffb547',key:'inquiry'},
+    {label:'오늘 미보고',val:todayPending+'곳',color:todayPending>0?'#ff4d6d':'#00e5a0',key:'pending'},
+  ];
+  kpiEl.innerHTML=kpiItems.map(function(k){
+    return '<div onclick="openKpiPopup(\''+k.key+'\')" style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color 0.15s;" '
+      +'onmouseenter="this.style.borderColor=\''+k.color+'\'" onmouseleave="this.style.borderColor=\'var(--bd)\'">'
+      +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">'+k.label+'</div>'
+      +'<div style="font-family:DM Mono,monospace;font-size:15px;font-weight:800;color:'+k.color+';">'+k.val+'</div>'
+      +'</div>';
+  }).join('');
+
+  // ── 미보고 알림 ──
+  var alertEl=document.getElementById('db-alert');
+  if(todayPending>0){
+    var pendingNames=todayWork.filter(function(s){return!(todayData[s.id]&&todayData[s.id].photos>0);}).map(function(s){return s.site;});
+    alertEl.innerHTML='<div style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.35);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+      +'<span style="font-size:18px;">🚨</span>'
+      +'<div><div style="font-size:13px;font-weight:800;color:#ff4d6d;">오늘 미보고 '+todayPending+'곳</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+pendingNames.slice(0,5).join(' · ')+(pendingNames.length>5?' 외 '+(pendingNames.length-5)+'곳':'')+'</div></div>'
+      +'<button onclick="switchTab(\'report\')" style="margin-left:auto;padding:6px 14px;border-radius:7px;border:1px solid #ff4d6d;background:transparent;color:#ff4d6d;font-size:12px;font-weight:700;cursor:pointer;">보고 탭으로 →</button>'
+      +'</div>';
+  } else { alertEl.innerHTML=''; }
+
+  // ── 월간 차트 (최근 6개월 + 미래 6개월) ──
+  var months=[];
+  for(var mi=-5;mi<=6;mi++){
+    var d=new Date(curYr,curMo+mi,1);
+    months.push({yr:d.getFullYear(),mo:d.getMonth(),label:(d.getMonth()+1)+'월',isCur:mi===0,isFuture:mi>0});
+  }
+  var chartMax=0;
+  var chartData=months.map(function(m){
+    var snap=null;
+    // 과거·현재는 스냅샷 우선, 없으면 실시간 계산
+    Object.values(settleSnapshots).forEach(function(sn){
+      if(sn.yr===m.yr&&sn.mo===m.mo+1) snap=sn;
+    });
+    var mainVal=0;
+    if(snap){
+      snap.sites.filter(function(s){return (s.status||'active')==='active';}).forEach(function(s){
+        mainVal+=effectivePrice(s,m.yr,m.mo,s.priceMain||0);
+      });
+    } else {
+      activeSites.forEach(function(s){mainVal+=effectivePrice(s,m.yr,m.mo,s.priceMain||0);});
+    }
+    if(mainVal>chartMax)chartMax=mainVal;
+    return{label:m.label,val:mainVal,isCur:m.isCur,isFuture:m.isFuture};
+  });
+
+  var annualEst=activeSites.reduce(function(sum,s){return sum+(s.priceMain||0);},0)*12;
+  document.getElementById('db-annual').textContent='예상 연매출 '+fmtN(annualEst)+'원';
+
+  var chartEl=document.getElementById('db-chart');
+  var labelEl=document.getElementById('db-chart-labels');
+  chartEl.innerHTML=''; labelEl.innerHTML='';
+  chartData.forEach(function(m){
+    var pct=chartMax>0?Math.max(4,Math.round(m.val/chartMax*100)):4;
+    var col=m.isCur?'#00e5a0':m.isFuture?'rgba(0,229,160,0.3)':'#004d36';
+    var bar=document.createElement('div');
+    bar.style.cssText='flex:1;background:'+col+';border-radius:4px 4px 0 0;height:'+pct+'%;min-height:4px;position:relative;cursor:default;transition:filter 0.15s;';
+    bar.title=m.label+' '+fmtN(m.val)+'원'+(m.isFuture?' (예상)':'');
+    bar.onmouseenter=function(){this.style.filter='brightness(1.3)';};
+    bar.onmouseleave=function(){this.style.filter='';};
+    chartEl.appendChild(bar);
+    var lbl=document.createElement('div');
+    lbl.style.cssText='flex:1;text-align:center;font-size:9px;color:'+(m.isCur?'#00e5a0':'var(--muted)')+';font-weight:'+(m.isCur?'800':'400')+';';
+    lbl.textContent=m.label;
+    labelEl.appendChild(lbl);
+  });
+
+  // ── 업체별 매출 ──
+  var companies=[...new Set(activeSites.map(function(s){return s.company;}))];
+  var coData=companies.map(function(co){
+    var coSites=activeSites.filter(function(s){return s.company===co;});
+    var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+    var subPay=coSites.reduce(function(a,s){
+      var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+      return a+calcSubTax(es,s.subtaxtype||'none').payout;
+    },0);
+    return{co:co,main:main,profit:main-subPay,count:coSites.length};
+  });
+  coData.sort(function(a,b){return dbCoSortAsc?a.main-b.main:b.main-a.main;});
+  var coMax=coData.length?coData[0].main:1;
+  var coEl=document.getElementById('db-co-list');
+  coEl.innerHTML=coData.length?coData.map(function(d){
+    var col=getCompanyColor(d.co);
+    var pct=coMax>0?Math.max(6,Math.round(d.main/coMax*100)):6;
+    return '<div style="margin-bottom:10px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
+      +'<div style="display:flex;align-items:center;gap:6px;"><div style="width:8px;height:8px;border-radius:50%;background:'+col.text+'"></div><span style="font-size:12px;font-weight:700;">'+d.co+'</span><span style="font-size:10px;color:var(--muted);">'+d.count+'곳</span></div>'
+      +'<div style="font-family:DM Mono,monospace;font-size:11px;color:#00e5a0;">'+fmtN(d.main)+'</div></div>'
+      +'<div style="background:var(--sf3);border-radius:3px;height:6px;"><div style="background:'+col.text+';height:100%;border-radius:3px;width:'+pct+'%;"></div></div>'
+      +'<div style="font-size:10px;color:#ffb547;margin-top:2px;">익 '+fmtN(d.profit)+'원</div>'
+      +'</div>';
+  }).join(''):'<div style="color:var(--dim);font-size:12px;">운영중 업체 없음</div>';
+
+  // ── 지역별 매출 ──
+  var regionMap={};
+  activeSites.forEach(function(s){
+    var region=s.sido||'미분류';
+    if(!regionMap[region])regionMap[region]={main:0,count:0};
+    regionMap[region].main+=effectivePrice(s,curYr,curMo,s.priceMain||0);
+    regionMap[region].count++;
+  });
+  var regionArr=Object.keys(regionMap).map(function(r){return{region:r,main:regionMap[r].main,count:regionMap[r].count};});
+  regionArr.sort(function(a,b){return b.main-a.main;});
+  var rMax=regionArr.length?regionArr[0].main:1;
+  var regEl=document.getElementById('db-region-list');
+  regEl.innerHTML=regionArr.length?regionArr.map(function(d){
+    var pct=rMax>0?Math.max(6,Math.round(d.main/rMax*100)):6;
+    return '<div style="margin-bottom:10px;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px;">'
+      +'<div style="font-size:12px;font-weight:700;">📍 '+d.region+' <span style="font-size:10px;color:var(--muted);font-weight:400;">'+d.count+'곳</span></div>'
+      +'<div style="font-family:DM Mono,monospace;font-size:11px;color:#00e5a0;">'+fmtN(d.main)+'</div></div>'
+      +'<div style="background:var(--sf3);border-radius:3px;height:6px;"><div style="background:#00b37a;height:100%;border-radius:3px;width:'+pct+'%;"></div></div>'
+      +'</div>';
+  }).join(''):'<div style="color:var(--dim);font-size:12px;">데이터 없음</div>';
+
+  // ── 사진보고 실행률 (최근 30일) ──
+  var repData=activeSites.filter(function(s){return !s.noReport;}).map(function(s){
+    var total=0,done=0;
+    for(var di=0;di<30;di++){
+      var dd=new Date(now); dd.setDate(now.getDate()-di);
+      var ds=dd.toISOString().slice(0,10);
+      var dow=dd.getDay();
+      if(!s.days.includes(dow))continue;
+      if(s.startDate&&dd<new Date(s.startDate))continue;
+      if(s.endDate&&dd>new Date(s.endDate))continue;
+      total++;
+      if(reportPhotoData[ds]&&reportPhotoData[ds][s.id]&&reportPhotoData[ds][s.id].photos>0)done++;
+    }
+    return{site:s.site,co:s.company,total:total,done:done,rate:total?Math.round(done/total*100):0};
+  }).filter(function(d){return d.total>0;});
+  repData.sort(function(a,b){return dbRepSortAsc?a.rate-b.rate:b.rate-a.rate;});
+  var repEl=document.getElementById('db-report-list');
+  repEl.innerHTML=repData.length?'<div style="display:flex;flex-direction:column;gap:8px;">'+repData.map(function(d){
+    var col=d.rate>=80?'#00e5a0':d.rate>=50?'#ffb547':'#ff4d6d';
+    var col2=getCompanyColor(d.co);
+    return '<div style="display:flex;align-items:center;gap:10px;">'
+      +'<div style="min-width:0;flex:1;">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+d.site+'</span><span style="font-family:DM Mono,monospace;font-size:11px;color:'+col+';font-weight:800;flex-shrink:0;margin-left:8px;">'+d.rate+'%</span></div>'
+      +'<div style="background:var(--sf3);border-radius:3px;height:5px;"><div style="background:'+col+';height:100%;border-radius:3px;width:'+d.rate+'%;transition:width 0.4s;"></div></div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">'+d.co+' · '+d.done+'/'+d.total+'일</div>'
+      +'</div></div>';
+  }).join('')+'</div>':'<div style="color:var(--dim);font-size:12px;">보고 데이터 없음</div>';
+
+  // ── 지역 커버리지 ──
+  var coverMap={};
+  sites.filter(function(s){return (s.status||'active')==='active'&&s.sido;}).forEach(function(s){
+    if(!coverMap[s.sido])coverMap[s.sido]=[];
+    coverMap[s.sido].push(s);
+  });
+  var covEl=document.getElementById('db-coverage');
+  var covKeys=Object.keys(coverMap).sort();
+  covEl.innerHTML=covKeys.length?'<div style="display:flex;flex-wrap:wrap;gap:8px;">'+covKeys.map(function(sido){
+    var ss=coverMap[sido];
+    var managers=[...new Set(ss.map(function(s){return s.manager;}).filter(Boolean))];
+    return '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:10px 13px;min-width:150px;">'
+      +'<div style="font-size:12px;font-weight:800;color:#00e5a0;margin-bottom:4px;">📍 '+sido+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);">현장 '+ss.length+'곳</div>'
+      +(managers.length?'<div style="font-size:11px;color:var(--text);margin-top:3px;">👤 '+managers.join(', ')+'</div>':'')
+      +'</div>';
+  }).join('')+'</div>':'<div style="color:var(--dim);font-size:12px;">시/도 정보가 있는 현장을 추가하면 표시됩니다</div>';
+
+  // ── 문의중 현장 ──
+  var inqEl=document.getElementById('db-inquiry');
+  inqEl.innerHTML=inquirySites.length?inquirySites.map(function(s){
+    var col=getCompanyColor(s.company);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);">'
+      +'<div style="width:7px;height:7px;border-radius:50%;background:#ffb547;flex-shrink:0;"></div>'
+      +'<div><div style="font-size:12px;font-weight:700;">'+s.site+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);">'+s.company+(s.sido?' · '+s.sido:'')+'</div></div>'
+      +'<button onclick="openEdit('+s.id+')" style="margin-left:auto;padding:3px 8px;border-radius:5px;border:1px solid #ffb547;background:transparent;color:#ffb547;font-size:10px;cursor:pointer;">수정</button>'
+      +'</div>';
+  }).join(''):'<div style="color:var(--dim);font-size:12px;padding:10px 0;">문의중 현장 없음</div>';
+
+  // ── 저이익률 경고 (<20%) ──
+  var lowProfit=activeSites.filter(function(s){
+    if(!s.priceMain)return false;
+    var em=effectivePrice(s,curYr,curMo,s.priceMain);
+    var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+    var pay=calcSubTax(es,s.subtaxtype||'none').payout;
+    var rate=em?Math.round((em-pay)/em*100):0;
+    s._rate=rate;
+    return rate<20;
+  });
+  lowProfit.sort(function(a,b){return a._rate-b._rate;});
+  var lpEl=document.getElementById('db-lowprofit');
+  lpEl.innerHTML=lowProfit.length?lowProfit.map(function(s){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);">'
+      +'<div style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:'+(s._rate<10?'#ff4d6d':'#ffb547')+';min-width:36px;">'+s._rate+'%</div>'
+      +'<div><div style="font-size:12px;font-weight:700;">'+s.site+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);">'+s.company+'</div></div>'
+      +'<button onclick="openEdit('+s.id+')" style="margin-left:auto;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:transparent;color:var(--muted);font-size:10px;cursor:pointer;">수정</button>'
+      +'</div>';
+  }).join(''):'<div style="color:#00e5a0;font-size:12px;padding:10px 0;">⚠️ 해당 현장 없음 👍</div>';
 }
+
+function dbSortCo(){
+  dbCoSortAsc=!dbCoSortAsc;
+  var btn=document.getElementById('db-co-sort-btn');
+  if(btn)btn.textContent=dbCoSortAsc?'↑ 오름차순':'↓ 내림차순';
+  renderDashboard();
+}
+function dbSortReport(){
+  dbRepSortAsc=!dbRepSortAsc;
+  var btn=document.getElementById('db-rep-sort-btn');
+  if(btn)btn.textContent=dbRepSortAsc?'↑ 오름차순':'↓ 내림차순';
+  renderDashboard();
+}
+
+// ── KPI 팝업 ──
+function openKpiPopup(key){
+  var now=new Date(); var curYr=now.getFullYear(); var curMo=now.getMonth();
+  var activeSites=sites.filter(function(s){return (s.status||'active')==='active';});
+  var inquirySites=sites.filter(function(s){return (s.status||'active')==='inquiry';});
+  var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
+  var todayWork=activeSites.filter(function(s){
+    if(!s.days||!s.days.includes(todayDow)||s.noReport)return false;
+    var dt=new Date(todayS);
+    if(s.startDate&&dt<new Date(s.startDate))return false;
+    if(s.endDate&&dt>new Date(s.endDate))return false;
+    return true;
+  });
+  var todayData=reportPhotoData[todayS]||{};
+  var pendingSites=todayWork.filter(function(s){return!(todayData[s.id]&&todayData[s.id].photos>0);});
+
+  var title='', html='';
+
+  if(key==='main'){
+    title='📋 이번달 원청 — 업체별';
+    var companies=[...new Set(activeSites.map(function(s){return s.company;}))];
+    var rows=companies.map(function(co){
+      var coSites=activeSites.filter(function(s){return s.company===co;});
+      var total=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+      return {co:co,total:total,count:coSites.length};
+    }).sort(function(a,b){return b.total-a.total;});
+    var grand=rows.reduce(function(a,r){return a+r.total;},0);
+    html=rows.map(function(r){
+      var col=getCompanyColor(r.co);
+      var pct=grand?Math.round(r.total/grand*100):0;
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--bd);">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'
+        +'<div style="display:flex;align-items:center;gap:7px;"><div style="width:8px;height:8px;border-radius:50%;background:'+col.text+'"></div>'
+        +'<span style="font-size:13px;font-weight:700;">'+r.co+'</span><span style="font-size:11px;color:var(--muted);">'+r.count+'곳</span></div>'
+        +'<div style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#00e5a0;">'+fmtN(r.total)+'원</div></div>'
+        +'<div style="background:var(--sf3);border-radius:3px;height:5px;"><div style="background:'+col.text+';height:100%;border-radius:3px;width:'+pct+'%;"></div></div>'
+        +'<div style="font-size:10px;color:var(--muted);margin-top:3px;">전체의 '+pct+'%</div>'
+        +'</div>';
+    }).join('')
+    +'<div style="padding:12px 0;display:flex;justify-content:space-between;"><span style="font-size:13px;font-weight:800;">합계</span><span style="font-family:DM Mono,monospace;font-size:14px;font-weight:900;color:#00e5a0;">'+fmtN(grand)+'원</span></div>';
+  }
+
+  else if(key==='sub'){
+    title='📋 이번달 하청 — 현장별 실지급';
+    var rows2=activeSites.map(function(s){
+      var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+      var pay=calcSubTax(es,s.subtaxtype||'none').payout;
+      return{site:s.site,co:s.company,pay:pay,taxtype:s.subtaxtype||'none'};
+    }).filter(function(r){return r.pay>0;}).sort(function(a,b){return b.pay-a.pay;});
+    var grand2=rows2.reduce(function(a,r){return a+r.pay;},0);
+    html=rows2.map(function(r){
+      var col=getCompanyColor(r.co);
+      var lbl=r.taxtype==='vat'?'VAT':r.taxtype==='t33'?'3.3%':'—';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bd);">'
+        +'<div><div style="font-size:12px;font-weight:700;">'+r.site+'</div>'
+        +'<div style="font-size:10px;color:var(--muted);">'+r.co+' · '+lbl+'</div></div>'
+        +'<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:800;color:#7ab8ff;">'+fmtN(r.pay)+'원</div>'
+        +'</div>';
+    }).join('')
+    +'<div style="padding:12px 0;display:flex;justify-content:space-between;"><span style="font-size:13px;font-weight:800;">합계</span><span style="font-family:DM Mono,monospace;font-size:14px;font-weight:900;color:#7ab8ff;">'+fmtN(grand2)+'원</span></div>';
+  }
+
+  else if(key==='profit'){
+    title='📋 이번달 이익 — 업체별';
+    var companies3=[...new Set(activeSites.map(function(s){return s.company;}))];
+    var rows3=companies3.map(function(co){
+      var coSites=activeSites.filter(function(s){return s.company===co;});
+      var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+      var pay=coSites.reduce(function(a,s){
+        var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+        return a+calcSubTax(es,s.subtaxtype||'none').payout;
+      },0);
+      return{co:co,main:main,profit:main-pay,rate:main?Math.round((main-pay)/main*100):0};
+    }).sort(function(a,b){return b.profit-a.profit;});
+    html=rows3.map(function(r){
+      var col=getCompanyColor(r.co);
+      var rc=r.rate>=30?'#00e5a0':r.rate>=15?'#ffb547':'#ff4d6d';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bd);">'
+        +'<div style="display:flex;align-items:center;gap:7px;"><div style="width:8px;height:8px;border-radius:50%;background:'+col.text+'"></div>'
+        +'<div><div style="font-size:12px;font-weight:700;">'+r.co+'</div>'
+        +'<div style="font-size:10px;color:var(--muted);">원청 '+fmtN(r.main)+'원</div></div></div>'
+        +'<div style="text-align:right;">'
+        +'<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:800;color:#ffb547;">'+fmtN(r.profit)+'원</div>'
+        +'<div style="font-size:10px;font-weight:700;color:'+rc+';">이익률 '+r.rate+'%</div>'
+        +'</div></div>';
+    }).join('');
+  }
+
+  else if(key==='rate'){
+    title='📋 이익률 — 현장별 전체 순위';
+    var rows4=activeSites.map(function(s){
+      var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
+      var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+      var pay=calcSubTax(es,s.subtaxtype||'none').payout;
+      var rate=em?Math.round((em-pay)/em*100):0;
+      return{site:s.site,co:s.company,rate:rate,profit:em-pay,main:em};
+    }).sort(function(a,b){return b.rate-a.rate;});
+    html=rows4.map(function(r,i){
+      var rc=r.rate>=30?'#00e5a0':r.rate>=15?'#ffb547':'#ff4d6d';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd);">'
+        +'<div style="font-family:DM Mono,monospace;font-size:11px;color:var(--muted);min-width:18px;">'+(i+1)+'</div>'
+        +'<div style="flex:1;"><div style="font-size:12px;font-weight:700;">'+r.site+'</div>'
+        +'<div style="font-size:10px;color:var(--muted);">'+r.co+' · 원청 '+fmtN(r.main)+'원</div>'
+        +'<div style="background:var(--sf3);border-radius:3px;height:4px;margin-top:4px;"><div style="background:'+rc+';height:100%;border-radius:3px;width:'+Math.min(r.rate,100)+'%;"></div></div></div>'
+        +'<div style="font-family:DM Mono,monospace;font-size:14px;font-weight:900;color:'+rc+';">'+r.rate+'%</div>'
+        +'</div>';
+    }).join('');
+  }
+
+  else if(key==='sites'){
+    title='📋 운영중 현장 전체';
+    var companies5=[...new Set(activeSites.map(function(s){return s.company;}))].sort();
+    html=companies5.map(function(co){
+      var col=getCompanyColor(co);
+      var coSites=activeSites.filter(function(s){return s.company===co;});
+      return '<div style="margin-bottom:14px;">'
+        +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">'
+        +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+'"></div>'
+        +'<span style="font-size:13px;font-weight:800;color:'+col.text+';">'+co+'</span>'
+        +'<span style="font-size:11px;color:var(--muted);">'+coSites.length+'곳</span></div>'
+        +coSites.map(function(s){
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--sf3);border-radius:7px;margin-bottom:4px;">'
+            +'<div><div style="font-size:12px;font-weight:600;">'+s.site+'</div>'
+            +(s.sido?'<div style="font-size:10px;color:var(--muted);">📍 '+s.sido+(s.gungu?' '+s.gungu:'')+'</div>':'')
+            +(s.manager?'<div style="font-size:10px;color:var(--muted);">👤 '+s.manager+'</div>':'')+'</div>'
+            +'<div style="font-family:DM Mono,monospace;font-size:11px;color:#00e5a0;text-align:right;">'+fmtN(s.priceMain)+'원</div>'
+            +'</div>';
+        }).join('')+'</div>';
+    }).join('');
+  }
+
+  else if(key==='companies'){
+    title='📋 업체별 현장 현황';
+    var companies6=[...new Set(sites.map(function(s){return s.company;}))].sort();
+    html=companies6.map(function(co){
+      var col=getCompanyColor(co);
+      var all=sites.filter(function(s){return s.company===co;});
+      var act=all.filter(function(s){return (s.status||'active')==='active';});
+      var inq=all.filter(function(s){return (s.status||'active')==='inquiry';});
+      var ter=all.filter(function(s){
+        return s.endDate&&new Date(s.endDate)<new Date(todayStr());
+      });
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);">'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+'"></div>'
+        +'<span style="font-size:13px;font-weight:800;">'+co+'</span></div>'
+        +'<div style="display:flex;gap:8px;font-size:11px;">'
+        +(act.length?'<span style="background:rgba(0,229,160,0.12);color:#00e5a0;padding:2px 8px;border-radius:4px;font-weight:700;">🟢 운영 '+act.length+'</span>':'')
+        +(inq.length?'<span style="background:rgba(255,181,71,0.12);color:#ffb547;padding:2px 8px;border-radius:4px;font-weight:700;">🟡 문의 '+inq.length+'</span>':'')
+        +(ter.length?'<span style="background:rgba(255,77,109,0.1);color:#ff4d6d;padding:2px 8px;border-radius:4px;font-weight:700;">🔴 종료 '+ter.length+'</span>':'')
+        +'</div></div>';
+    }).join('');
+  }
+
+  else if(key==='inquiry'){
+    title='🟡 문의중 현장';
+    html=inquirySites.length?inquirySites.map(function(s){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);">'
+        +'<div><div style="font-size:13px;font-weight:700;">'+s.site+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);">'+s.company+(s.sido?' · 📍 '+s.sido:'')+'</div>'
+        +(s.phone?'<div style="font-size:11px;color:var(--muted);">📞 '+s.phone+'</div>':'')+'</div>'
+        +'<div style="display:flex;gap:6px;">'
+        +(s.phone?'<a href="tel:'+s.phone.replace(/[^0-9+]/g,'')+'" style="padding:5px 10px;border-radius:6px;border:1px solid #00e5a0;background:transparent;color:#00e5a0;font-size:11px;font-weight:700;text-decoration:none;">전화</a>':'')
+        +'<button onclick="closeKpiPopup();openEdit('+s.id+')" style="padding:5px 10px;border-radius:6px;border:1px solid #ffb547;background:transparent;color:#ffb547;font-size:11px;font-weight:700;cursor:pointer;">수정</button>'
+        +'</div></div>';
+    }).join(''):'<div style="padding:20px 0;text-align:center;color:var(--dim);">문의중 현장 없음</div>';
+  }
+
+  else if(key==='pending'){
+    title='🚨 오늘 미보고 현장';
+    html=pendingSites.length?pendingSites.map(function(s){
+      var wasSent=(todayData[s.id]&&todayData[s.id].smsSent)||false;
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--bd);">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+        +'<div><div style="font-size:13px;font-weight:700;">'+s.site+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);">'+s.company+(s.manager?' · 👤 '+s.manager:'')+'</div>'
+        +(s.phone?'<div style="font-size:11px;color:var(--muted);">📞 '+s.phone+'</div>':'')+'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">'
+        +(s.phone?'<button onclick="sendSmsOne(\''+s.id+'\',\''+todayS+'\');renderDashboard();" style="padding:5px 12px;border-radius:6px;border:none;background:#ff4d6d;color:#fff;font-size:11px;font-weight:800;cursor:pointer;">'+(wasSent?'📱 재발송':'📱 문자발송')+'</button>':'')
+        +'<button onclick="copyUploadLink(\''+s.id+'\',\''+todayS+'\')" style="padding:5px 12px;border-radius:6px;border:1px solid #2c2c2c;background:transparent;color:#7ab8ff;font-size:11px;font-weight:700;cursor:pointer;">🔗 링크복사</button>'
+        +'</div></div></div>';
+    }).join('')
+    +(pendingSites.length>1?'<button onclick="sendSmsAllPending(\''+todayS+'\');renderDashboard();" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;border:none;background:#ff4d6d;color:#fff;font-size:13px;font-weight:900;cursor:pointer;">📱 전체 '+pendingSites.length+'곳 일괄 발송</button>':'')
+    :'<div style="padding:20px 0;text-align:center;color:#00e5a0;font-size:14px;font-weight:700;">✅ 오늘 모든 현장 보고 완료!</div>';
+  }
+
+  // 팝업 렌더
+  var w=document.createElement('div');
+  w.id='kpi-popup-wrap';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-end;justify-content:center;padding:0;backdrop-filter:blur(6px);';
+  w.onclick=function(e){if(e.target===w)closeKpiPopup();};
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:16px 16px 0 0;width:100%;max-width:540px;max-height:82vh;display:flex;flex-direction:column;animation:slideUp 0.2s ease;';
+  box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bd);flex-shrink:0;">'
+    +'<div style="font-size:15px;font-weight:800;">'+title+'</div>'
+    +'<button onclick="closeKpiPopup()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;padding:0 20px 24px;flex:1;">'+html+'</div>';
+  w.appendChild(box);
+  document.body.appendChild(w);
+}
+function closeKpiPopup(){
+  var w=document.getElementById('kpi-popup-wrap');
+  if(w)w.remove();
+}
+function renderStats(){}
 function renderTitle(){document.getElementById('logo-display').textContent=appTitle;document.title=appTitle;}
-function renderAll(){renderTitle();renderList();renderCalendar();renderWeekly();renderStats();initSettlePeriod();renderSettle();}
+function renderAll(){renderTitle();renderDashboard();renderList();renderCalendar();renderWeekly();initSettlePeriod();renderSettle();}
 function changeMonth(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',['list','calendar','weekly','report','supply','settle'][i]===name);});
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',['dashboard','list','contacts','calendar','weekly','report','supply','settle'][i]===name);});
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.getElementById('view-'+name).classList.add('active');
+  if(name==='dashboard')renderDashboard();
+  if(name==='contacts'){initContactsSido();renderContacts();}
   if(name==='settle'){renderSettle();updateSnapshotSel();}
   if(name==='supply')renderSupply();
   if(name==='report'){initReportDate();renderReport();}
@@ -1400,8 +2141,11 @@ function renderReport(){
   var dow=getDayOfWeek(dateStr);
   var dateData=reportPhotoData[dateStr]||{};
   var workSites=sites.filter(function(s){
+    if((s.status||'active')==='inquiry') return false;
     if(!s.days||!s.days.includes(dow)||s.noReport) return false;
-    if(s.startDate){ var sd=new Date(s.startDate); if(new Date(dateStr) < sd) return false; }
+    var dt=new Date(dateStr);
+    if(s.startDate && dt < new Date(s.startDate)) return false;
+    if(s.endDate && dt > new Date(s.endDate)) return false;
     return true;
   });
   var okCount=workSites.filter(function(s){return dateData[s.id]&&dateData[s.id].photos>0;}).length;
@@ -1665,7 +2409,142 @@ function openSmsTemplateModal(){
   w.appendChild(box);document.body.appendChild(w);
 }
 
-// ── 비품 관리 ──
+// ── 주소록 ──
+function initContactsSido(){
+  var sel=document.getElementById('ct-sido');
+  if(!sel||sel.options.length>1)return;
+  var sidos=[...new Set(sites.map(function(s){return s.sido;}).filter(Boolean))].sort();
+  sidos.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent='📍 '+s;sel.appendChild(o);});
+}
+
+function renderContacts(){
+  var query=(document.getElementById('ct-search').value||'').trim().toLowerCase();
+  var sidoFilter=document.getElementById('ct-sido').value||'';
+  var sortBy=document.getElementById('ct-sort').value||'company';
+  var todayS=todayStr();
+
+  // 필터링
+  var filtered=sites.filter(function(s){
+    if(sidoFilter&&s.sido!==sidoFilter)return false;
+    if(query){
+      var hay=(s.site+s.company+(s.manager||'')+(s.phone||'')).toLowerCase();
+      if(hay.indexOf(query)<0)return false;
+    }
+    return true;
+  });
+
+  // 통계
+  var hasPhone=filtered.filter(function(s){return !!s.phone;}).length;
+  var noPhone=filtered.length-hasPhone;
+  document.getElementById('ct-stats').innerHTML=
+    '<div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">'
+    +'<span style="font-size:11px;background:var(--sf2);border:1px solid var(--bd);border-radius:5px;padding:3px 9px;color:var(--muted);">전체 '+filtered.length+'곳</span>'
+    +'<span style="font-size:11px;background:var(--sf2);border:1px solid var(--bd);border-radius:5px;padding:3px 9px;color:#00e5a0;">📞 '+hasPhone+'곳</span>'
+    +(noPhone?'<span style="font-size:11px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:5px;padding:3px 9px;color:#ff4d6d;">연락처 없음 '+noPhone+'곳</span>':'')
+    +'</div>';
+
+  var listEl=document.getElementById('ct-list');
+  if(!filtered.length){
+    listEl.innerHTML='<div class="empty"><div class="empty-icon">📞</div><div class="empty-text">검색 결과가 없어요.</div></div>';
+    return;
+  }
+
+  // 정렬 및 그룹핑
+  var html='';
+  if(sortBy==='company'){
+    var companies=[...new Set(filtered.map(function(s){return s.company;}))].sort();
+    html=companies.map(function(co){
+      var col=getCompanyColor(co);
+      var coSites=filtered.filter(function(s){return s.company===co;});
+      return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden;">'
+        +'<div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:var(--sf2);border-bottom:1px solid var(--bd);">'
+        +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+'"></div>'
+        +'<span style="font-size:14px;font-weight:800;color:'+col.text+';">'+co+'</span>'
+        +'<span style="font-size:11px;color:var(--muted);">'+coSites.length+'곳</span></div>'
+        +'<div style="padding:8px 12px;display:flex;flex-direction:column;gap:6px;">'
+        +coSites.map(function(s){return renderContactCard(s,col);}).join('')
+        +'</div></div>';
+    }).join('');
+  } else if(sortBy==='name'){
+    filtered.sort(function(a,b){return a.site.localeCompare(b.site,'ko');});
+    html='<div style="display:flex;flex-direction:column;gap:6px;">'+filtered.map(function(s){
+      return renderContactCard(s,getCompanyColor(s.company));
+    }).join('')+'</div>';
+  } else if(sortBy==='region'){
+    var regions=[...new Set(filtered.map(function(s){return s.sido||'미분류';}).filter(Boolean))].sort();
+    html=regions.map(function(r){
+      var rSites=filtered.filter(function(s){return (s.sido||'미분류')===r;});
+      return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:12px;overflow:hidden;">'
+        +'<div style="padding:11px 16px;background:var(--sf2);border-bottom:1px solid var(--bd);font-size:13px;font-weight:800;">📍 '+r+' <span style="font-size:11px;color:var(--muted);font-weight:400;">'+rSites.length+'곳</span></div>'
+        +'<div style="padding:8px 12px;display:flex;flex-direction:column;gap:6px;">'
+        +rSites.map(function(s){return renderContactCard(s,getCompanyColor(s.company));}).join('')
+        +'</div></div>';
+    }).join('');
+  }
+  listEl.innerHTML=html;
+}
+
+function renderContactCard(s,col){
+  var isTerminated=s.endDate&&new Date(s.endDate)<new Date(todayStr());
+  var isInquiry=(s.status||'active')==='inquiry';
+  var statusBadge=isInquiry
+    ?'<span style="background:#3a2e00;color:#ffb547;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;">문의중</span>'
+    :isTerminated
+    ?'<span style="background:#3a1a1a;color:#ff4d6d;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;">종료</span>'
+    :'<span style="background:rgba(0,229,160,0.12);color:#00e5a0;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;">운영중</span>';
+  var tel=s.phone?s.phone.replace(/[^0-9+]/g,''):'';
+  return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--sf3);border-radius:9px;border-left:3px solid '+col.text+';gap:10px;">'
+    +'<div style="min-width:0;flex:1;">'
+    +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px;">'
+    +'<span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+s.site+'</span>'
+    +statusBadge+'</div>'
+    +(s.manager?'<div style="font-size:11px;color:var(--text);margin-bottom:1px;">👤 '+s.manager+'</div>':'')
+    +(s.phone?'<div style="font-size:11px;color:var(--muted);">📞 '+s.phone+'</div>':'<div style="font-size:11px;color:#ff4d6d;">📞 연락처 없음</div>')
+    +((s.sido||s.gungu)?'<div style="font-size:10px;color:var(--muted);margin-top:1px;">📍 '+(s.sido||'')+' '+(s.gungu||'')+'</div>':'')
+    +'</div>'
+    +(s.phone?'<div style="display:flex;gap:5px;flex-shrink:0;">'
+      +'<a href="tel:'+tel+'" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:#00e5a0;color:#000;font-size:16px;text-decoration:none;">📞</a>'
+      +'<a href="sms:'+tel+'" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:16px;text-decoration:none;">💬</a>'
+      +'</div>':'')
+    +'</div>';
+}
+
+// ── 설정 팝업 ──
+function openSettings(){
+  var w=document.createElement('div');
+  w.id='settings-wrap';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);';
+  w.onclick=function(e){if(e.target===w)w.remove();};
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 32px;animation:slideUp 0.2s ease;';
+
+  // 카운트 미리 계산
+  var totalCount = sites.length;
+  var activeCount = sites.filter(function(s){return (s.status||'active')==='active';}).length;
+  var inquiryCount = sites.filter(function(s){return (s.status||'active')==='inquiry';}).length;
+
+  box.innerHTML=''
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bd);">'
+    +'<div style="font-size:15px;font-weight:800;">⚙️ 설정</div>'
+    +'<button onclick="document.getElementById(\'settings-wrap\').remove()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;">✕</button>'
+    +'</div>'
+    +'<div style="padding:20px;">'
+    +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">데이터 백업</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:20px;">'
+    +'<button onclick="exportData()" style="flex:1;padding:12px;border-radius:9px;border:1px solid #004d36;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">⬇️ 백업 내보내기</button>'
+    +'<button onclick="document.getElementById(\'file-import\').click()" style="flex:1;padding:12px;border-radius:9px;border:1px solid #3a2800;background:rgba(255,181,71,0.08);color:#ffb547;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">⬆️ 백업 불러오기</button>'
+    +'</div>'
+    +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">앱 정보</div>'
+    +'<div style="background:var(--sf2);border-radius:9px;padding:12px 14px;">'
+    +'<div style="font-size:12px;color:var(--muted);line-height:1.8;">'
+    +'<div>현장 수: <strong style="color:var(--text);">'+totalCount+'곳</strong></div>'
+    +'<div>운영중: <strong style="color:#00e5a0;">'+activeCount+'곳</strong></div>'
+    +'<div>문의중: <strong style="color:#ffb547;">'+inquiryCount+'곳</strong></div>'
+    +'</div></div>'
+    +'</div>';
+  w.appendChild(box);
+  document.body.appendChild(w);
+}
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 function saveSupplies(){ localStorage.setItem('cm-supplies', JSON.stringify(supplies)); saveToFirebase(); }
 
@@ -1924,6 +2803,7 @@ function checkGoogleToken(){
 }
 
 loadFromFirebase(function(){
+  buildSidoOptions('f-sido','');
   renderAll();
   if(isGoogleLoggedIn())updateGoogleUI(true);
   checkGoogleToken();
