@@ -225,7 +225,7 @@ function init(){
 
 // ── 로그인 (사장님 드라이브 접근용) ──
 function doLogin(){
-  var base = location.href.split('#')[0];
+  var base = location.href.split('?')[0].split('#')[0];
   window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth'
     + '?client_id=' + CLIENT_ID
     + '&redirect_uri=' + encodeURIComponent(base)
