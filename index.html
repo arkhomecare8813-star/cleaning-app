@@ -346,6 +346,7 @@ main{padding:18px 14px;max-width:1400px;}
   <button class="tab" onclick="switchTab('calendar')">&#128197; 월간 캘린더</button>
   <button class="tab" onclick="switchTab('weekly')">&#128198; 요일별 현황</button>
   <button class="tab" onclick="switchTab('report')">&#128247; 보고</button>
+  <button class="tab" onclick="switchTab('checklist')">📋 체크리스트</button>
   <button class="tab" onclick="switchTab('supply')">&#128722; 비품</button>
   <button class="tab" onclick="switchTab('settle')">&#128176; 정산</button>
 </div>
@@ -555,6 +556,11 @@ main{padding:18px 14px;max-width:1400px;}
     </div>
     <div id="report-content"></div>
   </div>
+  <!-- CHECKLIST -->
+  <div class="view" id="view-checklist">
+    <div id="checklist-content"></div>
+  </div>
+
   <!-- SUPPLY -->
   <div class="view" id="view-supply">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -2115,8 +2121,416 @@ function renderTitle(){document.getElementById('logo-display').textContent=appTi
 function renderAll(){renderTitle();renderDashboard();renderList();renderCalendar();renderWeekly();initSettlePeriod();renderSettle();}
 function changeMonth(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 
+// ══════════════════════════════════════════
+// ── CHECKLIST TAB ──
+// ══════════════════════════════════════════
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxCmXc0Ad4prYecIhThnfiH6FqybBVi78GTsU23EfXJC_wJUiGifI2QLzCdS1IlWs_z/exec';
+
+// 도단위 약칭 추출 ("경기도" → "경기", "서울특별시" → "서울" 등)
+function _sidoShort(sido){
+  if(!sido) return '기타';
+  return sido.replace(/특별시|광역시|특별자치시|특별자치도|도$/,'');
+}
+// gungu에서 시단위 추출 ("용인시 수지구" → "용인시")
+function _gunguCity(gungu){
+  if(!gungu) return null;
+  var m = gungu.match(/^([^\s]+시|[^\s]+군)/);
+  return m ? m[1] : null;
+}
+
+function renderChecklist(){
+  var el = document.getElementById('checklist-content');
+  if(!el) return;
+
+  if(!sites.length){
+    el.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">등록된 현장이 없습니다.</div>';
+    return;
+  }
+
+  // 도단위 탭 목록 (기타 맨 뒤)
+  var doList = [...new Set(sites.map(function(s){ return _sidoShort(s.sido); }))].sort();
+  var hasEtc = doList.indexOf('기타') > -1;
+  if(hasEtc){ doList = doList.filter(function(d){return d!=='기타';}); doList.push('기타'); }
+  var allDoTabs = ['전체'].concat(doList);
+
+  var activeDo  = el.dataset.activeDo  !== undefined ? el.dataset.activeDo  : '전체';
+  var activeCity= el.dataset.activeCity !== undefined ? el.dataset.activeCity : '전체';
+  el.dataset.activeDo   = activeDo;
+  el.dataset.activeCity = activeCity;
+
+  // 도단위 탭 HTML
+  var doTabsHtml = allDoTabs.map(function(d){
+    var isActive = d === activeDo;
+    return '<button onclick="clSelectDo(\''+d+'\')" style="padding:7px 16px;border-radius:20px;border:'+(isActive?'1px solid #00e5a0':'1px solid var(--bd)')+';background:'+(isActive?'rgba(0,229,160,0.12)':'transparent')+';color:'+(isActive?'#00e5a0':'var(--muted)')+';font-size:12px;font-weight:'+(isActive?'800':'500')+';cursor:pointer;white-space:nowrap;font-family:\'Noto Sans KR\',sans-serif;">'+d+'</button>';
+  }).join('');
+
+  // 도 선택 시 해당 현장 필터
+  var doFilteredSites = activeDo === '전체'
+    ? sites.slice()
+    : sites.filter(function(s){ return _sidoShort(s.sido) === activeDo; });
+
+  // 시단위 탭 목록
+  var cityList = [...new Set(doFilteredSites.map(function(s){ return _gunguCity(s.gungu)||'기타'; }))].sort();
+  var cityHasEtc = cityList.indexOf('기타') > -1;
+  if(cityHasEtc){ cityList = cityList.filter(function(c){return c!=='기타';}); cityList.push('기타'); }
+
+  var showCityTabs = activeDo !== '전체' && cityList.length > 1;
+  var allCityTabs = showCityTabs ? ['전체'].concat(cityList) : [];
+
+  var cityTabsHtml = '';
+  if(showCityTabs){
+    cityTabsHtml = '<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none;">'
+      + allCityTabs.map(function(c){
+          var isActive = c === activeCity;
+          return '<button onclick="clSelectCity(\''+c+'\')" style="padding:5px 13px;border-radius:16px;border:'+(isActive?'1px solid #7ab8ff':'1px solid var(--bd)')+';background:'+(isActive?'rgba(122,184,255,0.12)':'transparent')+';color:'+(isActive?'#7ab8ff':'var(--muted)')+';font-size:11px;font-weight:'+(isActive?'800':'500')+';cursor:pointer;white-space:nowrap;font-family:\'Noto Sans KR\',sans-serif;">'+c+'</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  // 최종 현장 필터 (도 + 시)
+  var finalSites = doFilteredSites.filter(function(s){
+    if(!showCityTabs || activeCity === '전체') return true;
+    return (_gunguCity(s.gungu)||'기타') === activeCity;
+  });
+
+  var bannersHtml = finalSites.length
+    ? finalSites.map(function(s){
+        var col = getCompanyColor(s.company);
+        var addrStr = [s.sido, s.gungu, s.addr].filter(Boolean).join(' ');
+        return '<div onclick="openChecklistSite('+s.id+')" style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px;cursor:pointer;transition:border-color 0.15s;" onmouseenter="this.style.borderColor=\'#00e5a0\'" onmouseleave="this.style.borderColor=\'var(--bd)\'">'
+          +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+          +'<div style="width:10px;height:10px;border-radius:50%;background:'+col.text+';flex-shrink:0;"></div>'
+          +'<div style="font-size:15px;font-weight:800;">'+s.site+'</div>'
+          +'</div>'
+          +'<div style="font-size:12px;color:var(--muted);">'+s.company+(s.manager?' · 👤 '+s.manager:'')+'</div>'
+          +(addrStr?'<div style="font-size:11px;color:#555;margin-top:4px;">📍 '+addrStr+'</div>':'')
+          +'<div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">'
+          +'<div id="cl-badge-'+s.id+'" style="font-size:11px;color:#555;">로딩중...</div>'
+          +'<div style="font-size:11px;color:#00e5a0;font-weight:700;">체크리스트 보기 →</div>'
+          +'</div></div>';
+      }).join('')
+    : '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;">해당 지역 현장이 없습니다.</div>';
+
+  el.innerHTML = ''
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
+    +'<div style="font-size:15px;font-weight:800;">📋 체크리스트</div>'
+    +'</div>'
+    // 도단위 탭
+    +'<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none;">'+doTabsHtml+'</div>'
+    // 시단위 서브탭
+    +cityTabsHtml
+    // 현장 배너
+    +'<div style="display:flex;flex-direction:column;gap:10px;">'+bannersHtml+'</div>';
+
+  // 파일 수 비동기 로드
+  finalSites.forEach(function(s){
+    fetch(FB_URL+'/data/checklist/'+s.id+'.json')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var badge = document.getElementById('cl-badge-'+s.id);
+        if(!badge) return;
+        var cnt = (d && d.files) ? d.files.length : 0;
+        badge.textContent = cnt > 0 ? '📄 '+cnt+'장 등록됨' : '등록된 파일 없음';
+        badge.style.color = cnt > 0 ? '#00e5a0' : '#555';
+      }).catch(function(){
+        var badge = document.getElementById('cl-badge-'+s.id);
+        if(badge){ badge.textContent='등록된 파일 없음'; badge.style.color='#555'; }
+      });
+  });
+}
+
+function clSelectDo(doName){
+  var el = document.getElementById('checklist-content');
+  if(el){ el.dataset.activeDo = doName; el.dataset.activeCity = '전체'; }
+  renderChecklist();
+}
+function clSelectCity(city){
+  var el = document.getElementById('checklist-content');
+  if(el) el.dataset.activeCity = city;
+  renderChecklist();
+}
+function clSelectSido(sido){
+  clSelectDo(sido);
+}
+
+// 현장 체크리스트 상세 팝업
+function openChecklistSite(siteId){
+  var site = sites.find(function(s){return s.id===siteId;});
+  if(!site) return;
+
+  var w = document.createElement('div');
+  w.id = 'cl-site-wrap';
+  w.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:600;align-items:flex-start;justify-content:center;backdrop-filter:blur(8px);';
+  w.onclick = function(e){ if(e.target===w) w.remove(); };
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--sf);border:1px solid var(--bd);border-radius:0 0 16px 16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;animation:slideDown 0.2s ease;';
+
+  var col = getCompanyColor(site.company);
+
+  box.innerHTML = ''
+    // 헤더
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--sf);z-index:1;">'
+    +'<div>'
+    +'<div style="display:flex;align-items:center;gap:8px;">'
+    +'<div style="width:10px;height:10px;border-radius:50%;background:'+col.text+'"></div>'
+    +'<div style="font-size:15px;font-weight:800;">'+site.site+'</div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+site.company+'</div>'
+    +'</div>'
+    +'<button onclick="document.getElementById(\'cl-site-wrap\').remove()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;">✕</button>'
+    +'</div>'
+    // 업로드 버튼
+    +'<div style="padding:16px 20px;border-bottom:1px solid var(--bd);">'
+    +'<input type="file" id="cl-file-input" accept="image/*" multiple style="display:none" onchange="clUploadFiles('+siteId+')">'
+    +'<button onclick="document.getElementById(\'cl-file-input\').click()" style="width:100%;padding:11px;border-radius:10px;border:1px dashed #004d36;background:rgba(0,229,160,0.06);color:#00e5a0;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📎 체크리스트 사진 추가</button>'
+    +'</div>'
+    // 파일 목록
+    +'<div id="cl-file-list-'+siteId+'" style="padding:16px 20px;">'
+    +'<div style="text-align:center;color:var(--muted);font-size:13px;padding:20px 0;">로딩중...</div>'
+    +'</div>'
+    // 공유 버튼
+    +'<div style="padding:0 20px 24px;display:flex;gap:8px;">'
+    +'<button onclick="clShareKakao('+siteId+')" style="flex:1;padding:11px;border-radius:9px;border:none;background:#FEE500;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">💬 카카오 공유</button>'
+    +'<button onclick="clShareEmail('+siteId+')" style="flex:1.5;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📧 이메일 전송</button>'
+    +'</div>';
+
+  w.appendChild(box);
+  document.body.appendChild(w);
+
+  // 파일 목록 로드
+  clLoadFiles(siteId);
+}
+
+function clLoadFiles(siteId){
+  var el = document.getElementById('cl-file-list-'+siteId);
+  if(!el) return;
+
+  fetch(FB_URL+'/data/checklist/'+siteId+'.json')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var files = (d && d.files) ? d.files : [];
+      var folderLink = d && d.folderLink ? d.folderLink : null;
+
+      if(!files.length){
+        el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:20px 0;">등록된 체크리스트가 없습니다.<br>위 버튼으로 사진을 추가해주세요.</div>';
+        return;
+      }
+
+      var folderBtn = folderLink
+        ? '<a href="'+folderLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid #2c2c2c;background:transparent;color:#7ab8ff;font-size:12px;font-weight:700;text-decoration:none;margin-bottom:14px;">📂 Drive 폴더 열기</a>'
+        : '';
+
+      var grid = files.map(function(f, i){
+        return '<a href="'+f.url+'" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);text-decoration:none;color:inherit;">'
+          +'<div style="width:36px;height:36px;border-radius:8px;background:#1e1e1e;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🖼️</div>'
+          +'<div style="flex:1;min-width:0;">'
+          +'<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+f.name+'</div>'
+          +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">'+f.uploadedAt.slice(0,10)+'</div>'
+          +'</div>'
+          +'<div style="font-size:11px;color:#00e5a0;font-weight:700;flex-shrink:0;">열기 →</div>'
+          +'</a>';
+      }).join('');
+
+      el.innerHTML = folderBtn + grid;
+    }).catch(function(){
+      el.innerHTML = '<div style="text-align:center;color:#ff4d6d;font-size:13px;padding:20px 0;">불러오기 실패</div>';
+    });
+}
+
+// 체크리스트 파일 업로드
+function clUploadFiles(siteId){
+  var input = document.getElementById('cl-file-input');
+  if(!input || !input.files.length) return;
+  var site = sites.find(function(s){return s.id===siteId;});
+  if(!site) return;
+
+  var files = Array.from(input.files);
+  var el = document.getElementById('cl-file-list-'+siteId);
+  if(el) el.innerHTML = '<div style="text-align:center;color:#00e5a0;font-size:13px;padding:20px 0;">⏳ 업로드 중... ('+files.length+'장)</div>';
+
+  var done = 0;
+  var failed = 0;
+  var total = files.length;
+
+  function uploadOne(file){
+    return new Promise(function(resolve){
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        var base64 = ev.target.result.split(',')[1];
+        var body = JSON.stringify({
+          type: 'checklist',
+          siteId: siteId,
+          site: site.site,
+          sido: site.sido || '기타',
+          name: 'checklist_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)+'.jpg',
+          data: base64,
+          mime: file.type || 'image/jpeg'
+        });
+        fetch(GAS_URL, {method:'POST', body:body})
+          .then(function(r){return r.json();})
+          .then(function(d){ if(d.ok) done++; else failed++; resolve(); })
+          .catch(function(){ failed++; resolve(); });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // 병렬 업로드 (최대 3개)
+  function runPool(arr, concurrency){
+    var queue = arr.slice();
+    var active = 0;
+    return new Promise(function(resolveAll){
+      function next(){
+        while(active < concurrency && queue.length){
+          active++;
+          var f = queue.shift();
+          uploadOne(f).then(function(){
+            active--;
+            if(!queue.length && !active) resolveAll();
+            else next();
+          });
+        }
+      }
+      next();
+    });
+  }
+
+  runPool(files, 3).then(function(){
+    input.value = '';
+    showToast(done+'장 업로드 완료!'+(failed?' ('+failed+'장 실패)':''));
+    clLoadFiles(siteId);
+    renderChecklist(); // 배너 배지 갱신
+  });
+}
+
+// 체크리스트 카카오 공유
+function clShareKakao(siteId){
+  var site = sites.find(function(s){return s.id===siteId;});
+  if(!site) return;
+
+  fetch(FB_URL+'/data/checklist/'+siteId+'.json')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var files = (d && d.files) ? d.files : [];
+      var folderLink = d && d.folderLink ? d.folderLink : null;
+
+      var lines = [
+        '📋 '+site.site+' 체크리스트',
+        site.company+' · '+(site.sido||''),
+        ''
+      ];
+      if(folderLink){
+        lines.push('📂 전체 보기: '+folderLink);
+        lines.push('');
+      }
+      files.forEach(function(f, i){
+        lines.push((i+1)+'. '+f.name);
+        lines.push('   🔗 '+f.url);
+      });
+      lines.push('');
+      lines.push('— '+appTitle);
+      var text = lines.join('\n');
+
+      if(navigator.share){
+        navigator.share({ title: site.site+' 체크리스트', text: text })
+          .then(function(){ showToast('✅ 공유 완료!'); })
+          .catch(function(e){ if(e.name!=='AbortError') _showCopyFallback(text); });
+      } else {
+        navigator.clipboard.writeText(text).then(function(){
+          showToast('📋 복사됐어요!\n카카오톡에 붙여넣기 하세요.');
+        }).catch(function(){ _showCopyFallback(text); });
+      }
+    });
+}
+
+// 체크리스트 이메일 전송
+function clShareEmail(siteId){
+  var site = sites.find(function(s){return s.id===siteId;});
+  if(!site) return;
+
+  var to = prompt('수신자 이메일을 입력하세요:');
+  if(!to || !to.trim()) return;
+  to = to.trim();
+
+  if(!isGoogleLoggedIn()){ showToast('❌ Google 로그인 후 사용 가능합니다'); return; }
+
+  fetch(FB_URL+'/data/checklist/'+siteId+'.json')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var files = (d && d.files) ? d.files : [];
+      var folderLink = d && d.folderLink ? d.folderLink : null;
+
+      var rows = files.map(function(f){
+        return '<tr>'
+          +'<td style="padding:10px 14px;font-size:13px;border-bottom:1px solid #f0f0f0;">'+f.name+'</td>'
+          +'<td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;">'
+          +'<a href="'+f.url+'" style="color:#1a73e8;font-size:12px;font-weight:700;text-decoration:none;">🔗 열기</a>'
+          +'</td>'
+          +'</tr>';
+      }).join('');
+
+      var folderBtn = folderLink
+        ? '<div style="margin-bottom:20px;"><a href="'+folderLink+'" style="display:inline-block;background:#1a73e8;color:#fff;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;text-decoration:none;">📂 전체 폴더 열기 (일괄 다운로드)</a></div>'
+        : '';
+
+      var htmlBody = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+        +'<body style="margin:0;padding:0;background:#f5f5f5;font-family:\'Apple SD Gothic Neo\',\'Noto Sans KR\',Arial,sans-serif;">'
+        +'<div style="max-width:560px;margin:0 auto;padding:24px 16px;">'
+        +'<div style="background:#0a0a0a;border-radius:14px 14px 0 0;padding:24px 28px;">'
+        +'<div style="font-size:22px;font-weight:900;color:#ffffff;">📋 체크리스트</div>'
+        +'<div style="font-size:13px;color:#888;margin-top:6px;">'+site.site+' · '+site.company+'</div>'
+        +'</div>'
+        +'<div style="background:#fff;padding:24px 28px;border-radius:0 0 14px 14px;">'
+        +folderBtn
+        +(files.length
+          ? '<table style="width:100%;border-collapse:collapse;">'
+            +'<thead><tr style="background:#f8f8f8;">'
+            +'<th style="padding:9px 14px;text-align:left;font-size:11px;color:#888;font-weight:700;border-bottom:2px solid #eee;">파일명</th>'
+            +'<th style="padding:9px 14px;text-align:left;font-size:11px;color:#888;font-weight:700;border-bottom:2px solid #eee;">링크</th>'
+            +'</tr></thead><tbody>'+rows+'</tbody></table>'
+          : '<div style="color:#999;font-size:13px;">등록된 파일이 없습니다.</div>')
+        +'<div style="margin-top:20px;font-size:11px;color:#ccc;text-align:center;">'+appTitle+' 앱에서 자동 발송</div>'
+        +'</div></div></body></html>';
+
+      var textBody = site.site+' 체크리스트\n'+site.company+'\n\n'
+        +(folderLink ? '📂 전체 폴더: '+folderLink+'\n\n' : '')
+        +files.map(function(f,i){return (i+1)+'. '+f.name+'\n   '+f.url;}).join('\n')
+        +'\n\n— '+appTitle;
+
+      var subject = '['+appTitle+'] '+site.site+' 체크리스트';
+      var boundary = 'boundary_'+Date.now();
+      var mime = 'To: '+to+'\r\n'
+        +'Subject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\n'
+        +'MIME-Version: 1.0\r\n'
+        +'Content-Type: multipart/alternative; boundary="'+boundary+'"\r\n\r\n'
+        +'--'+boundary+'\r\n'
+        +'Content-Type: text/plain; charset=utf-8\r\n'
+        +'Content-Transfer-Encoding: base64\r\n\r\n'
+        +btoa(unescape(encodeURIComponent(textBody)))+'\r\n\r\n'
+        +'--'+boundary+'\r\n'
+        +'Content-Type: text/html; charset=utf-8\r\n'
+        +'Content-Transfer-Encoding: base64\r\n\r\n'
+        +btoa(unescape(encodeURIComponent(htmlBody)))+'\r\n\r\n'
+        +'--'+boundary+'--';
+
+      var encoded = btoa(unescape(encodeURIComponent(mime))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+      showToast('⏳ 발송 중...');
+      fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
+        method:'POST',
+        headers:{ Authorization:'Bearer '+googleAccessToken, 'Content-Type':'application/json' },
+        body: JSON.stringify({ raw: encoded })
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d.id) showToast('✅ 이메일 발송 완료!\n→ '+to);
+        else showToast('❌ 발송 실패: '+(d.error&&d.error.message||'오류'));
+      }).catch(function(){ showToast('❌ 네트워크 오류'); });
+    });
+}
+
+
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',['dashboard','list','contacts','calendar','weekly','report','supply','settle'][i]===name);});
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',['dashboard','list','contacts','calendar','weekly','report','checklist','supply','settle'][i]===name);});
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.getElementById('view-'+name).classList.add('active');
   if(name==='dashboard')renderDashboard();
@@ -2124,6 +2538,7 @@ function switchTab(name){
   if(name==='settle'){renderSettle();updateSnapshotSel();}
   if(name==='supply')renderSupply();
   if(name==='report'){initReportDate();renderReport();}
+  if(name==='checklist')renderChecklist();
 }
 
 // ── REPORT TAB ──
