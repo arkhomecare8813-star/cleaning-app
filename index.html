@@ -15,6 +15,7 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n아래 링크에서 사진을 업로드해주세요!\n\n{link}';
+// 변수 선언을 맨 위로 — saveToFirebase 호출 시 undefined 방지
 var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
@@ -23,12 +24,10 @@ function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.jso
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
 function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos)reportPhotoData=d.photos;if(d.supplies&&Array.isArray(d.supplies))supplies=d.supplies;if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});}
 function saveToFirebase(){
-  // PATCH 방식으로 저장 — photoFiles 등 다른 경로 안 건드림
-  var data = {sites:sites, title:appTitle, photos:reportPhotoData, supplies:supplies, settleSnap:settleSnapshots, smsTemplate:SMS_TEMPLATE};
-  fetch(FB_URL+'/data.json', {
+  fetch(FB_URL+'/data.json',{
     method:'PATCH',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(data)
+    body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,supplies:supplies,settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE})
   }).catch(function(){});
 }
 
@@ -447,7 +446,7 @@ main{padding:18px 14px;max-width:1400px;}
       <div class="form-title">&#127970; 업체 / 현장 추가</div>
       <div class="form-grid">
         <div class="form-group"><label>업체명 *</label>
-          <input type="text" id="f-co" placeholder="예: 강남빌딩관리" list="f-co-list" oninput="autoFillCompanyInfo(this.value)" onchange="autoFillCompanyInfo(this.value)">
+          <input type="text" id="f-co" placeholder="예: 강남빌딩관리" list="f-co-list" oninput="autoFillCompanyInfo(this.value)">
           <datalist id="f-co-list"></datalist>
         </div>
         <div class="form-group"><label>현장명 *</label><input type="text" id="f-site" placeholder="예: A동 지하주차장"></div>
@@ -1041,9 +1040,10 @@ function _updateCoDatalist(){
 function autoFillCompanyInfo(coName){
   _updateCoDatalist();
   if(!coName) return;
+  // 정확히 일치하는 기존 업체 현장 찾기
   var existing = sites.filter(function(s){ return s.company === coName; });
   if(!existing.length) return;
-  var ref = existing[0];
+  var ref = existing[0]; // 첫번째 현장 기준으로 업체 공통 정보 가져옴
 
   var fields = {
     'f-mgr':     ref.manager || '',
@@ -1055,10 +1055,15 @@ function autoFillCompanyInfo(coName){
   };
   Object.keys(fields).forEach(function(id){
     var el = document.getElementById(id);
-    if(el) el.value = fields[id];
+    // 이미 사용자가 입력한 값이 있으면 덮어쓰지 않음
+    if(el && !el.value) el.value = fields[id];
   });
+  // 하청 세금 유형
   var fst = document.getElementById('f-subtaxtype');
-  if(fst && ref.subtaxtype) fst.value = ref.subtaxtype;
+  if(fst && fst.value === 'none' && ref.subtaxtype && ref.subtaxtype !== 'none'){
+    fst.value = ref.subtaxtype;
+  }
+  // 토스트 안내
   showToast('📋 '+coName+' 기존 정보를 불러왔어요');
 }
 function addSite(){
@@ -1316,9 +1321,7 @@ function toggleSettleCo(hdr){
   if(chev) chev.style.transform=isHidden?'':'rotate(-90deg)';
 }
 function prefillCompany(name){
-  document.getElementById('f-co').value=name;
-  autoFillCompanyInfo(name);
-  switchTab('list');
+  document.getElementById('f-co').value=name;switchTab('list');
   document.getElementById('f-site').focus();window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -2549,6 +2552,7 @@ function switchTab(name){
 }
 
 // ── REPORT TAB ──
+// ── REPORT TAB ──
 function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function getDayOfWeek(d){ return new Date(d+'T00:00:00').getDay(); }
@@ -3615,7 +3619,7 @@ function getSupplyRowsByCoHtml(coName){
 }
 
 // ── 정산 스냅샷 ──
-
+// ── 정산 스냅샷 ──
 function saveSettleSnapshots(){
   localStorage.setItem('cm-settle-snap', JSON.stringify(settleSnapshots));
   saveToFirebase();
