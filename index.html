@@ -15,11 +15,22 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n아래 링크에서 사진을 업로드해주세요!\n\n{link}';
+var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
+var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
+var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
 function saveSmsTemplate(t){ SMS_TEMPLATE=t; localStorage.setItem('cm-sms-template',t); saveToFirebase(); }
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
 function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos)reportPhotoData=d.photos;if(d.supplies&&Array.isArray(d.supplies))supplies=d.supplies;if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});}
-function saveToFirebase(){fbSet('/data',{sites:sites,title:appTitle,photos:reportPhotoData,supplies:supplies,settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE});}
+function saveToFirebase(){
+  // PATCH 방식으로 저장 — photoFiles 등 다른 경로 안 건드림
+  var data = {sites:sites, title:appTitle, photos:reportPhotoData, supplies:supplies, settleSnap:settleSnapshots, smsTemplate:SMS_TEMPLATE};
+  fetch(FB_URL+'/data.json', {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  }).catch(function(){});
+}
 
 function isGoogleLoggedIn(){ return googleAccessToken && Date.now() < googleTokenExpiry; }
 function googleLogin(){
@@ -2538,7 +2549,6 @@ function switchTab(name){
 }
 
 // ── REPORT TAB ──
-var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function getDayOfWeek(d){ return new Date(d+'T00:00:00').getDay(); }
@@ -3451,7 +3461,6 @@ function openSettings(){
   w.appendChild(box);
   document.body.appendChild(w);
 }
-var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 function saveSupplies(){ localStorage.setItem('cm-supplies', JSON.stringify(supplies)); saveToFirebase(); }
 
 function updateSpSites(){
@@ -3606,7 +3615,6 @@ function getSupplyRowsByCoHtml(coName){
 }
 
 // ── 정산 스냅샷 ──
-var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'{}');
 
 function saveSettleSnapshots(){
   localStorage.setItem('cm-settle-snap', JSON.stringify(settleSnapshots));
