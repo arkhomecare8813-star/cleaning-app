@@ -15,7 +15,9 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n아래 링크에서 사진을 업로드해주세요!\n\n{link}';
-// 변수 선언을 맨 위로 — saveToFirebase 호출 시 undefined 방지
+// 모든 전역 변수 맨 위 선언
+var sites = JSON.parse(localStorage.getItem('cm-sites')||'[]');
+var appTitle = localStorage.getItem('cm-title')||'청소팀 관리';
 var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
@@ -446,7 +448,7 @@ main{padding:18px 14px;max-width:1400px;}
       <div class="form-title">&#127970; 업체 / 현장 추가</div>
       <div class="form-grid">
         <div class="form-group"><label>업체명 *</label>
-          <input type="text" id="f-co" placeholder="예: 강남빌딩관리" list="f-co-list" oninput="autoFillCompanyInfo(this.value)">
+          <input type="text" id="f-co" placeholder="예: 강남빌딩관리" list="f-co-list" oninput="autoFillCompanyInfo(this.value)" onchange="autoFillCompanyInfo(this.value)">
           <datalist id="f-co-list"></datalist>
         </div>
         <div class="form-group"><label>현장명 *</label><input type="text" id="f-site" placeholder="예: A동 지하주차장"></div>
@@ -829,8 +831,6 @@ function parseAddrParts(addr){
   });
   return{sido:sido,gungu:gungu,detail:detail};
 }
-let sites=JSON.parse(localStorage.getItem('cm-sites')||'[]');
-let appTitle=localStorage.getItem('cm-title')||'청소팀 관리';
 let calYear,calMonth,popupSiteId=null,editingSiteId=null;
 const today=new Date();
 calYear=today.getFullYear();calMonth=today.getMonth();
@@ -1040,10 +1040,9 @@ function _updateCoDatalist(){
 function autoFillCompanyInfo(coName){
   _updateCoDatalist();
   if(!coName) return;
-  // 정확히 일치하는 기존 업체 현장 찾기
   var existing = sites.filter(function(s){ return s.company === coName; });
   if(!existing.length) return;
-  var ref = existing[0]; // 첫번째 현장 기준으로 업체 공통 정보 가져옴
+  var ref = existing[0];
 
   var fields = {
     'f-mgr':     ref.manager || '',
@@ -1055,15 +1054,10 @@ function autoFillCompanyInfo(coName){
   };
   Object.keys(fields).forEach(function(id){
     var el = document.getElementById(id);
-    // 이미 사용자가 입력한 값이 있으면 덮어쓰지 않음
-    if(el && !el.value) el.value = fields[id];
+    if(el) el.value = fields[id];
   });
-  // 하청 세금 유형
   var fst = document.getElementById('f-subtaxtype');
-  if(fst && fst.value === 'none' && ref.subtaxtype && ref.subtaxtype !== 'none'){
-    fst.value = ref.subtaxtype;
-  }
-  // 토스트 안내
+  if(fst && ref.subtaxtype) fst.value = ref.subtaxtype;
   showToast('📋 '+coName+' 기존 정보를 불러왔어요');
 }
 function addSite(){
@@ -1321,7 +1315,9 @@ function toggleSettleCo(hdr){
   if(chev) chev.style.transform=isHidden?'':'rotate(-90deg)';
 }
 function prefillCompany(name){
-  document.getElementById('f-co').value=name;switchTab('list');
+  document.getElementById('f-co').value=name;
+  autoFillCompanyInfo(name);
+  switchTab('list');
   document.getElementById('f-site').focus();window.scrollTo({top:0,behavior:'smooth'});
 }
 
