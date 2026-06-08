@@ -246,6 +246,7 @@ main{padding:18px 14px;max-width:1400px;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 .popup{background:var(--sf);border:1px solid var(--bd);border-radius:20px 20px 0 0;padding:20px 20px calc(20px + var(--safe));width:100%;max-width:520px;animation:slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1);max-height:85vh;overflow-y:auto;}
 @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+@keyframes slideDown{from{transform:translateY(-100%);}to{transform:translateY(0);}}
 .popup-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:0 auto 18px;}
 .popup-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
 .popup-site-name{font-size:20px;font-weight:900;letter-spacing:-0.4px;}
@@ -433,7 +434,10 @@ main{padding:18px 14px;max-width:1400px;}
     <div class="form-card">
       <div class="form-title">&#127970; 업체 / 현장 추가</div>
       <div class="form-grid">
-        <div class="form-group"><label>업체명 *</label><input type="text" id="f-co" placeholder="예: 강남빌딩관리"></div>
+        <div class="form-group"><label>업체명 *</label>
+          <input type="text" id="f-co" placeholder="예: 강남빌딩관리" list="f-co-list" oninput="autoFillCompanyInfo(this.value)">
+          <datalist id="f-co-list"></datalist>
+        </div>
         <div class="form-group"><label>현장명 *</label><input type="text" id="f-site" placeholder="예: A동 지하주차장"></div>
         <div class="form-group"><label>담당자</label><input type="text" id="f-mgr" placeholder="예: 김청소"></div>
         <div class="form-group"><label>연락처</label><input type="tel" id="f-phone" placeholder="010-0000-0000"></div>
@@ -1005,6 +1009,46 @@ function resetForm(){
   const fst=document.getElementById('f-subtaxtype');if(fst)fst.value='none';
   document.querySelectorAll('#day-picker .day-btn').forEach(function(b){b.classList.remove('active');});
   var nr=document.getElementById('f-noreport');if(nr)nr.checked=false;
+  _updateCoDatalist();
+}
+
+// 업체명 datalist 업데이트
+function _updateCoDatalist(){
+  var dl = document.getElementById('f-co-list');
+  if(!dl) return;
+  var cos = [...new Set(sites.map(function(s){return s.company;}))].sort();
+  dl.innerHTML = cos.map(function(co){ return '<option value="'+co+'">'; }).join('');
+}
+
+// 업체명 입력 시 기존 정보 자동완성
+function autoFillCompanyInfo(coName){
+  _updateCoDatalist();
+  if(!coName) return;
+  // 정확히 일치하는 기존 업체 현장 찾기
+  var existing = sites.filter(function(s){ return s.company === coName; });
+  if(!existing.length) return;
+  var ref = existing[0]; // 첫번째 현장 기준으로 업체 공통 정보 가져옴
+
+  var fields = {
+    'f-mgr':     ref.manager || '',
+    'f-phone':   ref.phone   || '',
+    'f-bizno':   ref.bizno   || '',
+    'f-email':   ref.email   || '',
+    'f-bank':    ref.bank    || '',
+    'f-account': ref.account || '',
+  };
+  Object.keys(fields).forEach(function(id){
+    var el = document.getElementById(id);
+    // 이미 사용자가 입력한 값이 있으면 덮어쓰지 않음
+    if(el && !el.value) el.value = fields[id];
+  });
+  // 하청 세금 유형
+  var fst = document.getElementById('f-subtaxtype');
+  if(fst && fst.value === 'none' && ref.subtaxtype && ref.subtaxtype !== 'none'){
+    fst.value = ref.subtaxtype;
+  }
+  // 토스트 안내
+  showToast('📋 '+coName+' 기존 정보를 불러왔어요');
 }
 function addSite(){
   const company=document.getElementById('f-co').value.trim();
@@ -2047,13 +2091,13 @@ function openKpiPopup(key){
     :'<div style="padding:20px 0;text-align:center;color:#00e5a0;font-size:14px;font-weight:700;">✅ 오늘 모든 현장 보고 완료!</div>';
   }
 
-  // 팝업 렌더
+  // 팝업 렌더 (상단에서 내려옴)
   var w=document.createElement('div');
   w.id='kpi-popup-wrap';
-  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-end;justify-content:center;padding:0;backdrop-filter:blur(6px);';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-start;justify-content:center;padding:0;backdrop-filter:blur(6px);';
   w.onclick=function(e){if(e.target===w)closeKpiPopup();};
   var box=document.createElement('div');
-  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:16px 16px 0 0;width:100%;max-width:540px;max-height:82vh;display:flex;flex-direction:column;animation:slideUp 0.2s ease;';
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:0 0 16px 16px;width:100%;max-width:540px;max-height:82vh;display:flex;flex-direction:column;animation:slideDown 0.2s ease;';
   box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bd);flex-shrink:0;">'
     +'<div style="font-size:15px;font-weight:800;">'+title+'</div>'
     +'<button onclick="closeKpiPopup()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>'
