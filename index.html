@@ -21,10 +21,22 @@ var appTitle = localStorage.getItem('cm-title')||'청소팀 관리';
 var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
+var rentBuildings = JSON.parse(localStorage.getItem('cm-rent-buildings')||'[]');
+var rentTenants   = JSON.parse(localStorage.getItem('cm-rent-tenants')||'[]');
+var rentPayments  = JSON.parse(localStorage.getItem('cm-rent-payments')||'[]');
 function saveSmsTemplate(t){ SMS_TEMPLATE=t; localStorage.setItem('cm-sms-template',t); saveToFirebase(); }
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
-function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos)reportPhotoData=d.photos;if(d.supplies&&Array.isArray(d.supplies))supplies=d.supplies;if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});}
+function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos)reportPhotoData=d.photos;if(d.supplies&&Array.isArray(d.supplies))supplies=d.supplies;if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});
+  // rent 데이터 별도 로드
+  fetch(FB_URL+'/rent.json').then(function(r){return r.json();}).then(function(d){
+    if(d){
+      if(d.buildings&&Array.isArray(d.buildings)) rentBuildings=d.buildings;
+      if(d.tenants&&Array.isArray(d.tenants))     rentTenants=d.tenants;
+      if(d.payments&&Array.isArray(d.payments))   rentPayments=d.payments;
+    }
+  }).catch(function(){});
+}
 function saveToFirebase(){
   fetch(FB_URL+'/data.json',{
     method:'PATCH',
@@ -348,7 +360,8 @@ main{padding:18px 14px;max-width:1400px;}
     </div>
     <input class="title-input" id="title-input" style="display:none" onblur="saveTitle()" onkeydown="if(event.key==='Enter')saveTitle()">
   </div>
-  <button onclick="openSettings()" style="margin-left:auto;width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">⚙️</button>
+  <button onclick="openRentApp()" style="margin-left:auto;padding:0 12px;height:36px;border-radius:9px;border:1px solid #2c2c2c;background:#1a1a1a;color:#ffb547;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:5px;flex-shrink:0;font-family:'Noto Sans KR',sans-serif;">🏠 임대관리</button>
+  <button onclick="openSettings()" style="width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px;">⚙️</button>
 </header>
 <input type="file" id="file-import" accept=".json" onchange="importData(event)" style="display:none">
 <div class="tabs">
@@ -571,6 +584,21 @@ main{padding:18px 14px;max-width:1400px;}
   <!-- CHECKLIST -->
   <div class="view" id="view-checklist">
     <div id="checklist-content"></div>
+  </div>
+
+  <!-- RENT OVERLAY (전체화면) -->
+  <div id="rent-overlay" style="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:200;overflow-y:auto;flex-direction:column;">
+    <header style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);position:sticky;top:0;background:rgba(10,10,10,0.97);backdrop-filter:blur(16px);z-index:100;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:20px;">🏠</div>
+        <div style="font-size:16px;font-weight:900;color:#ffb547;">임대관리</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+        <button onclick="closeRentApp()" style="padding:0 12px;height:36px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">← 청소팀 관리</button>
+        <button onclick="openSettings()" style="width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">⚙️</button>
+      </div>
+    </header>
+    <div style="padding:16px;" id="rent-content"></div>
   </div>
 
   <!-- SUPPLY -->
@@ -2128,6 +2156,840 @@ function renderAll(){renderTitle();renderDashboard();renderList();renderCalendar
 function changeMonth(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// ── RENT TAB (임대관리) ──
+// ══════════════════════════════════════════
+
+function saveRent(){
+  localStorage.setItem('cm-rent-buildings', JSON.stringify(rentBuildings));
+  localStorage.setItem('cm-rent-tenants',   JSON.stringify(rentTenants));
+  localStorage.setItem('cm-rent-payments',  JSON.stringify(rentPayments));
+  fetch(FB_URL+'/rent.json',{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({buildings:rentBuildings, tenants:rentTenants, payments:rentPayments})
+  }).catch(function(){});
+}
+function loadRent(cb){
+  fetch(FB_URL+'/rent.json').then(function(r){return r.json();}).then(function(d){
+    if(d){
+      if(d.buildings&&Array.isArray(d.buildings)) rentBuildings=d.buildings;
+      if(d.tenants&&Array.isArray(d.tenants))     rentTenants=d.tenants;
+      if(d.payments&&Array.isArray(d.payments))   rentPayments=d.payments;
+    }
+    if(cb) cb();
+  }).catch(function(){ if(cb) cb(); });
+}
+
+// 서브탭 상태
+var _rentTab = 'dashboard';
+
+function openRentApp(){
+  var overlay = document.getElementById('rent-overlay');
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  loadRent(function(){
+    _rentTab = _rentTab || 'dashboard';
+    _renderRentInner(document.getElementById('rent-content'));
+  });
+}
+function closeRentApp(){
+  var overlay = document.getElementById('rent-overlay');
+  overlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+function renderRent(){
+  _renderRentInner(document.getElementById('rent-content'));
+}
+
+function _renderRentInner(el){
+  var tabs = [
+    {key:'dashboard', label:'📊 대시보드'},
+    {key:'buildings', label:'🏢 건물별 임대현황'},
+    {key:'companies', label:'📋 관리업체목록'},
+    {key:'unpaid',    label:'🚨 미납자관리'},
+  ];
+  var tabHtml = tabs.map(function(t){
+    var isActive = t.key === _rentTab;
+    return '<button onclick="rentSwitchTab(\''+t.key+'\')" style="padding:8px 16px;border-radius:20px;border:'+(isActive?'1px solid #00e5a0':'1px solid var(--bd)')+';background:'+(isActive?'rgba(0,229,160,0.12)':'transparent')+';color:'+(isActive?'#00e5a0':'var(--muted)')+';font-size:12px;font-weight:'+(isActive?'800':'600')+';cursor:pointer;white-space:nowrap;font-family:\'Noto Sans KR\',sans-serif;">'+t.label+'</button>';
+  }).join('');
+
+  var content = '';
+  if(_rentTab==='dashboard')  content = _rentDashboard();
+  if(_rentTab==='buildings')  content = _rentBuildings();
+  if(_rentTab==='companies')  content = _rentCompanies();
+  if(_rentTab==='unpaid')     content = _rentUnpaid();
+
+  el.innerHTML = '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;scrollbar-width:none;">'+tabHtml+'</div>'+content;
+}
+
+function rentSwitchTab(tab){
+  _rentTab = tab;
+  var el = document.getElementById('rent-content');
+  if(el) _renderRentInner(el);
+}
+
+// ── 대시보드 ──
+function _rentDashboard(){
+  var now = new Date();
+  var ym  = now.getFullYear()+'-'+(now.getMonth()<9?'0':'')+(now.getMonth()+1);
+
+  var activeTenants  = rentTenants.filter(function(t){ return t.active!==false; });
+  var totalRent      = activeTenants.reduce(function(a,t){ return a+(t.rent||0)+(t.mgmt||0); },0);
+  var paidThisMonth  = rentPayments.filter(function(p){ return p.ym===ym; });
+  var paidIds        = paidThisMonth.map(function(p){ return p.tenantId; });
+  var paidAmount     = paidThisMonth.reduce(function(a,p){ return a+p.amount; },0);
+  var unpaidTenants  = activeTenants.filter(function(t){ return !paidIds.includes(t.id); });
+  var paidCount      = activeTenants.filter(function(t){ return paidIds.includes(t.id); }).length;
+
+  // 만기 임박 (30일 이내)
+  var soon = activeTenants.filter(function(t){
+    if(!t.endDate) return false;
+    var diff = (new Date(t.endDate)-now)/(1000*60*60*24);
+    return diff>=0 && diff<=30;
+  });
+
+  return '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;">'
+    +_rentKpi('이번달 예상월세', fmtN(totalRent)+'원', '#00e5a0')
+    +_rentKpi('현재 납부월세', fmtN(paidAmount)+'원', '#7ab8ff')
+    +_rentKpi('미납 (납기일 경과)', unpaidTenants.length+'세대', unpaidTenants.length>0?'#ff4d6d':'#00e5a0')
+    +_rentKpi('전체 세입자', paidCount+'/'+activeTenants.length, '#ffb547', '납부완료/전체')
+    +'</div>'
+    // 엑셀 업로드
+    +'<div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">'
+    +'<div style="font-size:13px;font-weight:800;margin-bottom:10px;">📂 입금내역 엑셀 업로드</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">날짜, 입금자명, 금액 컬럼이 있는 엑셀 파일을 업로드하면 자동 매칭합니다.</div>'
+    +'<input type="file" id="rent-excel-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="rentUploadExcel(this)">'
+    +'<button onclick="document.getElementById(\'rent-excel-input\').click()" style="width:100%;padding:10px;border-radius:9px;border:1px dashed #004d36;background:rgba(0,229,160,0.06);color:#00e5a0;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📊 엑셀 파일 선택</button>'
+    +'</div>'
+    // 만기 임박
+    +(soon.length?'<div style="background:rgba(255,181,71,0.08);border:1px solid #3d2e00;border-radius:12px;padding:14px;margin-bottom:14px;">'
+    +'<div style="font-size:12px;font-weight:800;color:#ffb547;margin-bottom:8px;">⚠️ 계약 만기 임박 (30일 이내)</div>'
+    +soon.map(function(t){
+      var b=rentBuildings.find(function(b){return b.id===t.buildingId;})||{name:''};
+      return '<div style="font-size:12px;padding:6px 0;border-bottom:1px solid #2c2000;">'+b.name+' '+t.unit+' '+t.name+' — <span style="color:#ffb547;font-weight:700;">'+t.endDate+'</span></div>';
+    }).join('')+'</div>':'');
+}
+
+function _rentKpi(label, val, color, sub){
+  return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:14px;">'
+    +'<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">'+label+'</div>'
+    +'<div style="font-size:18px;font-weight:900;color:'+color+';font-family:DM Mono,monospace;">'+val+'</div>'
+    +(sub?'<div style="font-size:10px;color:#555;margin-top:3px;">'+sub+'</div>':'')
+    +'</div>';
+}
+
+// ── 건물별 임대현황 (층별 빌딩 뷰) ──
+function _rentBuildings(){
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">'
+    +'<div style="font-size:14px;font-weight:800;">🏢 건물별 임대현황</div>'
+    +'<button onclick="openAddBuildingModal()" style="padding:7px 14px;border-radius:8px;border:1px solid #004d36;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:12px;font-weight:700;cursor:pointer;">+ 건물 추가</button>'
+    +'</div>';
+
+  if(!rentBuildings.length){
+    return html+'<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">등록된 건물이 없습니다.<br>건물 추가 버튼을 눌러주세요.</div>';
+  }
+
+  var now=new Date(); var ym=now.getFullYear()+'-'+(now.getMonth()<9?'0':'')+(now.getMonth()+1);
+  var paidIds=rentPayments.filter(function(p){return p.ym===ym;}).map(function(p){return p.tenantId;});
+
+  html += rentBuildings.map(function(b){
+    var bTenants = rentTenants.filter(function(t){return t.buildingId===b.id;});
+
+    // 호실 목록에서 층/호 파싱
+    var units = b.units || [];
+
+    // 층 목록 추출 (내림차순, 1층 상가 제외)
+    var floors = [...new Set(units.filter(function(u){return u.floor>1;}).map(function(u){ return u.floor; }))].sort(function(a,b){return b-a;});
+
+    // 층당 최대 호실 수 (그리드 컬럼)
+    var maxPerFloor = 0;
+    floors.forEach(function(f){
+      var cnt = units.filter(function(u){return u.floor===f;}).length;
+      if(cnt>maxPerFloor) maxPerFloor=cnt;
+    });
+    var cols = Math.max(maxPerFloor, 1);
+
+    var totalUnits   = units.length;
+    var occupiedUnits = bTenants.filter(function(t){return t.active!==false;}).length;
+    var unpaidCount  = bTenants.filter(function(t){return t.active!==false && !paidIds.includes(t.id);}).length;
+
+    var floorRows = floors.map(function(f){
+      var floorUnits = units.filter(function(u){return u.floor===f;}).sort(function(a,b){return a.roomNo-b.roomNo;});
+      var cells = floorUnits.map(function(u){
+        var tenant = bTenants.find(function(t){return t.unitId===u.id && t.active!==false;});
+        var isPaid = tenant && paidIds.includes(tenant.id);
+        var isEmpty = !tenant;
+
+        var bg = isEmpty ? 'rgba(255,255,255,0.03)' : (isPaid ? 'rgba(0,229,160,0.1)' : 'rgba(255,77,109,0.1)');
+        var borderColor = isEmpty ? '#2c2c2c' : (isPaid ? '#00e5a0' : '#ff4d6d');
+        var statusDot = isEmpty ? '' : '<div style="width:7px;height:7px;border-radius:50%;background:'+(isPaid?'#00e5a0':'#ff4d6d')+';flex-shrink:0;"></div>';
+
+        // 옵션 아이콘
+        var opts = (u.options||[]);
+        var optIcons = opts.slice(0,3).map(function(o){
+          return {'에어컨':'❄️','냉장고':'🧊','세탁기':'🌀','인덕션':'🔥','전자레인지':'📡','TV':'📺','침대':'🛏️'}[o]||'';
+        }).join('');
+
+        return '<div onclick="openUnitModal(\''+b.id+'\',\''+u.id+'\')" style="background:'+bg+';border:1px solid '+borderColor+';border-radius:10px;padding:9px 8px;cursor:pointer;min-width:0;transition:transform 0.1s;" onmouseenter="this.style.transform=\'scale(1.03)\'" onmouseleave="this.style.transform=\'\'">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
+          +'<div style="font-size:12px;font-weight:900;font-family:DM Mono,monospace;">'+u.floor+'0'+u.roomNo+'</div>'
+          +statusDot
+          +'</div>'
+          +'<div style="font-size:11px;font-weight:700;color:'+(isEmpty?'#555':'var(--text)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(isEmpty?'공실':tenant.name)+'</div>'
+          +'<div style="font-size:10px;color:#555;margin-top:2px;">'+(u.rooms||'')+'룸'+(u.baths?'/'+u.baths+'화':'')+(optIcons?' '+optIcons:'')+'</div>'
+          +'</div>';
+      }).join('');
+
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+        +'<div style="font-size:11px;font-weight:800;color:#555;width:24px;flex-shrink:0;text-align:center;">'+f+'F</div>'
+        +'<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:6px;flex:1;">'+cells+'</div>'
+        +'</div>';
+    }).join('');
+
+    // 1층 상가 별도 표시
+    var shopUnits = units.filter(function(u){return u.floor===1;});
+    var shopRow = shopUnits.length
+      ? '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+        +'<div style="font-size:11px;font-weight:800;color:#ffb547;width:24px;flex-shrink:0;text-align:center;">1F</div>'
+        +'<div style="display:grid;grid-template-columns:repeat('+Math.max(shopUnits.length,1)+',1fr);gap:6px;flex:1;">'
+        +shopUnits.map(function(u){
+          var tenant=bTenants.find(function(t){return t.unitId==u.id&&t.active!==false;});
+          var isPaid=tenant&&paidIds.includes(tenant.id);
+          var isEmpty=!tenant;
+          var bg=isEmpty?'rgba(255,181,71,0.04)':(isPaid?'rgba(0,229,160,0.1)':'rgba(255,77,109,0.1)');
+          var bc=isEmpty?'#3d2e00':(isPaid?'#00e5a0':'#ff4d6d');
+          return '<div onclick="openUnitModal(\''+b.id+'\',\''+u.id+'\')" style="background:'+bg+';border:1px solid '+bc+';border-radius:10px;padding:9px 8px;cursor:pointer;" onmouseenter="this.style.transform=\'scale(1.03)\'" onmouseleave="this.style.transform=\'\'">'
+            +'<div style="font-size:11px;font-weight:900;color:#ffb547;margin-bottom:3px;">🏪 상가'+u.roomNo+'</div>'
+            +'<div style="font-size:11px;color:'+(isEmpty?'#555':'var(--text)')+'">'+(isEmpty?'공실':tenant.name)+'</div>'
+            +'</div>';
+        }).join('')
+        +'</div></div>'
+      : '';
+
+    return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;overflow:hidden;margin-bottom:20px;">'
+      // 건물 헤더
+      +'<div style="padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;">'
+      +'<div>'
+      +'<div style="font-size:15px;font-weight:800;">'+b.name+'</div>'
+      +(b.addr?'<div style="font-size:11px;color:var(--muted);margin-top:2px;">📍 '+b.addr+'</div>':'')
+      +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+occupiedUnits+'/'+totalUnits+'호 입주'+(unpaidCount?' · <span style="color:#ff4d6d;">미납 '+unpaidCount+'</span>':'')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;">'
+      +'<button onclick="editBuildingModal(\''+b.id+'\')" style="padding:6px 10px;border-radius:7px;border:1px solid var(--bd);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;">✏️</button>'
+      +'</div>'
+      +'</div>'
+      // 빌딩 뷰
+      +'<div style="padding:16px;">'
+      +floorRows
+      +shopRow
+      // 1F 로비 바닥
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">'
+      +'<div style="width:24px;flex-shrink:0;"></div>'
+      +'<div style="flex:1;background:#1a1a1a;border:1px solid #2c2c2c;border-radius:8px;padding:7px;text-align:center;font-size:11px;color:#555;font-weight:700;">🚪 1F 로비 / 입구</div>'
+      +'</div>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+
+  return html;
+}
+
+// ── 호실 클릭 모달 (세입자 정보 + 호실 정보) ──
+function openUnitModal(buildingId, unitId){
+  var b = rentBuildings.find(function(x){return x.id==buildingId;});
+  if(!b) return;
+  var unit = (b.units||[]).find(function(u){return u.id==unitId;});
+  if(!unit) return;
+  var tenant = rentTenants.find(function(t){return t.unitId==unitId && t.buildingId==buildingId && t.active!==false;});
+
+  var now=new Date(); var ym=now.getFullYear()+'-'+(now.getMonth()<9?'0':'')+(now.getMonth()+1);
+  var isPaid = tenant && rentPayments.find(function(p){return p.tenantId===tenant.id&&p.ym===ym;});
+
+  var optList = ['에어컨','냉장고','세탁기','인덕션','전자레인지','TV','침대'];
+  var unitOpts = unit.options||[];
+
+  var w=document.createElement('div');
+  w.id='unit-modal-wrap';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:700;align-items:flex-start;justify-content:center;backdrop-filter:blur(8px);';
+  w.onclick=function(e){if(e.target===w)w.remove();};
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:0 0 16px 16px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;animation:slideDown 0.2s ease;';
+
+  var hosu = unit.floor+'0'+unit.roomNo;
+
+  box.innerHTML=''
+    // 헤더
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--sf);z-index:1;">'
+    +'<div>'
+    +'<div style="font-size:18px;font-weight:900;font-family:DM Mono,monospace;">'+hosu+'호</div>'
+    +'<div style="font-size:11px;color:var(--muted);">'+b.name+'</div>'
+    +'</div>'
+    +'<button onclick="document.getElementById(\'unit-modal-wrap\').remove()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:15px;cursor:pointer;">✕</button>'
+    +'</div>'
+
+    // 호실 스펙
+    +'<div style="padding:16px 20px;border-bottom:1px solid var(--bd);">'
+    +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🏠 호실 정보</div>'
+    +'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">'
+    +'<div style="text-align:center;"><div style="font-size:18px;font-weight:900;">'+unit.rooms+'</div><div style="font-size:10px;color:var(--muted);">방</div></div>'
+    +'<div style="text-align:center;"><div style="font-size:18px;font-weight:900;">'+(unit.baths||0)+'</div><div style="font-size:10px;color:var(--muted);">화장실</div></div>'
+    +(unit.veranda?'<div style="text-align:center;"><div style="font-size:18px;">🌿</div><div style="font-size:10px;color:var(--muted);">베란다</div></div>':'')
+    +(unit.terrace?'<div style="text-align:center;"><div style="font-size:18px;">☀️</div><div style="font-size:10px;color:var(--muted);">테라스</div></div>':'')
+    +'</div>'
+    +(unitOpts.length?'<div style="display:flex;flex-wrap:wrap;gap:6px;">'
+      +unitOpts.map(function(o){return '<span style="background:rgba(122,184,255,0.1);border:1px solid rgba(122,184,255,0.3);border-radius:6px;padding:3px 8px;font-size:11px;color:#7ab8ff;">'+o+'</span>';}).join('')
+      +'</div>':'')
+    +'<button onclick="openEditUnitModal(\''+buildingId+'\',\''+unitId+'\')" style="margin-top:10px;font-size:11px;color:var(--muted);background:transparent;border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:pointer;">✏️ 호실 정보 수정</button>'
+    +'</div>'
+
+    // 세입자 정보
+    +'<div style="padding:16px 20px;">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+    +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">👤 세입자 정보</div>'
+    +(tenant
+      ? '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:'+(isPaid?'#d1fae5':'#fee2e2')+';color:'+(isPaid?'#065f46':'#991b1b')+'">'+(isPaid?'✅ 납부':'❌ 미납')+'</span>'
+      : '')
+    +'</div>'
+    +(tenant ? _renderTenantInfo(tenant, buildingId, unitId, ym, isPaid) : _renderEmptyUnit(buildingId, unitId))
+    +'</div>';
+
+  w.appendChild(box);
+  document.body.appendChild(w);
+}
+
+function _renderTenantInfo(t, buildingId, unitId, ym, isPaid){
+  return '<div style="display:flex;flex-direction:column;gap:8px;">'
+    +'<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--muted);">계약자</span><span style="font-size:13px;font-weight:700;">'+t.name+'</span></div>'
+    +(t.phone?'<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--muted);">연락처</span><span style="font-size:13px;">'+t.phone+'</span></div>':'')
+    +'<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--muted);">임대료</span><span style="font-size:13px;font-weight:700;color:#00e5a0;font-family:DM Mono,monospace;">'+fmtN(t.rent||0)+'원</span></div>'
+    +(t.mgmt?'<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--muted);">관리비</span><span style="font-size:13px;font-family:DM Mono,monospace;">'+fmtN(t.mgmt)+'원</span></div>':'')
+    +(t.deposit?'<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--muted);">보증금</span><span style="font-size:13px;font-family:DM Mono,monospace;">'+fmtN(t.deposit)+'원</span></div>':'')
+    +(t.startDate?'<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--muted);">계약기간</span><span style="font-size:12px;">'+t.startDate+' ~ '+(t.endDate||'')+'</span></div>':'')
+    +(t.memo?'<div style="background:var(--sf2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--muted);">📝 '+t.memo+'</div>':'')
+    +'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px;">'
+    +(!isPaid?'<button onclick="markRentPaid('+t.id+',\''+ym+'\');document.getElementById(\'unit-modal-wrap\').remove();" style="flex:1;padding:10px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;">✅ 납부처리</button>':'')
+    +'<button onclick="openEditTenantModal('+t.id+',\''+buildingId+'\',\''+unitId+'\')" style="flex:1;padding:10px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;">✏️ 수정</button>'
+    +'<button onclick="deleteTenant('+t.id+')" style="padding:10px 14px;border-radius:9px;border:1px solid #3d1a1a;background:rgba(255,77,109,0.08);color:#ff4d6d;font-size:13px;cursor:pointer;">🗑️</button>'
+    +'</div>';
+}
+
+function _renderEmptyUnit(buildingId, unitId){
+  return '<div style="text-align:center;padding:20px 0;color:var(--muted);">'
+    +'<div style="font-size:32px;margin-bottom:8px;">🏠</div>'
+    +'<div style="font-size:13px;margin-bottom:14px;">공실입니다</div>'
+    +'<button onclick="openEditTenantModal(null,\''+buildingId+'\',\''+unitId+'\')" style="padding:10px 24px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;">+ 세입자 등록</button>'
+    +'</div>';
+}
+
+// ── 건물 추가/수정 모달 ──
+function openAddBuildingModal(buildingId){
+  var b = buildingId ? rentBuildings.find(function(x){return x.id==buildingId;}) : null;
+  var w=document.createElement('div');
+  w.id='rent-building-modal';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:700;align-items:flex-start;justify-content:center;backdrop-filter:blur(8px);';
+  w.onclick=function(e){if(e.target===w)w.remove();};
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:0 0 16px 16px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;animation:slideDown 0.2s ease;padding:20px;';
+
+  function inp(id,label,val,ph,type){
+    return '<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+label+'</div>'
+      +'<input id="'+id+'" type="'+(type||'text')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;" value="'+(val||'')+'" placeholder="'+(ph||'')+'"></div>';
+  }
+
+  // 기존 건물 수정 시: 호실 목록 표시 + 개별 삭제
+  var unitManagerHtml = '';
+  if(b && b.units && b.units.length){
+    var unitItems = b.units.map(function(u){
+      var hosu = u.floor+'0'+u.roomNo;
+      var label = u.floor===1 ? '🏪 1층 상가 '+u.roomNo+'호' : hosu+'호';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--sf2);border-radius:7px;">'
+        +'<span style="font-size:12px;font-weight:700;font-family:DM Mono,monospace;">'+label+'</span>'
+        +'<button onclick="deleteUnit(\''+b.id+'\','+u.id+')" style="width:24px;height:24px;border-radius:50%;border:1px solid #3d1a1a;background:rgba(255,77,109,0.1);color:#ff4d6d;font-size:12px;cursor:pointer;line-height:1;">×</button>'
+        +'</div>';
+    }).join('');
+    unitManagerHtml = '<div style="margin-top:4px;">'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">📋 호실 목록 (× 버튼으로 삭제)</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:200px;overflow-y:auto;">'+unitItems+'</div>'
+      +'</div>';
+  }
+
+  box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">'
+    +'<div style="font-size:15px;font-weight:800;">'+(b?'✏️ 건물 수정':'🏢 건물 추가')+'</div>'
+    +'<button onclick="document.getElementById(\'rent-building-modal\').remove()" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:15px;cursor:pointer;">✕</button>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;">'
+    +inp('rb-name','건물명 *',b?b.name:'','예: 아크빌딩')
+    +inp('rb-addr','주소',b?b.addr||'':'','건물 주소')
+
+    // 신규: 호실 자동 생성
+    +(b?''
+      : '<div style="background:rgba(0,229,160,0.06);border:1px solid #004d36;border-radius:10px;padding:12px;">'
+      +'<div style="font-size:12px;font-weight:700;color:#00e5a0;margin-bottom:10px;">🏗️ 호실 자동 생성</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">'
+      +inp('rb-floor-start','시작 층',2,'예: 2','number')
+      +inp('rb-floor-end','끝 층',5,'예: 5','number')
+      +inp('rb-rooms-per-floor','층당 호실',3,'예: 3','number')
+      +'</div>'
+      +'<div style="background:rgba(255,181,71,0.06);border:1px solid #3d2e00;border-radius:8px;padding:10px;margin-top:4px;">'
+      +'<div style="font-size:11px;font-weight:700;color:#ffb547;margin-bottom:8px;">🏪 1층 상가</div>'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="rb-has-shop" style="accent-color:#ffb547;"> 1층 상가 있음</label>'
+      +'<div style="flex:1;">'+inp('rb-shop-count','상가 개수',2,'예: 2','number')+'</div>'
+      +'</div>'
+      +'</div>'
+      +'<div style="font-size:10px;color:#555;margin-top:6px;">예: 2~5층 3호실 → 201~203, 301~303... 자동생성</div>'
+      +'</div>')
+
+    // 기존 건물: 호실 관리 + 상가 추가
+    +(b?unitManagerHtml:'')
+    +(b?'<div style="background:rgba(255,181,71,0.06);border:1px solid #3d2e00;border-radius:10px;padding:12px;">'
+      +'<div style="font-size:12px;font-weight:700;color:#ffb547;margin-bottom:8px;">➕ 호실/상가 추가</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">'
+      +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">층</div><input id="rb-add-floor" type="number" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--text);font-size:13px;outline:none;" placeholder="예: 5"></div>'
+      +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">시작 호</div><input id="rb-add-room-start" type="number" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--text);font-size:13px;outline:none;" placeholder="1" value="1"></div>'
+      +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">끝 호</div><input id="rb-add-room-end" type="number" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--text);font-size:13px;outline:none;" placeholder="3" value="3"></div>'
+      +'</div>'
+      +'<button onclick="addUnitsToBuilding(\''+b.id+'\')" style="width:100%;padding:8px;border-radius:8px;border:1px solid #3d2e00;background:rgba(255,181,71,0.1);color:#ffb547;font-size:12px;font-weight:700;cursor:pointer;">+ 호실 추가</button>'
+      +'</div>':'')
+
+    +inp('rb-mgmtco','관리업체',b?b.mgmtCo||'':'','관리업체명')
+    +inp('rb-mgmtphone','관리업체 연락처',b?b.mgmtPhone||'':'','010-0000-0000')
+    +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">메모</div>'
+    +'<textarea id="rb-memo" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;resize:vertical;min-height:60px;">'+(b?b.memo||'':'')+'</textarea></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:16px;">'
+    +(b?'<button onclick="deleteBuilding(\''+b.id+'\')" style="flex:1;padding:11px;border-radius:9px;border:1px solid #3d1a1a;background:rgba(255,77,109,0.08);color:#ff4d6d;font-size:13px;font-weight:700;cursor:pointer;">🗑️ 삭제</button>':'')
+    +'<button onclick="saveBuildingModal(\''+(b?b.id:'null')+'\')" style="flex:2;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;">✅ 저장</button>'
+    +'</div>';
+  w.appendChild(box); document.body.appendChild(w);
+}
+
+function editBuildingModal(id){ openAddBuildingModal(id); }
+
+// 호실 개별 삭제
+function deleteUnit(buildingId, unitId){
+  var b=rentBuildings.find(function(x){return x.id==buildingId;});
+  if(!b) return;
+  // 세입자 있으면 경고
+  var hasTenant = rentTenants.find(function(t){return t.unitId==unitId && t.active!==false;});
+  if(hasTenant && !confirm('이 호실에 세입자가 있습니다. 호실을 삭제할까요?')) return;
+  b.units = (b.units||[]).filter(function(u){return u.id!=unitId;});
+  saveRent();
+  showToast('호실이 삭제됐어요.');
+  // 모달 새로고침
+  document.getElementById('rent-building-modal').remove();
+  openAddBuildingModal(buildingId);
+}
+
+// 기존 건물에 호실 추가
+function addUnitsToBuilding(buildingId){
+  var b=rentBuildings.find(function(x){return x.id==buildingId;});
+  if(!b) return;
+  var floor = parseInt(document.getElementById('rb-add-floor').value);
+  var start = parseInt(document.getElementById('rb-add-room-start').value)||1;
+  var end   = parseInt(document.getElementById('rb-add-room-end').value)||start;
+  if(!floor){ showToast('층수를 입력해주세요.'); return; }
+  if(!b.units) b.units=[];
+  for(var r=start; r<=end; r++){
+    var uid = floor*100+r;
+    if(b.units.find(function(u){return u.id==uid;})) continue; // 중복 방지
+    b.units.push({id:uid, floor:floor, roomNo:r, rooms:1, baths:1, veranda:false, terrace:false, options:[]});
+  }
+  saveRent();
+  showToast('✅ 호실이 추가됐어요!');
+  document.getElementById('rent-building-modal').remove();
+  openAddBuildingModal(buildingId);
+}
+
+function saveBuildingModal(id){
+  var name=document.getElementById('rb-name').value.trim();
+  if(!name){ showToast('건물명을 입력해주세요.'); return; }
+
+  if(id && id!=='null'){
+    var b=rentBuildings.find(function(x){return x.id==id;});
+    if(b){
+      b.name=name;
+      b.addr=document.getElementById('rb-addr').value.trim();
+      b.mgmtCo=document.getElementById('rb-mgmtco').value.trim();
+      b.mgmtPhone=document.getElementById('rb-mgmtphone').value.trim();
+      b.memo=document.getElementById('rb-memo').value.trim();
+    }
+  } else {
+    var floorStart    = parseInt(document.getElementById('rb-floor-start').value)||2;
+    var floorEnd      = parseInt(document.getElementById('rb-floor-end').value)||5;
+    var roomsPerFloor = parseInt(document.getElementById('rb-rooms-per-floor').value)||3;
+    var hasShop       = document.getElementById('rb-has-shop').checked;
+    var shopCount     = parseInt(document.getElementById('rb-shop-count').value)||0;
+    var units = [];
+    // 1층 상가
+    if(hasShop && shopCount>0){
+      for(var s=1; s<=shopCount; s++){
+        units.push({id:100+s, floor:1, roomNo:s, type:'shop', rooms:0, baths:1, veranda:false, terrace:false, options:[]});
+      }
+    }
+    // 일반 호실
+    for(var f=floorStart; f<=floorEnd; f++){
+      for(var r=1; r<=roomsPerFloor; r++){
+        units.push({id:f*100+r, floor:f, roomNo:r, rooms:1, baths:1, veranda:false, terrace:false, options:[]});
+      }
+    }
+    rentBuildings.push({
+      id:Date.now(), name:name,
+      addr:document.getElementById('rb-addr').value.trim(),
+      mgmtCo:document.getElementById('rb-mgmtco').value.trim(),
+      mgmtPhone:document.getElementById('rb-mgmtphone').value.trim(),
+      memo:document.getElementById('rb-memo').value.trim(),
+      units:units
+    });
+  }
+  saveRent(); document.getElementById('rent-building-modal').remove();
+  showToast('✅ 저장됐어요!'); rentSwitchTab(_rentTab);
+}
+
+function deleteBuilding(id){
+  if(!confirm('건물을 삭제하면 세입자 정보도 모두 삭제됩니다. 계속할까요?')) return;
+  rentBuildings=rentBuildings.filter(function(b){return b.id!=id;});
+  rentTenants=rentTenants.filter(function(t){return t.buildingId!=id;});
+  saveRent();
+  var m=document.getElementById('rent-building-modal'); if(m)m.remove();
+  showToast('삭제됐어요.'); rentSwitchTab(_rentTab);
+}
+
+// ── 호실 정보 수정 모달 ──
+function openEditUnitModal(buildingId, unitId){
+  var b=rentBuildings.find(function(x){return x.id==buildingId;});
+  if(!b) return;
+  var unit=(b.units||[]).find(function(u){return u.id==unitId;});
+  if(!unit) return;
+
+  var optList=['에어컨','냉장고','세탁기','인덕션','전자레인지','TV','침대'];
+  var unitOpts=unit.options||[];
+
+  var w=document.createElement('div');
+  w.id='unit-edit-modal';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:800;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);';
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:16px;width:100%;max-width:400px;padding:20px;';
+  box.innerHTML='<div style="font-size:14px;font-weight:800;margin-bottom:14px;">🏠 '+unit.floor+'0'+unit.roomNo+'호 정보 수정</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">'
+    +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">방 개수</div><input id="ue-rooms" type="number" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--text);font-size:13px;outline:none;" value="'+(unit.rooms||1)+'"></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">화장실 개수</div><input id="ue-baths" type="number" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--text);font-size:13px;outline:none;" value="'+(unit.baths||1)+'"></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:16px;margin-bottom:14px;">'
+    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;"><input type="checkbox" id="ue-veranda" '+(unit.veranda?'checked':'')+' style="accent-color:#00e5a0;"> 🌿 베란다</label>'
+    +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;"><input type="checkbox" id="ue-terrace" '+(unit.terrace?'checked':'')+' style="accent-color:#00e5a0;"> ☀️ 테라스</label>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">옵션</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">'
+    +optList.map(function(o){
+      return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:5px 9px;">'
+        +'<input type="checkbox" class="ue-opt" value="'+o+'" '+(unitOpts.includes(o)?'checked':'')+' style="accent-color:#7ab8ff;"> '+o+'</label>';
+    }).join('')
+    +'</div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="document.getElementById(\'unit-edit-modal\').remove()" style="flex:1;padding:10px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:13px;cursor:pointer;">취소</button>'
+    +'<button onclick="saveUnitEdit(\''+buildingId+'\',\''+unitId+'\')" style="flex:2;padding:10px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;">✅ 저장</button>'
+    +'</div>';
+  w.appendChild(box); document.body.appendChild(w);
+}
+
+function saveUnitEdit(buildingId, unitId){
+  var b=rentBuildings.find(function(x){return x.id==buildingId;});
+  if(!b) return;
+  var unit=(b.units||[]).find(function(u){return u.id==unitId;});
+  if(!unit) return;
+  unit.rooms=parseInt(document.getElementById('ue-rooms').value)||1;
+  unit.baths=parseInt(document.getElementById('ue-baths').value)||1;
+  unit.veranda=document.getElementById('ue-veranda').checked;
+  unit.terrace=document.getElementById('ue-terrace').checked;
+  unit.options=[...document.querySelectorAll('.ue-opt:checked')].map(function(el){return el.value;});
+  saveRent();
+  document.getElementById('unit-edit-modal').remove();
+  document.getElementById('unit-modal-wrap').remove();
+  showToast('✅ 저장됐어요!'); rentSwitchTab(_rentTab);
+}
+
+// ── 세입자 등록/수정 모달 ──
+function openEditTenantModal(tenantId, buildingId, unitId){
+  var t = tenantId ? rentTenants.find(function(x){return x.id==tenantId;}) : null;
+  var w=document.createElement('div');
+  w.id='rent-tenant-modal';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:800;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);';
+  w.onclick=function(e){if(e.target===w)w.remove();};
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:16px;width:100%;max-width:440px;max-height:88vh;overflow-y:auto;padding:20px;';
+
+  function f(id,label,val,ph,type){
+    return '<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+label+'</div>'
+      +'<input id="'+id+'" type="'+(type||'text')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;color-scheme:dark;" value="'+(val||'')+'" placeholder="'+(ph||'')+'"></div>';
+  }
+
+  box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">'
+    +'<div style="font-size:15px;font-weight:800;">'+(t?'✏️ 세입자 수정':'👤 세입자 등록')+'</div>'
+    +'<button onclick="document.getElementById(\'rent-tenant-modal\').remove()" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:15px;cursor:pointer;">✕</button>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;">'
+    +f('rt-name','계약자명 *',t?t.name:'','예: 홍길동')
+    +f('rt-phone','연락처',t?t.phone||'':'','010-0000-0000','tel')
+    +f('rt-idno','주민번호',t?t.idno||'':'','000000-0000000')
+    +f('rt-keywords','매칭 키워드',t?t.keywords||'':'','예: 홍길동,홍길 (쉼표 구분)')
+    +f('rt-rent','임대료 (월)',t?t.rent||'':'','예: 500000','number')
+    +f('rt-mgmt','관리비 (월)',t?t.mgmt||'':'','예: 50000','number')
+    +f('rt-deposit','보증금',t?t.deposit||'':'','예: 5000000','number')
+    +f('rt-start','계약 시작일',t?t.startDate||'':'','','date')
+    +f('rt-end','계약 만기일',t?t.endDate||'':'','','date')
+    +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">특이사항 메모</div>'
+    +'<textarea id="rt-memo" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;resize:vertical;min-height:60px;">'+(t?t.memo||'':'')+'</textarea></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:16px;">'
+    +(t?'<button onclick="deleteTenant('+t.id+')" style="flex:1;padding:11px;border-radius:9px;border:1px solid #3d1a1a;background:rgba(255,77,109,0.08);color:#ff4d6d;font-size:13px;font-weight:700;cursor:pointer;">🗑️</button>':'')
+    +'<button onclick="saveTenantModal(\''+(t?t.id:'null')+'\',\''+buildingId+'\',\''+unitId+'\')" style="flex:3;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;">✅ 저장</button>'
+    +'</div>';
+  w.appendChild(box); document.body.appendChild(w);
+}
+
+function openAddTenantModal(buildingId, tenantId){ openEditTenantModal(tenantId, buildingId, null); }
+function openTenantModal(id){ openEditTenantModal(id, null, null); }
+
+function saveTenantModal(id, buildingId, unitId){
+  var name=document.getElementById('rt-name').value.trim();
+  if(!name){ showToast('계약자명을 입력해주세요.'); return; }
+  var data={
+    buildingId:buildingId, unitId:unitId, name:name,
+    phone:document.getElementById('rt-phone').value.trim(),
+    idno:document.getElementById('rt-idno').value.trim(),
+    keywords:document.getElementById('rt-keywords').value.trim(),
+    rent:parseInt(document.getElementById('rt-rent').value)||0,
+    mgmt:parseInt(document.getElementById('rt-mgmt').value)||0,
+    deposit:parseInt(document.getElementById('rt-deposit').value)||0,
+    startDate:document.getElementById('rt-start').value,
+    endDate:document.getElementById('rt-end').value,
+    memo:document.getElementById('rt-memo').value.trim(),
+    active:true
+  };
+  if(id && id!=='null'){
+    var t=rentTenants.find(function(x){return x.id==id;});
+    if(t) Object.assign(t,data);
+  } else {
+    data.id=Date.now(); rentTenants.push(data);
+  }
+  saveRent();
+  var m=document.getElementById('rent-tenant-modal'); if(m)m.remove();
+  var u=document.getElementById('unit-modal-wrap'); if(u)u.remove();
+  showToast('✅ 저장됐어요!'); rentSwitchTab(_rentTab);
+}
+
+function deleteTenant(id){
+  if(!confirm('세입자를 삭제할까요?')) return;
+  rentTenants=rentTenants.filter(function(t){return t.id!=id;});
+  saveRent();
+  var m=document.getElementById('rent-tenant-modal'); if(m)m.remove();
+  var u=document.getElementById('unit-modal-wrap'); if(u)u.remove();
+  showToast('삭제됐어요.'); rentSwitchTab(_rentTab);
+}
+
+// ── 관리업체목록 ──
+function _rentCompanies(){
+  var html = '<div style="font-size:14px;font-weight:800;margin-bottom:12px;">📋 관리업체 목록</div>';
+  if(!rentBuildings.length) return html+'<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">등록된 건물이 없습니다.</div>';
+  html += rentBuildings.map(function(b){
+    var tenants = rentTenants.filter(function(t){return t.buildingId==b.id && t.active!==false;});
+    return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:10px;">'
+      +'<div style="font-size:14px;font-weight:800;margin-bottom:8px;">🏢 '+b.name+'</div>'
+      +(b.addr?'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">📍 '+b.addr+'</div>':'')
+      +(b.mgmtCo?'<div style="font-size:12px;margin-bottom:4px;">🏢 관리업체: <b>'+b.mgmtCo+'</b></div>':'')
+      +(b.mgmtPhone?'<div style="font-size:12px;margin-bottom:4px;">📞 '+b.mgmtPhone+'</div>':'')
+      +(b.memo?'<div style="font-size:11px;color:var(--muted);margin-top:6px;">📝 '+b.memo+'</div>':'')
+      +'<div style="font-size:11px;color:var(--muted);margin-top:8px;">세입자 '+tenants.length+'명</div>'
+      +'</div>';
+  }).join('');
+  return html;
+}
+
+// ── 미납자관리 ──
+function _rentUnpaid(){
+  var now=new Date(); var ym=now.getFullYear()+'-'+(now.getMonth()<9?'0':'')+(now.getMonth()+1);
+  var paidIds=rentPayments.filter(function(p){return p.ym===ym;}).map(function(p){return p.tenantId;});
+  var unpaid=rentTenants.filter(function(t){return t.active!==false && !paidIds.includes(t.id);});
+
+  var html='<div style="font-size:14px;font-weight:800;margin-bottom:12px;">🚨 미납자 관리 <span style="font-size:12px;color:#ff4d6d;">('+ym+')</span></div>';
+  if(!unpaid.length) return html+'<div style="padding:40px;text-align:center;color:#00e5a0;font-size:14px;font-weight:700;">✅ 이번달 전원 납부 완료!</div>';
+
+  html += unpaid.map(function(t){
+    var b=rentBuildings.find(function(b){return b.id==t.buildingId;})||{name:'미지정'};
+    // 호실 번호 찾기
+    var unit = null;
+    if(b.units) unit = b.units.find(function(u){return u.id==t.unitId;});
+    var hosu = unit ? unit.floor+'0'+unit.roomNo+'호' : '';
+    var total=(t.rent||0)+(t.mgmt||0);
+    return '<div style="background:rgba(255,77,109,0.06);border:1px solid #3d1a1a;border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">'
+      +'<div>'
+      +'<div style="font-size:13px;font-weight:800;">'+b.name+' '+hosu+' '+t.name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:3px;">미납액 <span style="color:#ff4d6d;font-weight:700;">'+fmtN(total)+'원</span>'+(t.phone?' · '+t.phone:'')+'</div>'
+      +(t.memo?'<div style="font-size:10px;color:#555;margin-top:2px;">'+t.memo+'</div>':'')
+      +'</div>'
+      +'<button onclick="markRentPaid('+t.id+',\''+ym+'\')" style="padding:7px 14px;border-radius:8px;border:none;background:#00e5a0;color:#000;font-size:12px;font-weight:900;cursor:pointer;">납부처리</button>'
+      +'</div>';
+  }).join('');
+  return html;
+}
+
+// 납부 처리
+function markRentPaid(tenantId, ym){
+  var t=rentTenants.find(function(t){return t.id==tenantId;});
+  if(!t) return;
+  var already=rentPayments.find(function(p){return p.tenantId==tenantId&&p.ym===ym;});
+  if(already){ showToast('이미 납부 처리됐어요.'); return; }
+  rentPayments.push({id:Date.now(),tenantId:tenantId,ym:ym,amount:(t.rent||0)+(t.mgmt||0),memo:'수동처리',paidAt:new Date().toISOString()});
+  saveRent(); showToast('✅ 납부 처리 완료!'); rentSwitchTab(_rentTab);
+}
+function rentUploadExcel(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var data = new Uint8Array(e.target.result);
+    var wb   = XLSX.read(data, {type:'array'});
+    var ws   = wb.Sheets[wb.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(ws, {header:1});
+    if(rows.length < 2){ showToast('데이터가 없어요.'); return; }
+
+    // 컬럼 매핑 모달
+    openExcelMappingModal(rows);
+  };
+  reader.readAsArrayBuffer(file);
+  input.value='';
+}
+
+function openExcelMappingModal(rows){
+  var headers = rows[0].map(function(h,i){ return {label:String(h||'컬럼'+(i+1)), idx:i}; });
+  var w=document.createElement('div');
+  w.id='rent-excel-modal';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:700;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);';
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;width:100%;max-width:420px;';
+
+  var opts = headers.map(function(h){
+    return '<option value="'+h.idx+'">'+h.label+'</option>';
+  }).join('');
+
+  box.innerHTML='<div style="font-size:15px;font-weight:800;margin-bottom:14px;">📊 엑셀 컬럼 매핑</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">'
+    +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">날짜 컬럼</div><select id="ex-date" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px;color:var(--text);font-size:13px;outline:none;">'+opts+'</select></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">입금자명 컬럼</div><select id="ex-name" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px;color:var(--text);font-size:13px;outline:none;">'+opts+'</select></div>'
+    +'<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">금액 컬럼</div><select id="ex-amount" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px;color:var(--text);font-size:13px;outline:none;">'+opts+'</select></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="document.getElementById(\'rent-excel-modal\').remove()" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:13px;cursor:pointer;">취소</button>'
+    +'<button onclick="rentMatchExcel()" style="flex:2;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;">🔍 매칭 시작</button>'
+    +'</div>';
+
+  // rows를 전역 임시 저장
+  window._rentExcelRows = rows;
+  w.appendChild(box); document.body.appendChild(w);
+}
+
+function rentMatchExcel(){
+  var dateCol   = parseInt(document.getElementById('ex-date').value);
+  var nameCol   = parseInt(document.getElementById('ex-name').value);
+  var amountCol = parseInt(document.getElementById('ex-amount').value);
+  var rows      = window._rentExcelRows || [];
+  document.getElementById('rent-excel-modal').remove();
+
+  var now=new Date(); var ym=now.getFullYear()+'-'+(now.getMonth()<9?'0':'')+(now.getMonth()+1);
+  var matched=[], unmatched=[];
+
+  rows.slice(1).forEach(function(row){
+    var payer  = String(row[nameCol]||'').trim();
+    var amount = parseInt(String(row[amountCol]||'').replace(/[^0-9]/g,''))||0;
+    var date   = String(row[dateCol]||'').trim();
+    if(!payer && !amount) return;
+
+    // 세입자 매칭
+    var tenant = null;
+    rentTenants.forEach(function(t){
+      if(tenant) return;
+      var keys = (t.keywords||t.name).split(',').map(function(k){return k.trim();});
+      keys.forEach(function(k){
+        if(!tenant && k && payer.includes(k)) tenant=t;
+      });
+    });
+
+    if(tenant){
+      matched.push({tenant:tenant, payer:payer, amount:amount, date:date});
+    } else {
+      unmatched.push({payer:payer, amount:amount, date:date});
+    }
+  });
+
+  // 결과 모달
+  openMatchResultModal(matched, unmatched, ym);
+}
+
+function openMatchResultModal(matched, unmatched, ym){
+  var w=document.createElement('div');
+  w.id='rent-match-modal';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:700;align-items:flex-start;justify-content:center;backdrop-filter:blur(8px);';
+  var box=document.createElement('div');
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:0 0 16px 16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;animation:slideDown 0.2s ease;padding:20px;';
+
+  var matchedHtml = matched.map(function(m,i){
+    var b=rentBuildings.find(function(b){return b.id===m.tenant.buildingId;})||{name:''};
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd);">'
+      +'<input type="checkbox" id="match-cb-'+i+'" checked style="accent-color:#00e5a0;width:16px;height:16px;flex-shrink:0;">'
+      +'<div style="flex:1;">'
+      +'<div style="font-size:12px;font-weight:700;">'+m.payer+' → '+b.name+' '+m.tenant.unit+' '+m.tenant.name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);">'+m.date+' · '+fmtN(m.amount)+'원</div>'
+      +'</div>'
+      +'<span style="font-size:11px;color:#00e5a0;font-weight:700;">✅ 매칭</span>'
+      +'</div>';
+  }).join('');
+
+  var unmatchedHtml = unmatched.length
+    ? '<div style="margin-top:14px;"><div style="font-size:12px;font-weight:700;color:#ff4d6d;margin-bottom:8px;">❌ 미매칭 ('+unmatched.length+'건)</div>'
+      +unmatched.map(function(u){
+        return '<div style="font-size:11px;color:var(--muted);padding:5px 0;border-bottom:1px solid var(--bd);">'+u.payer+' · '+fmtN(u.amount)+'원 · '+u.date+'</div>';
+      }).join('')+'</div>'
+    : '';
+
+  box.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
+    +'<div style="font-size:15px;font-weight:800;">🔍 매칭 결과 ('+ym+')</div>'
+    +'<button onclick="document.getElementById(\'rent-match-modal\').remove()" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:15px;cursor:pointer;">✕</button>'
+    +'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">체크된 항목을 납부 처리합니다.</div>'
+    +(matched.length?matchedHtml:'<div style="color:var(--muted);font-size:13px;padding:10px 0;">매칭된 건이 없습니다.</div>')
+    +unmatchedHtml
+    +'<div style="display:flex;gap:8px;margin-top:16px;">'
+    +'<button onclick="document.getElementById(\'rent-match-modal\').remove()" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:13px;cursor:pointer;">취소</button>'
+    +(matched.length?'<button onclick="confirmRentMatch('+JSON.stringify(matched).replace(/"/g,"'")+',\''+ym+'\')" style="flex:2;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;">✅ 납부 처리</button>':'')
+    +'</div>';
+
+  // matched 데이터 전역 저장
+  window._rentMatched = matched;
+  window._rentMatchYm = ym;
+  w.appendChild(box); document.body.appendChild(w);
+}
+
+function confirmRentMatch(){
+  var matched = window._rentMatched || [];
+  var ym      = window._rentMatchYm || '';
+  var count   = 0;
+  matched.forEach(function(m, i){
+    var cb = document.getElementById('match-cb-'+i);
+    if(!cb || !cb.checked) return;
+    var already = rentPayments.find(function(p){return p.tenantId===m.tenant.id&&p.ym===ym;});
+    if(already) return;
+    rentPayments.push({id:Date.now()+i, tenantId:m.tenant.id, ym:ym, amount:m.amount, payer:m.payer, paidAt:new Date().toISOString()});
+    count++;
+  });
+  saveRent();
+  document.getElementById('rent-match-modal').remove();
+  showToast('✅ '+count+'건 납부 처리 완료!');
+  rentSwitchTab(_rentTab);
+}
+
 // ── CHECKLIST TAB ──
 // ══════════════════════════════════════════
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxCmXc0Ad4prYecIhThnfiH6FqybBVi78GTsU23EfXJC_wJUiGifI2QLzCdS1IlWs_z/exec';
