@@ -2611,17 +2611,24 @@ function selectAllReportSites(state){
   document.querySelectorAll('[data-co]').forEach(function(el){ el.checked = state; });
 }
 
-// ── Firebase photoFiles 조회 ──
-// GAS가 업로드 후 저장한 경로: /data/photoFiles/{date}/{siteId}
+// ── Firebase photoFiles 조회 (folderLink 포함) ──
 function fbGetPhotoFiles(dateStr, siteId){
   return fetch(FB_URL + '/data/photoFiles/' + dateStr + '/' + siteId + '.json')
     .then(function(r){ return r.json(); })
-    .then(function(d){ return (d && d.files) ? d.files : []; })
-    .catch(function(){ return []; });
+    .then(function(d){
+      if(!d) return { files:[], folderLink:null, count:0 };
+      return {
+        files: d.files || [],
+        folderLink: d.folderLink || null,
+        folderId: d.folderId || null,
+        count: (d.files||[]).length
+      };
+    })
+    .catch(function(){ return { files:[], folderLink:null, count:0 }; });
 }
 
-// ── 보고 본문 빌드 (Firebase photoFiles 링크 포함, async) ──
-function _buildReportContentAsync(callback){
+// ── 보고 데이터 빌드 (공통, async) ──
+function _buildReportDataAsync(callback){
   var selectedSiteList = sites.filter(function(s){ return _reportSelectedSites[s.id]; });
   if(!selectedSiteList.length){ callback(null); return; }
 
@@ -2642,7 +2649,7 @@ function _buildReportContentAsync(callback){
   });
 
   if(!tasks.length){
-    callback({ text:'선택한 날짜에 해당 현장 작업일이 없습니다.', dateLabel:dateLabel, cos:cos });
+    callback({ results:[], dateLabel:dateLabel, cos:cos, empty:true });
     return;
   }
 
@@ -2650,33 +2657,107 @@ function _buildReportContentAsync(callback){
   var remaining = tasks.length;
 
   tasks.forEach(function(task, i){
-    fbGetPhotoFiles(task.dateStr, task.site.id).then(function(files){
-      var photoInfo = (reportPhotoData[task.dateStr]||{})[task.site.id]||{photos:0};
-      results[i] = { task:task, files:files, count: photoInfo.photos };
-      if(--remaining === 0) buildText();
+    fbGetPhotoFiles(task.dateStr, task.site.id).then(function(data){
+      var fbCount = (reportPhotoData[task.dateStr]||{})[task.site.id];
+      var count = data.count || (fbCount && fbCount.photos) || 0;
+      results[i] = {
+        task: task,
+        files: data.files,
+        folderLink: data.folderLink,
+        count: count
+      };
+      if(--remaining === 0) callback({ results:results, dateLabel:dateLabel, cos:cos, empty:false });
     });
   });
+}
 
-  function buildText(){
-    var lines = ['📋 청소 보고 — '+dateLabel, ''];
-    var prevCo = null;
-    results.forEach(function(r){
-      if(r.task.co !== prevCo){
-        if(prevCo !== null) lines.push('');
-        lines.push('🏢 '+r.task.co);
-        prevCo = r.task.co;
-      }
-      var photoCount = r.files.length || r.count;
-      var status = photoCount > 0 ? '✅ '+photoCount+'장' : '❌ 미보고';
-      lines.push('  📍 '+r.task.site.site+' ('+r.task.dateStr+') '+status);
-      r.files.forEach(function(f){
-        lines.push('    🔗 '+f.name+': '+f.url);
-      });
-    });
-    lines.push('');
-    lines.push('— '+appTitle);
-    callback({ text: lines.join('\n'), dateLabel: dateLabel, cos: cos });
-  }
+// ── HTML 이메일 빌드 ──
+function _buildHtmlEmail(data){
+  var dateLabel = data.dateLabel;
+  var results   = data.results;
+
+  var totalSites  = results.length;
+  var totalPhotos = results.reduce(function(a,r){return a+r.count;},0);
+
+  var rows = results.map(function(r){
+    var hasPhotos = r.count > 0;
+    var statusBadge = hasPhotos
+      ? '<span style="display:inline-block;background:#d1fae5;color:#065f46;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">✅ '+r.count+'장</span>'
+      : '<span style="display:inline-block;background:#fee2e2;color:#991b1b;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">❌ 미보고</span>';
+    var folderBtn = (hasPhotos && r.folderLink)
+      ? '<a href="'+r.folderLink+'" style="display:inline-block;background:#1a73e8;color:#fff;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;text-decoration:none;">📂 폴더 열기</a>'
+      : (hasPhotos ? '<span style="font-size:11px;color:#999;">링크 준비중</span>' : '—');
+    return '<tr>'
+      +'<td style="padding:11px 16px;font-size:13px;font-weight:600;border-bottom:1px solid #f0f0f0;">📍 '+r.task.site.site+'</td>'
+      +'<td style="padding:11px 16px;font-size:13px;border-bottom:1px solid #f0f0f0;font-family:monospace;color:#555;">'+r.task.dateStr+'</td>'
+      +'<td style="padding:11px 16px;border-bottom:1px solid #f0f0f0;">'+statusBadge+'</td>'
+      +'<td style="padding:11px 16px;border-bottom:1px solid #f0f0f0;">'+folderBtn+'</td>'
+      +'</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+    +'<body style="margin:0;padding:0;background:#f5f5f5;font-family:\'Apple SD Gothic Neo\',\'Noto Sans KR\',Arial,sans-serif;">'
+    +'<div style="max-width:600px;margin:0 auto;padding:24px 16px;">'
+
+    // 헤더
+    +'<div style="background:#0a0a0a;border-radius:14px 14px 0 0;padding:26px 28px;">'
+    +'<div style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">🧹 청소 현장 Report</div>'
+    +'<div style="font-size:13px;color:#888;margin-top:6px;">'+dateLabel+'</div>'
+    +'</div>'
+
+    // 요약
+    +'<div style="background:#ffffff;padding:20px 28px;display:flex;gap:0;border-bottom:2px solid #f0f0f0;">'
+    +'<div style="flex:1;text-align:center;">'
+    +'<div style="font-size:28px;font-weight:900;color:#111;">'+totalSites+'</div>'
+    +'<div style="font-size:12px;color:#888;margin-top:3px;font-weight:600;">총 현장수</div>'
+    +'</div>'
+    +'<div style="width:1px;background:#f0f0f0;margin:4px 0;"></div>'
+    +'<div style="flex:1;text-align:center;">'
+    +'<div style="font-size:28px;font-weight:900;color:#1a73e8;">'+totalPhotos+'</div>'
+    +'<div style="font-size:12px;color:#888;margin-top:3px;font-weight:600;">총 사진수</div>'
+    +'</div>'
+    +'</div>'
+
+    // 표
+    +'<div style="background:#ffffff;padding:20px 28px 28px;border-radius:0 0 14px 14px;">'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead>'
+    +'<tr style="background:#f8f8f8;">'
+    +'<th style="padding:10px 16px;text-align:left;font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #eee;">현장</th>'
+    +'<th style="padding:10px 16px;text-align:left;font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #eee;">날짜</th>'
+    +'<th style="padding:10px 16px;text-align:left;font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #eee;">상태</th>'
+    +'<th style="padding:10px 16px;text-align:left;font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #eee;">사진</th>'
+    +'</tr>'
+    +'</thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table>'
+    +'<div style="margin-top:24px;font-size:11px;color:#ccc;text-align:center;">'+appTitle+' 앱에서 자동 발송된 보고서입니다.</div>'
+    +'</div>'
+
+    +'</div></body></html>';
+
+  return html;
+}
+
+// ── 카카오/텍스트용 본문 빌드 ──
+function _buildTextReport(data){
+  var lines = ['📋 청소 보고 — '+data.dateLabel, ''];
+  var prevCo = null;
+  data.results.forEach(function(r){
+    if(r.task.co !== prevCo){
+      if(prevCo !== null) lines.push('');
+      lines.push('🏢 '+r.task.co);
+      prevCo = r.task.co;
+    }
+    var status = r.count > 0 ? '✅ '+r.count+'장' : '❌ 미보고';
+    lines.push('  📍 '+r.task.site.site+' ('+r.task.dateStr+') '+status);
+    if(r.folderLink && r.count > 0){
+      lines.push('  📂 사진 보기: '+r.folderLink);
+    }
+  });
+  lines.push('');
+  lines.push('— '+appTitle);
+  return lines.join('\n');
 }
 
 // ── 이메일 발송 ──
@@ -2692,25 +2773,43 @@ function doSendEmail(){
     var errEl=document.getElementById('email-send-error');
     errEl.textContent='날짜를 하나 이상 추가해주세요.'; errEl.style.display=''; return;
   }
-  var selectedCount = Object.values(_reportSelectedSites).filter(Boolean).length;
-  if(!selectedCount){
+  if(!Object.values(_reportSelectedSites).filter(Boolean).length){
     var errEl=document.getElementById('email-send-error');
     errEl.textContent='현장을 하나 이상 선택해주세요.'; errEl.style.display=''; return;
   }
 
   var btn = document.getElementById('email-send-btn');
-  btn.textContent='⏳ 링크 불러오는 중...'; btn.disabled=true;
+  btn.textContent='⏳ 데이터 불러오는 중...'; btn.disabled=true;
 
-  _buildReportContentAsync(function(content){
-    if(!content){
+  _buildReportDataAsync(function(data){
+    if(!data){
       var errEl=document.getElementById('email-send-error');
       errEl.textContent='보고 내용을 생성할 수 없습니다.'; errEl.style.display='';
       btn.textContent='📧 이메일 발송'; btn.disabled=false; return;
     }
+
     btn.textContent='📧 발송 중...';
-    var subject = '['+appTitle+'] '+content.dateLabel+' 청소 보고 — '+content.cos.join(', ');
-    var message = 'To: '+to+'\r\nSubject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n'+content.text;
-    var encoded = btoa(unescape(encodeURIComponent(message))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    var subject = '['+appTitle+'] '+data.dateLabel+' 청소 현장 보고';
+    var htmlBody = _buildHtmlEmail(data);
+    var textBody = _buildTextReport(data);
+
+    // MIME 멀티파트 (text/plain + text/html)
+    var boundary = 'boundary_' + Date.now();
+    var mime = 'To: '+to+'\r\n'
+      +'Subject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\n'
+      +'MIME-Version: 1.0\r\n'
+      +'Content-Type: multipart/alternative; boundary="'+boundary+'"\r\n\r\n'
+      +'--'+boundary+'\r\n'
+      +'Content-Type: text/plain; charset=utf-8\r\n'
+      +'Content-Transfer-Encoding: base64\r\n\r\n'
+      +btoa(unescape(encodeURIComponent(textBody)))+'\r\n\r\n'
+      +'--'+boundary+'\r\n'
+      +'Content-Type: text/html; charset=utf-8\r\n'
+      +'Content-Transfer-Encoding: base64\r\n\r\n'
+      +btoa(unescape(encodeURIComponent(htmlBody)))+'\r\n\r\n'
+      +'--'+boundary+'--';
+
+    var encoded = btoa(unescape(encodeURIComponent(mime))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 
     fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
       method:'POST',
@@ -2734,17 +2833,16 @@ function doSendEmail(){
   });
 }
 
-// ── 카카오톡 공유 (Web Share API, Firebase 링크 포함) ──
+// ── 카카오톡 공유 ──
 function doShareKakao(){
   if(!_reportSelectedDates.length){ showToast('날짜를 하나 이상 추가해주세요.'); return; }
-  var selectedCount = Object.values(_reportSelectedSites).filter(Boolean).length;
-  if(!selectedCount){ showToast('현장을 하나 이상 선택해주세요.'); return; }
+  if(!Object.values(_reportSelectedSites).filter(Boolean).length){ showToast('현장을 하나 이상 선택해주세요.'); return; }
 
-  showToast('⏳ 사진 링크 불러오는 중...');
+  showToast('⏳ 링크 불러오는 중...');
 
-  _buildReportContentAsync(function(content){
-    if(!content){ showToast('❌ 내용을 생성할 수 없습니다.'); return; }
-    var text = content.text;
+  _buildReportDataAsync(function(data){
+    if(!data){ showToast('❌ 내용을 생성할 수 없습니다.'); return; }
+    var text = _buildTextReport(data);
 
     if(navigator.share){
       navigator.share({ title: appTitle+' 청소 보고', text: text })
@@ -2752,10 +2850,8 @@ function doShareKakao(){
         .catch(function(e){ if(e.name!=='AbortError') _showCopyFallback(text); });
     } else {
       navigator.clipboard.writeText(text).then(function(){
-        showToast('📋 보고 내용이 복사됐어요!\n카카오톡에 붙여넣기 하세요.');
-      }).catch(function(){
-        _showCopyFallback(text);
-      });
+        showToast('📋 복사됐어요!\n카카오톡에 붙여넣기 하세요.');
+      }).catch(function(){ _showCopyFallback(text); });
     }
   });
 }
@@ -2912,10 +3008,10 @@ function renderContactCard(s,col){
 function openSettings(){
   var w=document.createElement('div');
   w.id='settings-wrap';
-  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);';
+  w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-start;justify-content:center;backdrop-filter:blur(6px);';
   w.onclick=function(e){if(e.target===w)w.remove();};
   var box=document.createElement('div');
-  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:0 0 32px;animation:slideUp 0.2s ease;';
+  box.style.cssText='background:var(--sf);border:1px solid var(--bd);border-radius:0 0 16px 16px;width:100%;max-width:480px;padding:0 0 32px;animation:slideDown 0.2s ease;';
 
   // 카운트 미리 계산
   var totalCount = sites.length;
