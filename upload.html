@@ -335,6 +335,7 @@ function startUpload(){
   function sendToGAS(fileInfo){
     var body = JSON.stringify({
       co: params.co, site: params.site, date: params.date,
+      siteId: params.siteId,
       name: fileInfo.name, data: fileInfo.base64, mime: fileInfo.mime
     });
     return fetch(GAS_URL, { method: 'POST', body: body })
