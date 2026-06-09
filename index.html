@@ -3426,8 +3426,9 @@ function clLoadFiles(siteId){
 function clUploadFiles(siteId){
   var input = document.getElementById('cl-file-input');
   if(!input || !input.files.length) return;
-  var site = sites.find(function(s){return s.id===siteId;});
-  if(!site) return;
+  // siteId 타입 통일 (숫자/문자열 불일치 방지)
+  var site = sites.find(function(s){return s.id==siteId;});
+  if(!site){ showToast('❌ 현장 정보를 찾을 수 없습니다.'); return; }
 
   var files = Array.from(input.files);
   var el = document.getElementById('cl-file-list-'+siteId);
@@ -3445,7 +3446,7 @@ function clUploadFiles(siteId){
         var body = JSON.stringify({
           type: 'checklist',
           siteId: siteId,
-          site: site.site,
+          site: site.site || '미분류',
           sido: site.sido || '기타',
           name: 'checklist_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)+'.jpg',
           data: base64,
