@@ -268,6 +268,7 @@ main{padding:18px 14px;max-width:1400px;}
 .popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:300;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);}
 .popup-overlay.open{display:flex;animation:fadeIn 0.15s ease;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 .popup{background:var(--sf);border:1px solid var(--bd);border-radius:20px 20px 0 0;padding:20px 20px calc(20px + var(--safe));width:100%;max-width:520px;animation:slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1);max-height:85vh;overflow-y:auto;}
 @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
 @keyframes slideDown{from{transform:translateY(-100%);}to{transform:translateY(0);}}
@@ -342,6 +343,7 @@ main{padding:18px 14px;max-width:1400px;}
   .stat-card{min-width:85px;}
   .stat-card-val{font-size:12px;}
   .settle-table th,.settle-table td{padding:5px 6px;font-size:10px;}
+  #form-preview-panel{display:none !important;}
 }
 @media(min-width:601px){
   .popup-overlay{align-items:center;}
@@ -457,6 +459,9 @@ main{padding:18px 14px;max-width:1400px;}
 
   <!-- LIST -->
   <div class="view" id="view-list">
+  <div style="display:flex;gap:16px;align-items:flex-start;">
+  <!-- 좌: 폼 -->
+  <div style="flex:1;min-width:0;">
     <div class="form-card">
       <div class="form-title">&#127970; 업체 / 현장 추가</div>
       <div class="form-grid">
@@ -533,6 +538,75 @@ main{padding:18px 14px;max-width:1400px;}
     </div>
     <div class="section-label">등록된 업체 및 현장</div>
     <div id="company-list"></div>
+  </div><!-- /좌측 폼 열 -->
+
+  <!-- 우: 실시간 미리보기 -->
+  <div id="form-preview-panel" style="width:300px;flex-shrink:0;position:sticky;top:68px;display:none;">
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden;">
+      <!-- 헤더 -->
+      <div style="padding:12px 16px;background:var(--sf2);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;">
+        <div style="font-size:12px;font-weight:800;color:var(--accent);">👁 미리보기</div>
+        <div style="font-size:10px;color:var(--muted);margin-left:auto;">입력하면 실시간 반영</div>
+      </div>
+      <!-- 컬러 배지 + 현장명 -->
+      <div style="padding:16px 16px 0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div id="fpv-dot" style="width:11px;height:11px;border-radius:50%;background:#444;flex-shrink:0;"></div>
+          <div id="fpv-co" style="font-size:11px;color:var(--muted);">업체명</div>
+        </div>
+        <div id="fpv-site" style="font-size:20px;font-weight:900;letter-spacing:-0.5px;color:var(--text);margin-bottom:2px;">현장명</div>
+        <div id="fpv-addr" style="font-size:11px;color:var(--muted);margin-bottom:12px;"></div>
+      </div>
+      <!-- 구분선 -->
+      <div style="height:1px;background:var(--bd);margin:0 16px;"></div>
+      <!-- 요일 -->
+      <div style="padding:12px 16px 0;">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">청소 요일</div>
+        <div id="fpv-days" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+      </div>
+      <!-- 금액 -->
+      <div style="padding:12px 16px 0;">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">금액</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:9px;color:var(--muted);">원청</div>
+            <div id="fpv-main" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:900;color:var(--accent);">—</div>
+          </div>
+          <div id="fpv-sub-wrap" style="display:none;">
+            <div style="font-size:9px;color:var(--muted);">하청</div>
+            <div id="fpv-sub" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:900;color:#7ab8ff;">—</div>
+          </div>
+          <div id="fpv-profit-wrap" style="display:none;">
+            <div style="font-size:9px;color:var(--muted);">이익</div>
+            <div id="fpv-profit" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:900;color:#ffb547;">—</div>
+          </div>
+          <div id="fpv-rate-wrap" style="display:none;">
+            <div style="font-size:9px;color:var(--muted);">이익률</div>
+            <div id="fpv-rate" style="font-family:'DM Mono',monospace;font-size:15px;font-weight:900;color:#ffb547;">—</div>
+          </div>
+        </div>
+      </div>
+      <!-- 담당자 / 연락처 -->
+      <div style="padding:12px 16px 0;" id="fpv-contact-wrap">
+        <div style="height:1px;background:var(--bd);margin-bottom:12px;"></div>
+        <div id="fpv-mgr" style="font-size:12px;color:var(--text);margin-bottom:3px;display:none;"></div>
+        <div id="fpv-phone" style="font-size:12px;color:var(--accent);font-weight:700;display:none;"></div>
+      </div>
+      <!-- 기간 -->
+      <div id="fpv-period-wrap" style="padding:0 16px;display:none;">
+        <div style="height:1px;background:var(--bd);margin-bottom:12px;"></div>
+        <div id="fpv-period" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;"></div>
+      </div>
+      <!-- 상태 배지 -->
+      <div style="padding:12px 16px 14px;display:flex;gap:6px;align-items:center;">
+        <div id="fpv-status" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(0,229,160,0.12);color:#00e5a0;">🟢 운영중</div>
+        <div id="fpv-noreport" style="display:none;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(255,77,109,0.1);color:#ff4d6d;">📵 보고제외</div>
+        <div id="fpv-memo-icon" style="display:none;font-size:12px;color:var(--muted);" title="">💬</div>
+      </div>
+    </div>
+  </div>
+  </div><!-- /2열 wrapper -->
+
   </div>
   <!-- CALENDAR -->
   <div class="view" id="view-calendar">
@@ -895,6 +969,7 @@ function setStatusBtn(btn, prefix){
   btn.style.background='rgba('+(st==='active'?'0,229,160':'255,181,71')+',0.12)';
   btn.style.color=accentColor;
   document.getElementById(prefix+'-status').value=st;
+  if(prefix==='f') updateFormPreview();
 }
 function getCompanyColor(name){
   const cos=[...new Set(sites.map(s=>s.company))].sort();
@@ -1054,9 +1129,148 @@ function resetForm(){
   document.querySelectorAll('#day-picker .day-btn').forEach(function(b){b.classList.remove('active');});
   var nr=document.getElementById('f-noreport');if(nr)nr.checked=false;
   _updateCoDatalist();
+  updateFormPreview();
 }
 
-// 업체명 datalist 업데이트
+// ── 업체/현장 추가 폼 실시간 미리보기 ──
+function updateFormPreview(){
+  var co    = (document.getElementById('f-co')&&document.getElementById('f-co').value||'').trim();
+  var site  = (document.getElementById('f-site')&&document.getElementById('f-site').value||'').trim();
+  var panel = document.getElementById('form-preview-panel');
+  if(!panel) return;
+
+  // 아무것도 없으면 패널 숨김
+  if(!co && !site){ panel.style.display='none'; return; }
+  panel.style.display='';
+
+  // 업체 컬러
+  var col = co ? getCompanyColor(co) : {text:'#444',bg:'#1a1a1a'};
+  var dot = document.getElementById('fpv-dot');
+  if(dot) dot.style.background = col.text;
+
+  // 텍스트들
+  _fpvSet('fpv-co',   co   || '업체명');
+  _fpvSet('fpv-site', site || '현장명');
+
+  // 주소
+  var sido  = (document.getElementById('f-sido') && document.getElementById('f-sido').value)||'';
+  var gungu = (document.getElementById('f-gungu')&&document.getElementById('f-gungu').value)||'';
+  var addr  = (document.getElementById('f-addr') &&document.getElementById('f-addr').value||'').trim();
+  var fullAddr = [sido, gungu, addr].filter(Boolean).join(' ');
+  var addrEl = document.getElementById('fpv-addr');
+  if(addrEl){ addrEl.textContent = fullAddr ? '📍 '+fullAddr : ''; }
+
+  // 청소 요일
+  var days = [...document.querySelectorAll('#day-picker .day-btn.active')].map(function(b){return parseInt(b.dataset.day);});
+  var daysEl = document.getElementById('fpv-days');
+  if(daysEl){
+    if(days.length){
+      daysEl.innerHTML = days.sort().map(function(d){
+        return '<span style="background:var(--a2);color:var(--accent);padding:3px 8px;border-radius:5px;font-size:11px;font-weight:700;">'+DAYS[d]+'</span>';
+      }).join('');
+    } else {
+      daysEl.innerHTML = '<span style="font-size:11px;color:var(--dim);">미선택</span>';
+    }
+  }
+
+  // 금액
+  var main   = parseInt(document.getElementById('f-price-main')&&document.getElementById('f-price-main').value)||0;
+  var sub    = parseInt(document.getElementById('f-price-sub') &&document.getElementById('f-price-sub').value)||0;
+  var taxtype= document.getElementById('f-subtaxtype')&&document.getElementById('f-subtaxtype').value||'none';
+  var st     = calcSubTax(sub, taxtype);
+  var profit = main - st.payout;
+  var rate   = main ? Math.round(profit/main*100) : 0;
+
+  _fpvSet('fpv-main', main ? main.toLocaleString('ko-KR')+'원' : '—');
+  _fpvShow('fpv-sub-wrap',    sub>0);
+  _fpvSet('fpv-sub',    sub  ? st.payout.toLocaleString('ko-KR')+'원' : '—');
+  _fpvShow('fpv-profit-wrap', sub>0);
+  _fpvSet('fpv-profit', sub  ? profit.toLocaleString('ko-KR')+'원' : '—');
+  _fpvShow('fpv-rate-wrap',   sub>0);
+  _fpvSet('fpv-rate',   sub  ? rate+'%' : '—');
+
+  // 담당자 / 연락처
+  var mgr   = (document.getElementById('f-mgr')  &&document.getElementById('f-mgr').value||'').trim();
+  var phone = (document.getElementById('f-phone')&&document.getElementById('f-phone').value||'').trim();
+  var mgrEl   = document.getElementById('fpv-mgr');
+  var phoneEl = document.getElementById('fpv-phone');
+  if(mgrEl){   mgrEl.textContent  = mgr   ? '👤 '+mgr   : ''; mgrEl.style.display   = mgr   ? '' : 'none'; }
+  if(phoneEl){ phoneEl.textContent= phone ? '📞 '+phone : ''; phoneEl.style.display = phone ? '' : 'none'; }
+
+  // 기간
+  var sd = document.getElementById('f-startdate')&&document.getElementById('f-startdate').value||'';
+  var ed = document.getElementById('f-enddate')  &&document.getElementById('f-enddate').value||'';
+  var periodWrap = document.getElementById('fpv-period-wrap');
+  var periodEl   = document.getElementById('fpv-period');
+  if(periodWrap && periodEl){
+    if(sd||ed){
+      periodWrap.style.display='';
+      periodEl.textContent = (sd||'—') + ' ~ ' + (ed||'진행중');
+    } else {
+      periodWrap.style.display='none';
+    }
+  }
+
+  // 상태
+  var status = document.getElementById('f-status')&&document.getElementById('f-status').value||'active';
+  var statusEl = document.getElementById('fpv-status');
+  if(statusEl){
+    if(status==='active'){ statusEl.textContent='🟢 운영중'; statusEl.style.background='rgba(0,229,160,0.12)'; statusEl.style.color='#00e5a0'; }
+    else                 { statusEl.textContent='🟡 문의중'; statusEl.style.background='rgba(255,181,71,0.12)'; statusEl.style.color='#ffb547'; }
+  }
+
+  // 보고제외
+  var nr = document.getElementById('f-noreport');
+  _fpvShow('fpv-noreport', nr&&nr.checked);
+
+  // 메모
+  var memo = (document.getElementById('f-memo')&&document.getElementById('f-memo').value||'').trim();
+  var memoIcon = document.getElementById('fpv-memo-icon');
+  if(memoIcon){ memoIcon.style.display = memo ? '' : 'none'; memoIcon.title = memo; }
+}
+
+function _fpvSet(id, val){ var el=document.getElementById(id); if(el) el.textContent=val; }
+function _fpvShow(id, show){ var el=document.getElementById(id); if(el) el.style.display=show?'':'none'; }
+
+// 폼 입력 이벤트 연결 (switchTab('list') 시 호출)
+function initFormPreviewListeners(){
+  var ids = ['f-co','f-site','f-mgr','f-phone','f-addr','f-price-main','f-price-sub','f-memo','f-startdate','f-enddate','f-subtaxtype'];
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el || el._fpvBound) return;
+    el.addEventListener('input',  updateFormPreview);
+    el.addEventListener('change', updateFormPreview);
+    el._fpvBound = true;
+  });
+  // sido/gungu select
+  ['f-sido','f-gungu'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el || el._fpvBound) return;
+    el.addEventListener('change', updateFormPreview);
+    el._fpvBound = true;
+  });
+  // 요일 버튼 — MutationObserver로 class 변화 감지
+  var picker = document.getElementById('day-picker');
+  if(picker && !picker._fpvObs){
+    var obs = new MutationObserver(updateFormPreview);
+    obs.observe(picker, {attributes:true, subtree:true, attributeFilter:['class']});
+    picker._fpvObs = true;
+  }
+  // 상태 버튼 — f-status hidden input 변화 감지
+  var statusInput = document.getElementById('f-status');
+  if(statusInput && !statusInput._fpvBound){
+    statusInput.addEventListener('change', updateFormPreview);
+    statusInput._fpvBound = true;
+  }
+  // 보고제외 체크박스
+  var nr = document.getElementById('f-noreport');
+  if(nr && !nr._fpvBound){
+    nr.addEventListener('change', updateFormPreview);
+    nr._fpvBound = true;
+  }
+}
+
+
 function _updateCoDatalist(){
   var dl = document.getElementById('f-co-list');
   if(!dl) return;
@@ -1069,7 +1283,7 @@ function autoFillCompanyInfo(coName){
   _updateCoDatalist();
   if(!coName) return;
   var existing = sites.filter(function(s){ return s.company === coName; });
-  if(!existing.length) return;
+  if(!existing.length) { updateFormPreview(); return; }
   var ref = existing[0];
 
   var fields = {
@@ -1087,6 +1301,7 @@ function autoFillCompanyInfo(coName){
   var fst = document.getElementById('f-subtaxtype');
   if(fst && ref.subtaxtype) fst.value = ref.subtaxtype;
   showToast('📋 '+coName+' 기존 정보를 불러왔어요');
+  updateFormPreview();
 }
 function addSite(){
   const company=document.getElementById('f-co').value.trim();
@@ -1151,7 +1366,7 @@ function openPopup(id){
     +'<div class="popup-price-item"><div class="popup-price-lbl">이익</div><div class="popup-price-val profit">'+fmtW(profit)+'</div></div>':'')
     +'</div></div></div>';
   if(s.manager)rows+='<div class="popup-row"><div class="popup-row-icon">&#128100;</div><div class="popup-row-content"><div class="popup-row-lbl">담당자</div><div class="popup-row-val">'+s.manager+'</div></div></div>';
-  if(s.phone){var tel=s.phone.replace(/[^0-9+]/g,'');rows+='<div class="popup-row"><div class="popup-row-icon">&#128222;</div><div class="popup-row-content"><div class="popup-row-lbl">연락처</div><a class="popup-phone-link" href="tel:'+tel+'">&#128242; '+s.phone+'</a></div></div>';}
+  if(s.phone){var tel=s.phone.replace(/[^0-9+]/g,'');rows+='<div class="popup-row"><div class="popup-row-icon">&#128222;</div><div class="popup-row-content"><div class="popup-row-lbl">연락처</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px;"><a class="popup-phone-link" href="tel:'+tel+'">&#128242; '+s.phone+'</a><a href="sms:'+tel+'" style="display:inline-flex;align-items:center;gap:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--text);font-weight:800;padding:9px 14px;border-radius:9px;text-decoration:none;font-size:14px;">💬 문자</a></div></div></div>';}
   if(s.addr)rows+='<div class="popup-row"><div class="popup-row-icon">&#128205;</div><div class="popup-row-content"><div class="popup-row-lbl">주소</div><div class="popup-row-val" style="font-size:13px">'+s.addr+'</div></div></div>';
   if(s.bizno)rows+='<div class="popup-row"><div class="popup-row-icon">&#128196;</div><div class="popup-row-content"><div class="popup-row-lbl">사업자번호</div><div class="popup-row-val">'+s.bizno+'</div></div></div>';
   if(s.email)rows+='<div class="popup-row"><div class="popup-row-icon">&#128231;</div><div class="popup-row-content"><div class="popup-row-lbl">이메일</div><div class="popup-row-val">'+s.email+'</div></div></div>';
@@ -1324,7 +1539,7 @@ function renderSiteCard(s,col){
     +'<div class="price-chip"><div class="price-chip-label">이익률</div><div class="price-chip-val" style="color:#ffb547;font-size:13px;font-weight:700">'+profitRate+'%</div></div>':'')
     +'</div></div>'
     +(s.manager?'<div class="meta-row"><span class="meta-lbl">담당자</span><span>'+s.manager+'</span></div>':'')
-    +(s.phone?'<div class="meta-row"><span class="meta-lbl">연락처</span><a class="phone-link" href="tel:'+tel+'">'+s.phone+'</a></div>':'')
+    +(s.phone?'<div class="meta-row"><span class="meta-lbl">연락처</span><div style="display:flex;align-items:center;gap:6px;"><a class="phone-link" href="tel:'+tel+'">'+s.phone+'</a><a href="sms:'+tel+'" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:13px;text-decoration:none;">💬</a></div></div>':'')
     +'</div>'
     +(s.memo?'<div class="memo-box">&#128172; '+s.memo+'</div>':'')
     +'</div>';
@@ -1359,7 +1574,7 @@ function openDatePopup(dow,dateLabel,daySites){
     return '<div class="dp-item" style="border-left:3px solid '+col.text+';background:'+col.bg+'" onclick="openPopupFromDate('+s.id+')">'
       +'<div class="dp-item-site" style="color:'+col.text+'">'+s.site+'</div>'
       +'<div class="dp-item-co">'+s.company+(s.manager?' · '+s.manager:'')+'</div>'
-      +(s.phone?'<a class="dp-phone" href="tel:'+tel+'" onclick="event.stopPropagation()">&#128242; '+s.phone+'</a>':'')
+      +(s.phone?'<div style="display:flex;align-items:center;gap:8px;margin-top:5px;"><a class="dp-phone" href="tel:'+tel+'" onclick="event.stopPropagation()">&#128242; '+s.phone+'</a><a href="sms:'+tel+'" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#FEE500;font-weight:700;text-decoration:none;">💬 문자</a></div>':'')
       +'</div>';
   }).join('');
   document.getElementById('date-popup').classList.add('open');
@@ -2108,6 +2323,7 @@ function openKpiPopup(key){
         +(s.phone?'<div style="font-size:11px;color:var(--muted);">📞 '+s.phone+'</div>':'')+'</div>'
         +'<div style="display:flex;gap:6px;">'
         +(s.phone?'<a href="tel:'+s.phone.replace(/[^0-9+]/g,'')+'" style="padding:5px 10px;border-radius:6px;border:1px solid #00e5a0;background:transparent;color:#00e5a0;font-size:11px;font-weight:700;text-decoration:none;">전화</a>':'')
+        +(s.phone?'<a href="sms:'+s.phone.replace(/[^0-9+]/g,'')+'" style="padding:5px 10px;border-radius:6px;border:1px solid #FEE500;background:transparent;color:#FEE500;font-size:11px;font-weight:700;text-decoration:none;">💬 문자</a>':'')
         +'<button onclick="closeKpiPopup();openEdit('+s.id+')" style="padding:5px 10px;border-radius:6px;border:1px solid #ffb547;background:transparent;color:#ffb547;font-size:11px;font-weight:700;cursor:pointer;">수정</button>'
         +'</div></div>';
     }).join(''):'<div style="padding:20px 0;text-align:center;color:var(--dim);">문의중 현장 없음</div>';
@@ -3237,8 +3453,12 @@ function clUploadFiles(siteId){
         });
         fetch(GAS_URL, {method:'POST', body:body})
           .then(function(r){return r.json();})
-          .then(function(d){ if(d.ok) done++; else failed++; resolve(); })
-          .catch(function(){ failed++; resolve(); });
+          .then(function(d){
+            if(d.ok) done++;
+            else { failed++; console.error('GAS 오류:', d.error||JSON.stringify(d)); }
+            resolve();
+          })
+          .catch(function(err){ failed++; console.error('fetch 오류:', err); resolve(); });
       };
       reader.readAsDataURL(file);
     });
@@ -3266,9 +3486,13 @@ function clUploadFiles(siteId){
 
   runPool(files, 3).then(function(){
     input.value = '';
-    showToast(done+'장 업로드 완료!'+(failed?' ('+failed+'장 실패)':''));
+    if(failed > 0){
+      showToast('❌ '+failed+'장 실패 / '+done+'장 성공\n콘솔(F12)에서 오류 확인하세요');
+    } else {
+      showToast('✅ '+done+'장 업로드 완료!');
+    }
     clLoadFiles(siteId);
-    renderChecklist(); // 배너 배지 갱신
+    renderChecklist();
   });
 }
 
@@ -3407,6 +3631,7 @@ function switchTab(name){
   if(name==='supply')renderSupply();
   if(name==='report'){initReportDate();renderReport();}
   if(name==='checklist')renderChecklist();
+  if(name==='list'){initFormPreviewListeners();updateFormPreview();}
 }
 
 // ── REPORT TAB ──
@@ -3726,6 +3951,7 @@ function calPickerConfirm(){
   var popup = document.getElementById('cal-picker-popup');
   if(popup) popup.style.display='none';
   _updateDateSummary();
+  refreshReportPreview();
 }
 
 function _updateDateSummary(){
@@ -3755,6 +3981,7 @@ function _renderReportModal(){
         +'<input type="checkbox" data-site-id="'+s.id+'" '+chk+' onchange="toggleReportSite(this)" style="accent-color:#00e5a0;width:15px;height:15px;flex-shrink:0;">'
         +'<span style="font-size:12px;font-weight:600;">'+s.site+'</span>'
         +(s.manager?'<span style="font-size:10px;color:#777;margin-left:auto;">👤 '+s.manager+'</span>':'')
+        +(s.noReport?'<span style="font-size:9px;color:#555;margin-left:4px;">제외</span>':'')
         +'</label>';
     }).join('');
     return '<div style="background:#1e1e1e;border:1px solid #2c2c2c;border-radius:10px;overflow:hidden;margin-bottom:6px;">'
@@ -3763,7 +3990,7 @@ function _renderReportModal(){
       +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+';flex-shrink:0;"></div>'
       +'<span style="font-size:13px;font-weight:700;flex:1;">'+co+'</span>'
       +'<span style="font-size:11px;color:#777;">'+coSites.length+'곳</span>'
-      +'<span id="chev-'+coKey+'" style="font-size:10px;color:#555;">▼</span>'
+      +'<span id="chev-'+coKey+'" style="font-size:10px;color:#555;transition:transform 0.2s;">▼</span>'
       +'</div>'
       +'<div id="cosites-'+coKey+'" style="display:none;">'+sitesHtml+'</div>'
       +'</div>';
@@ -3774,25 +4001,34 @@ function _renderReportModal(){
     ? _reportSelectedDates[0]
     : _reportSelectedDates[0]+' ~ '+_reportSelectedDates[_reportSelectedDates.length-1]+' ('+_reportSelectedDates.length+'일)';
 
-  var html = '<div id="email-modal-wrap" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:600;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(8px);">'
-    +'<div style="background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">'
+  // ── 2패널 레이아웃 (좌: 설정, 우: 미리보기) ──
+  var wrap = document.createElement('div');
+  wrap.id = 'email-modal-wrap';
+  wrap.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:600;align-items:flex-start;justify-content:center;padding:12px;backdrop-filter:blur(8px);overflow-y:auto;';
 
+  // 내부 컨테이너 (2열 → 좁은 화면에서는 1열)
+  var inner = document.createElement('div');
+  inner.style.cssText = 'display:flex;gap:12px;width:100%;max-width:960px;min-height:min-content;margin:auto;align-items:flex-start;flex-wrap:wrap;';
+
+  // ── 좌측: 설정 패널 ──
+  var leftPanel = document.createElement('div');
+  leftPanel.style.cssText = 'flex:1;min-width:300px;background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:16px;';
+  leftPanel.innerHTML = ''
     // 타이틀
     +'<div style="display:flex;align-items:center;justify-content:space-between;">'
     +'<div style="font-size:15px;font-weight:800;color:#00e5a0;">📤 보고 발송</div>'
     +'<button onclick="closeEmailModal()" style="width:30px;height:30px;border-radius:50%;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:15px;cursor:pointer;">✕</button>'
     +'</div>'
 
-    // 날짜 선택 버튼 + 캘린더 팝업
+    // 날짜 범위
     +'<div style="position:relative;">'
     +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">📅 날짜 범위 선택</div>'
     +'<button onclick="toggleCalPicker()" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:\'Noto Sans KR\',sans-serif;">'
     +'<span id="report-date-summary" style="color:#00e5a0;">'+initSummary+'</span>'
     +'<span style="color:#555;font-size:11px;">📅 변경</span>'
     +'</button>'
-
     // 캘린더 팝업
-    +'<div id="cal-picker-popup" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#1a1a1a;border:1px solid #2c2c2c;border-radius:14px;padding:16px;z-index:10;box-shadow:0 8px 32px rgba(0,0,0,0.6);">'
+    +'<div id="cal-picker-popup" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#1a1a1a;border:1px solid #2c2c2c;border-radius:14px;padding:16px;z-index:20;box-shadow:0 8px 32px rgba(0,0,0,0.7);">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
     +'<button onclick="calPickerPrev()" style="width:32px;height:32px;border-radius:8px;border:1px solid #2c2c2c;background:#272727;color:#f0f0f0;font-size:13px;cursor:pointer;">◀</button>'
     +'<div id="cal-picker-title" style="font-size:14px;font-weight:800;font-family:DM Mono,monospace;"></div>'
@@ -3826,20 +4062,103 @@ function _renderReportModal(){
 
     +'<div id="email-send-error" style="display:none;background:rgba(255,77,109,0.1);border:1px solid #3d1a1a;border-radius:8px;padding:9px 12px;font-size:12px;color:#ff4d6d;"></div>'
 
+    // 발송 버튼
     +'<div style="display:flex;gap:8px;">'
     +'<button onclick="closeEmailModal()" style="flex:1;padding:11px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">취소</button>'
     +'<button onclick="doShareKakao()" style="flex:1.2;padding:11px;border-radius:9px;border:none;background:#FEE500;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">💬 카카오 공유</button>'
     +'<button onclick="doSendEmail()" id="email-send-btn" style="flex:1.5;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📧 이메일 발송</button>'
-    +'</div>'
-    +'</div></div>';
+    +'</div>';
 
-  var wrap = document.createElement('div');
-  wrap.id = 'email-modal-wrap';
-  wrap.innerHTML = html;
+  // ── 우측: 미리보기 패널 ──
+  var rightPanel = document.createElement('div');
+  rightPanel.style.cssText = 'flex:1.2;min-width:300px;background:#111;border:1px solid #2c2c2c;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;';
+  rightPanel.innerHTML = ''
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #2c2c2c;background:#161616;">'
+    +'<div style="font-size:13px;font-weight:800;color:#f0f0f0;">👁 미리보기</div>'
+    +'<div style="display:flex;gap:6px;">'
+    +'<button id="prev-tab-email" onclick="switchPreviewTab(\'email\')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #00e5a0;background:rgba(0,229,160,0.15);color:#00e5a0;cursor:pointer;font-weight:700;">이메일</button>'
+    +'<button id="prev-tab-text" onclick="switchPreviewTab(\'text\')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #2c2c2c;background:transparent;color:#777;cursor:pointer;font-weight:700;">카카오/문자</button>'
+    +'</div>'
+    +'</div>'
+    +'<div id="preview-loading" style="padding:40px;text-align:center;color:#555;font-size:13px;">날짜와 현장을 선택하면<br>미리보기가 표시됩니다.</div>'
+    +'<div id="preview-email-panel" style="display:none;flex:1;overflow:auto;background:#f5f5f5;border-radius:0 0 16px 0;">'
+    +'<div id="preview-email-content" style="padding:16px;"></div>'
+    +'</div>'
+    +'<div id="preview-text-panel" style="display:none;flex:1;overflow:auto;padding:16px;">'
+    +'<pre id="preview-text-content" style="font-family:\'Noto Sans KR\',sans-serif;font-size:12px;color:#ccc;line-height:1.8;white-space:pre-wrap;word-break:break-all;margin:0;"></pre>'
+    +'</div>';
+
+  inner.appendChild(leftPanel);
+  inner.appendChild(rightPanel);
+  wrap.appendChild(inner);
   document.body.appendChild(wrap);
 
   // 캘린더 초기 렌더
   _renderCalPicker();
+
+  // 미리보기 초기 로드 (약간 딜레이)
+  _previewCurrentTab = 'email';
+  setTimeout(refreshReportPreview, 300);
+}
+
+// ── 미리보기 탭 전환 ──
+var _previewCurrentTab = 'email';
+function switchPreviewTab(tab){
+  _previewCurrentTab = tab;
+  var ebtn = document.getElementById('prev-tab-email');
+  var tbtn = document.getElementById('prev-tab-text');
+  if(ebtn){ ebtn.style.background = tab==='email'?'rgba(0,229,160,0.15)':'transparent'; ebtn.style.borderColor = tab==='email'?'#00e5a0':'#2c2c2c'; ebtn.style.color = tab==='email'?'#00e5a0':'#777'; }
+  if(tbtn){ tbtn.style.background = tab==='text'?'rgba(254,229,0,0.15)':'transparent'; tbtn.style.borderColor = tab==='text'?'#FEE500':'#2c2c2c'; tbtn.style.color = tab==='text'?'#FEE500':'#777'; }
+  refreshReportPreview();
+}
+
+// ── 미리보기 새로고침 ──
+var _previewRefreshTimer = null;
+function refreshReportPreview(){
+  clearTimeout(_previewRefreshTimer);
+  _previewRefreshTimer = setTimeout(_doRefreshPreview, 600);
+}
+function _doRefreshPreview(){
+  var loading = document.getElementById('preview-loading');
+  var emailPanel = document.getElementById('preview-email-panel');
+  var textPanel = document.getElementById('preview-text-panel');
+  if(!loading) return;
+
+  if(!_reportSelectedDates.length || !Object.values(_reportSelectedSites).some(Boolean)){
+    loading.style.display = ''; emailPanel.style.display='none'; textPanel.style.display='none';
+    loading.textContent = '날짜와 현장을 선택하면 미리보기가 표시됩니다.';
+    return;
+  }
+
+  loading.style.display = '';
+  loading.innerHTML = '<div style="display:inline-block;width:20px;height:20px;border:2px solid #2c2c2c;border-top-color:#00e5a0;border-radius:50%;animation:spin 0.6s linear infinite;"></div><br><span style="font-size:11px;color:#555;margin-top:8px;display:block;">데이터 불러오는 중...</span>';
+  emailPanel.style.display='none'; textPanel.style.display='none';
+
+  _buildReportDataAsync(function(data){
+    var loading2 = document.getElementById('preview-loading');
+    var emailP   = document.getElementById('preview-email-panel');
+    var textP    = document.getElementById('preview-text-panel');
+    if(!loading2) return;
+
+    if(!data || data.empty || !data.results.length){
+      loading2.style.display = '';
+      loading2.innerHTML = '<span style="color:#555;font-size:13px;">선택한 날짜에 해당 현장의 작업이 없습니다.<br><span style="font-size:11px;">(요일, 시작/종료일 기준 필터)</span></span>';
+      emailP.style.display='none'; textP.style.display='none';
+      return;
+    }
+
+    loading2.style.display = 'none';
+
+    if(_previewCurrentTab === 'email'){
+      emailP.style.display = ''; textP.style.display = 'none';
+      var emailContent = document.getElementById('preview-email-content');
+      if(emailContent) emailContent.innerHTML = _buildEmailPreviewHtml(data);
+    } else {
+      textP.style.display = ''; emailP.style.display = 'none';
+      var pre = document.getElementById('preview-text-content');
+      if(pre) pre.textContent = _buildTextReport(data);
+    }
+  });
 }
 
 function toggleCalPicker(){
@@ -3876,6 +4195,7 @@ function toggleReportCompany(co){
     sitesDiv.style.display = isOpen ? 'none' : '';
     if(chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
   }
+  refreshReportPreview();
 }
 function toggleReportSite(el){
   var id = parseInt(el.dataset.siteId);
@@ -3887,11 +4207,13 @@ function toggleReportSite(el){
   var allChecked = coSites.every(function(s){return _reportSelectedSites[s.id];});
   var coChk = document.querySelector('[data-co="'+co+'"]');
   if(coChk) coChk.checked = allChecked;
+  refreshReportPreview();
 }
 function selectAllReportSites(state){
   sites.forEach(function(s){ _reportSelectedSites[s.id] = state; });
   document.querySelectorAll('[data-site-id]').forEach(function(el){ el.checked = state; });
   document.querySelectorAll('[data-co]').forEach(function(el){ el.checked = state; });
+  refreshReportPreview();
 }
 
 // ── Firebase photoFiles 조회 (folderLink 포함) ──
@@ -3899,15 +4221,25 @@ function fbGetPhotoFiles(dateStr, siteId){
   return fetch(FB_URL + '/data/photoFiles/' + dateStr + '/' + siteId + '.json')
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(!d) return { files:[], folderLink:null, count:0 };
+      if(!d) return { files:[], folderLink:null, folderId:null, count:0 };
+      var count = (d.files||[]).length;
+      // photoFiles에 count가 없으면 /data/photos에서 보완
+      if(count === 0){
+        var cached = (reportPhotoData[dateStr]||{})[siteId];
+        if(cached && cached.photos > 0) count = cached.photos;
+      }
       return {
         files: d.files || [],
         folderLink: d.folderLink || null,
         folderId: d.folderId || null,
-        count: (d.files||[]).length
+        count: count
       };
     })
-    .catch(function(){ return { files:[], folderLink:null, count:0 }; });
+    .catch(function(){
+      // photoFiles 조회 실패 시 로컬 캐시로 fallback
+      var cached = (reportPhotoData[dateStr]||{})[siteId];
+      return { files:[], folderLink:null, count: cached && cached.photos > 0 ? cached.photos : 0 };
+    });
 }
 
 // ── 보고 데이터 빌드 (공통, async) ──
@@ -3926,6 +4258,11 @@ function _buildReportDataAsync(callback){
       _reportSelectedDates.forEach(function(dateStr){
         var dow = getDayOfWeek(dateStr);
         if(!s.days || !s.days.includes(dow)) return;
+        // renderReport와 동일한 필터: noReport 제외, 시작/종료일 범위 체크
+        if(s.noReport) return;
+        var dt = new Date(dateStr+'T00:00:00');
+        if(s.startDate && dt < new Date(s.startDate+'T00:00:00')) return;
+        if(s.endDate   && dt > new Date(s.endDate  +'T00:00:00')) return;
         tasks.push({ co:co, site:s, dateStr:dateStr });
       });
     });
@@ -3954,7 +4291,76 @@ function _buildReportDataAsync(callback){
   });
 }
 
-// ── HTML 이메일 빌드 ──
+// ── 미리보기 전용 렌더 (다크 UI 내부용) ──
+function _buildEmailPreviewHtml(data){
+  var dateLabel = data.dateLabel;
+  var results   = data.results;
+  var totalSites  = results.length;
+  var totalPhotos = results.reduce(function(a,r){return a+r.count;},0);
+
+  // 업체별 그룹핑
+  var coGroups = {};
+  results.forEach(function(r){
+    var co = r.task.co;
+    if(!coGroups[co]) coGroups[co] = [];
+    coGroups[co].push(r);
+  });
+
+  var coHtml = Object.keys(coGroups).map(function(co){
+    var col = getCompanyColor(co);
+    var rows = coGroups[co].map(function(r){
+      var hasPhotos = r.count > 0;
+      var statusHtml = hasPhotos
+        ? '<span style="background:rgba(0,229,160,0.15);color:#00e5a0;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:700;">✅ '+r.count+'장</span>'
+        : '<span style="background:rgba(255,77,109,0.15);color:#ff4d6d;border-radius:12px;padding:2px 9px;font-size:11px;font-weight:700;">❌ 미보고</span>';
+      var linkHtml = (hasPhotos && r.folderLink)
+        ? '<a href="'+r.folderLink+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#1a3a5c;color:#7ab8ff;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;text-decoration:none;">📂 폴더</a>'
+        : (hasPhotos ? '<span style="font-size:10px;color:#555;">링크 준비중</span>' : '');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1e1e1e;">'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:12px;font-weight:700;color:#f0f0f0;">📍 '+r.task.site.site+'</div>'
+        +'<div style="font-size:10px;color:#555;font-family:DM Mono,monospace;margin-top:1px;">'+r.task.dateStr+'</div>'
+        +'</div>'
+        +statusHtml
+        +(linkHtml ? '<div style="flex-shrink:0;">'+linkHtml+'</div>' : '')
+        +'</div>';
+    }).join('');
+
+    return '<div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;overflow:hidden;margin-bottom:8px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#1e1e1e;border-bottom:1px solid #2c2c2c;">'
+      +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+';flex-shrink:0;"></div>'
+      +'<div style="font-size:13px;font-weight:800;color:'+col.text+';">'+co+'</div>'
+      +'<div style="font-size:11px;color:#555;margin-left:auto;">'+coGroups[co].length+'곳</div>'
+      +'</div>'
+      +rows
+      +'</div>';
+  }).join('');
+
+  return '<div style="font-family:\'Noto Sans KR\',sans-serif;">'
+    // 헤더 요약
+    +'<div style="display:flex;gap:8px;margin-bottom:12px;">'
+    +'<div style="flex:1;background:#161616;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;text-align:center;">'
+    +'<div style="font-family:DM Mono,monospace;font-size:22px;font-weight:900;color:#7ab8ff;">'+totalSites+'</div>'
+    +'<div style="font-size:10px;color:#555;margin-top:2px;">현장</div>'
+    +'</div>'
+    +'<div style="flex:1;background:#161616;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;text-align:center;">'
+    +'<div style="font-family:DM Mono,monospace;font-size:22px;font-weight:900;color:#00e5a0;">'+totalPhotos+'</div>'
+    +'<div style="font-size:10px;color:#555;margin-top:2px;">사진</div>'
+    +'</div>'
+    +'<div style="flex:1;background:#161616;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;text-align:center;">'
+    +'<div style="font-family:DM Mono,monospace;font-size:22px;font-weight:900;color:'+(totalPhotos>0&&results.every(function(r){return r.count>0;})?'#00e5a0':'#ff4d6d')+';">'
+    +results.filter(function(r){return r.count>0;}).length+'/'+totalSites+'</div>'
+    +'<div style="font-size:10px;color:#555;margin-top:2px;">완료율</div>'
+    +'</div>'
+    +'</div>'
+    // 날짜 라벨
+    +'<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">📅 '+dateLabel+'</div>'
+    // 업체별 목록
+    +coHtml
+    +'</div>';
+}
+
+// ── HTML 이메일 빌드 (실제 발송용 — 흰 배경) ──
 function _buildHtmlEmail(data){
   var dateLabel = data.dateLabel;
   var results   = data.results;
@@ -4583,6 +4989,7 @@ loadFromFirebase(function(){
   renderAll();
   if(isGoogleLoggedIn())updateGoogleUI(true);
   checkGoogleToken();
+  initFormPreviewListeners();
 });
 </script>
 </body>
