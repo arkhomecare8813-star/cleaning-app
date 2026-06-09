@@ -19,6 +19,7 @@ var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '[청소팀] {site
 var sites = JSON.parse(localStorage.getItem('cm-sites')||'[]');
 var appTitle = localStorage.getItem('cm-title')||'청소팀 관리';
 var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
+var settleInvoice = JSON.parse(localStorage.getItem('cm-invoice')||'{}');
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
 var rentBuildings = JSON.parse(localStorage.getItem('cm-rent-buildings')||'[]');
@@ -43,6 +44,11 @@ function saveToFirebase(){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,supplies:supplies,settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE})
   }).catch(function(){});
+}
+function toggleInvoice(key, checked){
+  settleInvoice[key] = checked;
+  localStorage.setItem('cm-invoice', JSON.stringify(settleInvoice));
+  renderSettle();
 }
 
 function isGoogleLoggedIn(){ return googleAccessToken && Date.now() < googleTokenExpiry; }
@@ -472,7 +478,7 @@ main{padding:18px 14px;max-width:1400px;}
         <div class="form-group"><label>현장명 *</label><input type="text" id="f-site" placeholder="예: A동 지하주차장"></div>
         <div class="form-group"><label>담당자</label><input type="text" id="f-mgr" placeholder="예: 김청소"></div>
         <div class="form-group"><label>연락처</label><input type="tel" id="f-phone" placeholder="010-0000-0000"></div>
-        <div class="form-group"><label>사업자등록번호</label><input type="text" id="f-bizno" placeholder="예: 123-45-67890"></div>
+        <div class="form-group"><label>사업자번호 / 주민번호</label><input type="text" id="f-bizno" placeholder="예: 123-45-67890 또는 000000-0000000"></div>
         <div class="form-group"><label>이메일</label><input type="text" id="f-email" placeholder="예: abc@company.com 또는 000000-0000000"></div>
         <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="f-startdate" style="color-scheme:dark;"></div>
         <div class="form-group"><label>서비스 종료일 🔚</label><input type="date" id="f-enddate" style="color-scheme:dark;"></div>
@@ -720,6 +726,7 @@ main{padding:18px 14px;max-width:1400px;}
         </select>
         <button class="excel-btn" onclick="exportExcel1()">&#128202; 엑셀1 정산내역</button>
         <button class="excel-btn" onclick="exportExcel2()" style="background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 엑셀2 이체용</button>
+        <button class="excel-btn" onclick="exportExcel3()" style="background:#2a1a3a;border-color:#6a2d9a;color:#c084fc;">&#128202; 엑셀3 3.3%신고</button>
       </div>
     </div>
     <div id="settle-content"></div>
@@ -778,7 +785,7 @@ main{padding:18px 14px;max-width:1400px;}
       <div class="form-group"><label>현장명 *</label><input type="text" id="e-site"></div>
       <div class="form-group"><label>담당자</label><input type="text" id="e-mgr"></div>
       <div class="form-group"><label>연락처</label><input type="tel" id="e-phone"></div>
-      <div class="form-group"><label>사업자등록번호</label><input type="text" id="e-bizno"></div>
+      <div class="form-group"><label>사업자번호 / 주민번호</label><input type="text" id="e-bizno"></div>
       <div class="form-group"><label>이메일</label><input type="text" id="e-email"></div>
       <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="e-startdate" style="color-scheme:dark;"></div>
       <div class="form-group"><label>서비스 종료일 🔚</label><input type="date" id="e-enddate" style="color-scheme:dark;"></div>
@@ -1046,7 +1053,7 @@ function exportExcel1(){
   const wb=XLSX.utils.book_new();
   const wsData=[];
 
-  const headers=['업체명','현장명','주소','사업자번호','이메일','은행명','계좌번호','청소요일',
+  const headers=['업체명','현장명','주소','사업자번호/주민번호','이메일','은행명','계좌번호','청소요일',
     '원청금액(VAT포함)','원청공급가','원청부가세',
     '하청지급방식','하청금액','부가세(+)/3.3%(-)','하청실지급액','영업이익'];
   wsData.push(headers);
@@ -1121,6 +1128,82 @@ function exportExcel2(){
 
   XLSX.utils.book_append_sheet(wb,ws,'이체목록');
   XLSX.writeFile(wb,`이체목록_${yr}년${mo}월.xlsx`);
+}
+
+function exportExcel3(){
+  if(!sites.length){alert('등록된 현장이 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
+  initSettlePeriod();
+  const yrEl=document.getElementById('settle-year');
+  const moEl=document.getElementById('settle-month');
+  const yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
+  const mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+
+  // 말일 계산
+  const lastDay = new Date(yr, mo, 0).getDate();
+  const dateStr = yr+'-'+(mo<10?'0':'')+mo+'-'+(lastDay<10?'0':'')+lastDay;
+
+  // 3.3% 대상자만 필터
+  const t33sites = sites.filter(function(s){
+    return (s.subtaxtype||'none')==='t33' && (s.priceSub||0)>0;
+  });
+
+  if(!t33sites.length){
+    alert('3.3% 공제 대상 현장이 없습니다.');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+  const wsData = [];
+
+  // 1행: 타이틀
+  wsData.push(['프리랜서(사업소득)']);
+  // 2행: 헤더
+  wsData.push(['번호','성명','주민등록번호','충지급액','소득세','지방소득세','지급액','등록입금금액','소득귀속일','입금날짜']);
+
+  var total충 = 0, total소득세 = 0, total지방 = 0, total지급 = 0;
+
+  t33sites.forEach(function(s, idx){
+    const 충지급액 = s.priceSub || 0;
+    const 소득세   = Math.round(충지급액 * 0.03);
+    const 지방소득세 = Math.round(충지급액 * 0.003);
+    const 지급액   = 충지급액 - 소득세 - 지방소득세;
+
+    total충    += 충지급액;
+    total소득세 += 소득세;
+    total지방   += 지방소득세;
+    total지급   += 지급액;
+
+    wsData.push([
+      idx+1,
+      s.manager || '',
+      s.bizno   || '',
+      충지급액,
+      소득세,
+      지방소득세,
+      지급액,
+      지급액,
+      dateStr,
+      dateStr
+    ]);
+  });
+
+  // 합계행
+  wsData.push(['합계','','', total충, total소득세, total지방, total지급, total지급, '', '']);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // 컬럼 너비
+  ws['!cols'] = [
+    {wch:6},{wch:12},{wch:18},{wch:12},{wch:10},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}
+  ];
+  ws['!rows'] = wsData.map(function(_,i){ return {hpt: i===0||i===1 ? 22 : 18}; });
+
+  // 셀 병합: A1 타이틀
+  ws['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:9}}];
+
+  XLSX.utils.book_append_sheet(wb, ws, '3.3%원천징수');
+  XLSX.writeFile(wb, '3.3%원천징수_'+yr+'년'+mo+'월.xlsx');
 }
 
 // CONFIRM POPUP
@@ -1387,7 +1470,7 @@ function openPopup(id){
   if(s.manager)rows+='<div class="popup-row"><div class="popup-row-icon">&#128100;</div><div class="popup-row-content"><div class="popup-row-lbl">담당자</div><div class="popup-row-val">'+s.manager+'</div></div></div>';
   if(s.phone){var tel=s.phone.replace(/[^0-9+]/g,'');rows+='<div class="popup-row"><div class="popup-row-icon">&#128222;</div><div class="popup-row-content"><div class="popup-row-lbl">연락처</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px;"><a class="popup-phone-link" href="tel:'+tel+'">&#128242; '+s.phone+'</a><a href="sms:'+tel+'" style="display:inline-flex;align-items:center;gap:6px;background:var(--sf2);border:1px solid var(--bd);color:var(--text);font-weight:800;padding:9px 14px;border-radius:9px;text-decoration:none;font-size:14px;">💬 문자</a></div></div></div>';}
   if(s.addr)rows+='<div class="popup-row"><div class="popup-row-icon">&#128205;</div><div class="popup-row-content"><div class="popup-row-lbl">주소</div><div class="popup-row-val" style="font-size:13px">'+s.addr+'</div></div></div>';
-  if(s.bizno)rows+='<div class="popup-row"><div class="popup-row-icon">&#128196;</div><div class="popup-row-content"><div class="popup-row-lbl">사업자번호</div><div class="popup-row-val">'+s.bizno+'</div></div></div>';
+  if(s.bizno)rows+='<div class="popup-row"><div class="popup-row-icon">&#128196;</div><div class="popup-row-content"><div class="popup-row-lbl">사업자번호/주민번호</div><div class="popup-row-val">'+s.bizno+'</div></div></div>';
   if(s.email)rows+='<div class="popup-row"><div class="popup-row-icon">&#128231;</div><div class="popup-row-content"><div class="popup-row-lbl">이메일</div><div class="popup-row-val">'+s.email+'</div></div></div>';
   if(s.bank||s.account)rows+='<div class="popup-row"><div class="popup-row-icon">&#127984;</div><div class="popup-row-content"><div class="popup-row-lbl">계좌정보</div><div class="popup-row-val">'+(s.bank||'')+' '+(s.account||'')+'</div></div></div>';
   if(s.memo)rows+='<div class="popup-row"><div class="popup-row-icon">&#128221;</div><div class="popup-row-content"><div class="popup-row-lbl">메모</div><div class="popup-memo">'+s.memo.replace(/\n/g,'<br>')+'</div></div></div>';
@@ -1879,16 +1962,37 @@ function renderSettle(){
     gSubInput+=cSubInput+coSupplyTotal; gSubAdj+=cSubAdj+coSupplyVat; gSubPayout+=cSubPayout+coSupplyTotal; gProfit+=cProfit-coSupplyTotal; gSubSupply+=cSubSupply+coSupplySupply;
     gSubVat+=cSubVat+coSupplyVat;
 
+    var hasVat = coSites.some(function(s){ return (s.subtaxtype||'none')==='vat' && (s.priceSub||0)>0; });
+    var invoiceKey = 'inv_'+co;
+    var isChecked = settleInvoice[invoiceKey] ? 'checked' : '';
+    var invoiceChk = hasVat
+      ? (function(){
+          var chked = settleInvoice[invoiceKey];
+          var bg  = chked ? 'rgba(74,222,128,0.08)' : 'rgba(255,77,109,0.1)';
+          var bd  = chked ? '#2d6a2d'               : 'rgba(255,77,109,0.5)';
+          var col = chked ? '#4ade80'               : '#ff4d6d';
+          var acc = chked ? '#4ade80'               : '#ff4d6d';
+          var chk = chked ? 'checked'               : '';
+          return '<label onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:5px;cursor:pointer;background:'+bg+';border:1px solid '+bd+';border-radius:6px;padding:3px 9px;">'
+            +'<input type="checkbox" '+chk+' onchange="toggleInvoice(\''+invoiceKey+'\',this.checked)" style="accent-color:'+acc+';width:14px;height:14px;cursor:pointer;">'
+            +'<span style="font-size:11px;font-weight:700;color:'+col+';">계산서발급</span>'
+            +'</label>';
+        })()
+      : '';
+    var has33 = coSites.some(function(s){ return (s.subtaxtype||'none')==='t33' && (s.priceSub||0)>0; });
+    var badge33 = has33 ? '<span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;background:rgba(122,184,255,0.1);border:1px solid rgba(122,184,255,0.4);font-size:11px;font-weight:700;color:#7ab8ff;">3.3% 대상</span>' : '';
     return '<div class="settle-company-block">'
       +'<div class="settle-company-hdr" style="cursor:pointer;" onclick="toggleSettleCo(this)">'
       +'<div class="settle-co-left"><div class="company-dot" style="background:'+col.text+'"></div><div class="settle-co-name">'+co+'</div><div style="font-size:11px;color:var(--muted);margin-left:4px">(현장 '+coSites.length+'곳)</div></div>'
-      +'<div style="display:flex;align-items:center;gap:12px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+      +invoiceChk
+      +badge33
       +'<div class="settle-co-total" style="color:#7ab8ff;">지급 '+fmtN(cSubPayout+coSupplyTotal)+'원</div>'
       +'<div class="settle-co-chevron" style="color:var(--muted);font-size:11px;transition:transform 0.2s;">&#9660;</div>'
       +'</div></div>'
       +'<div class="settle-co-body" style="overflow-x:auto;">'
       +'<table class="settle-table"><thead><tr>'
-      +'<th>현장명</th><th>주소</th><th>사업자번호</th><th>이메일</th><th>은행명</th><th>계좌번호</th><th style="text-align:center">횟수</th>'
+      +'<th>현장명</th><th>주소</th><th>사업자번호/주민번호</th><th>이메일</th><th>은행명</th><th>계좌번호</th><th style="text-align:center">횟수</th>'
       +'<th style="text-align:right">원청금액</th><th style="text-align:right">원청공급가</th><th style="text-align:right">부가세</th>'
       +'<th>하청방식</th><th style="text-align:right">하청금액</th><th style="text-align:right">하청공급가</th><th style="text-align:right">부가세(+)/3.3%(-)</th>'
       +'<th style="text-align:right">하청실지급액</th>'
