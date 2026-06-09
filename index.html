@@ -473,7 +473,7 @@ main{padding:18px 14px;max-width:1400px;}
         <div class="form-group"><label>담당자</label><input type="text" id="f-mgr" placeholder="예: 김청소"></div>
         <div class="form-group"><label>연락처</label><input type="tel" id="f-phone" placeholder="010-0000-0000"></div>
         <div class="form-group"><label>사업자등록번호</label><input type="text" id="f-bizno" placeholder="예: 123-45-67890"></div>
-        <div class="form-group"><label>이메일 / 주민등록번호</label><input type="text" id="f-email" placeholder="예: abc@company.com 또는 000000-0000000"></div>
+        <div class="form-group"><label>이메일</label><input type="text" id="f-email" placeholder="예: abc@company.com 또는 000000-0000000"></div>
         <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="f-startdate" style="color-scheme:dark;"></div>
         <div class="form-group"><label>서비스 종료일 🔚</label><input type="date" id="f-enddate" style="color-scheme:dark;"></div>
       </div>
@@ -718,7 +718,8 @@ main{padding:18px 14px;max-width:1400px;}
         <select id="settle-snapshot-sel" onchange="loadSettleSnapshot(this.value)" style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;display:none;">
           <option value="">📂 저장된 정산 보기</option>
         </select>
-        <button class="excel-btn" onclick="exportExcel()">&#128202; 엑셀 다운로드</button>
+        <button class="excel-btn" onclick="exportExcel1()">&#128202; 엑셀1 정산내역</button>
+        <button class="excel-btn" onclick="exportExcel2()" style="background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 엑셀2 이체용</button>
       </div>
     </div>
     <div id="settle-content"></div>
@@ -778,7 +779,7 @@ main{padding:18px 14px;max-width:1400px;}
       <div class="form-group"><label>담당자</label><input type="text" id="e-mgr"></div>
       <div class="form-group"><label>연락처</label><input type="tel" id="e-phone"></div>
       <div class="form-group"><label>사업자등록번호</label><input type="text" id="e-bizno"></div>
-      <div class="form-group"><label>이메일 / 주민등록번호</label><input type="text" id="e-email"></div>
+      <div class="form-group"><label>이메일</label><input type="text" id="e-email"></div>
       <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="e-startdate" style="color-scheme:dark;"></div>
       <div class="form-group"><label>서비스 종료일 🔚</label><input type="date" id="e-enddate" style="color-scheme:dark;"></div>
     </div>
@@ -1032,7 +1033,7 @@ function importData(e){
 }
 
 // EXCEL EXPORT
-function exportExcel(){
+function exportExcel1(){
   if(!sites.length){alert('등록된 현장이 없습니다.');return;}
   if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
   initSettlePeriod();
@@ -1045,27 +1046,16 @@ function exportExcel(){
   const wb=XLSX.utils.book_new();
   const wsData=[];
 
-  const COLOR={
-    headerBg:'1a3a2a', headerFont:'00e5a0',
-    subBg:'004d36',    subFont:'ffffff',
-    totalBg:'00b37a',  totalFont:'000000',
-    vatFont:'4ade80',  deductFont:'ff8fa0',
-    profitFont:'ffb547',
-    oddBg:'1e1e1e',    evenBg:'161616',
-  };
-
-  const headers=['업체명','현장명','주소','사업자번호','이메일/주민번호','은행명','계좌번호','청소요일',
+  const headers=['업체명','현장명','주소','사업자번호','이메일','은행명','계좌번호','청소요일',
     '원청금액(VAT포함)','원청공급가','원청부가세',
     '하청지급방식','하청금액','부가세(+)/3.3%(-)','하청실지급액','영업이익'];
   wsData.push(headers);
 
   const colWidths=[12,14,24,14,20,8,18,10,14,12,10,14,12,14,12,12];
-  let rowIdx=1;
   let grandMain=0,grandSubPayout=0,grandProfit=0;
 
   companies.forEach((co)=>{
     const coSites=sites.filter(s=>s.company===co);
-    let coMain=0,coSubPayout=0,coProfit=0;
 
     coSites.forEach((s)=>{
       const mt=calcMainTax(s.priceMain||0);
@@ -1074,7 +1064,7 @@ function exportExcel(){
       const profit=(s.priceMain||0)-st.payout;
       const yr2=document.getElementById('settle-year');const mo2=document.getElementById('settle-month');const sYr=yr2?parseInt(yr2.value):today.getFullYear();const sMo=mo2?parseInt(mo2.value)-1:today.getMonth();const totalCount=s.days.reduce(function(sum,dow){var cnt=0;var dim=new Date(sYr,sMo+1,0).getDate();for(var dd=1;dd<=dim;dd++){if(new Date(sYr,sMo,dd).getDay()===dow)cnt++;}return sum+cnt;},0);const daysStr=totalCount+'회';
       const sttLabel=s.subtaxtype==='vat'?'부가세추가(VAT)':s.subtaxtype==='t33'?'3.3%공제':'해당없음';
-      coMain+=s.priceMain||0; coSubPayout+=st.payout; coProfit+=profit;
+      grandMain+=s.priceMain||0; grandSubPayout+=st.payout; grandProfit+=profit;
 
       wsData.push([
         co, s.site, s.addr||'',
@@ -1083,15 +1073,7 @@ function exportExcel(){
         sttLabel, s.priceSub||0,
         subAdj, st.payout, profit
       ]);
-      rowIdx++;
     });
-
-    wsData.push([co+' 소계','','','','','','','',coMain,'','','','','','',coProfit]);
-    rowIdx++;
-    wsData.push([]);
-    rowIdx++;
-
-    grandMain+=coMain; grandSubPayout+=coSubPayout; grandProfit+=coProfit;
   });
 
   wsData.push(['전체 합계','','','','','','','',grandMain,'','','','','','',grandProfit]);
@@ -1102,6 +1084,43 @@ function exportExcel(){
 
   XLSX.utils.book_append_sheet(wb,ws,'정산내역');
   XLSX.writeFile(wb,`정산내역_${yr}년${mo}월.xlsx`);
+}
+
+function exportExcel2(){
+  if(!sites.length){alert('등록된 현장이 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
+  initSettlePeriod();
+  const yrEl=document.getElementById('settle-year');
+  const moEl=document.getElementById('settle-month');
+  const yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
+  const mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+
+  const wb=XLSX.utils.book_new();
+  const wsData=[];
+
+  // 헤더: 은행명 / 계좌번호 / 금액 / 업체명
+  wsData.push(['은행명','계좌번호','금액','업체명']);
+
+  const companies=[...new Set(sites.map(s=>s.company))].sort();
+  companies.forEach((co)=>{
+    const coSites=sites.filter(s=>s.company===co&&s.bank&&s.account&&s.priceSub);
+    coSites.forEach((s)=>{
+      const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
+      wsData.push([
+        s.bank||'',
+        s.account||'',
+        st.payout,
+        co
+      ]);
+    });
+  });
+
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:12},{wch:20},{wch:14},{wch:16}];
+  ws['!rows']=wsData.map((_,i)=>({hpt:i===0?22:18}));
+
+  XLSX.utils.book_append_sheet(wb,ws,'이체목록');
+  XLSX.writeFile(wb,`이체목록_${yr}년${mo}월.xlsx`);
 }
 
 // CONFIRM POPUP
@@ -1869,8 +1888,8 @@ function renderSettle(){
       +'</div></div>'
       +'<div class="settle-co-body" style="overflow-x:auto;">'
       +'<table class="settle-table"><thead><tr>'
-      +'<th>현장명</th><th>주소</th><th>사업자번호</th><th>이메일/주민번호</th><th>은행명</th><th>계좌번호</th><th style="text-align:center">횟수</th>'
-      +'<th style="text-align:right">원청금액</th><th style="text-align:right">공급가</th><th style="text-align:right">부가세</th>'
+      +'<th>현장명</th><th>주소</th><th>사업자번호</th><th>이메일</th><th>은행명</th><th>계좌번호</th><th style="text-align:center">횟수</th>'
+      +'<th style="text-align:right">원청금액</th><th style="text-align:right">원청공급가</th><th style="text-align:right">부가세</th>'
       +'<th>하청방식</th><th style="text-align:right">하청금액</th><th style="text-align:right">하청공급가</th><th style="text-align:right">부가세(+)/3.3%(-)</th>'
       +'<th style="text-align:right">하청실지급액</th>'
       +'</tr></thead><tbody>'
@@ -1894,7 +1913,7 @@ function renderSettle(){
   +'<div class="settle-co-name" style="color:var(--accent)">&#9654; 전체 합계</div>'
   +'<div class="settle-co-total" style="color:#7ab8ff;">지급 '+fmtN(gSubPayout)+'원</div></div>'
   +'<div style="overflow-x:auto;"><table class="settle-table"><thead><tr>'
-  +'<th>구분</th><th style="text-align:right">원청금액</th><th style="text-align:right">공급가</th><th style="text-align:right">부가세</th>'
+  +'<th>구분</th><th style="text-align:right">원청금액</th><th style="text-align:right">원청공급가</th><th style="text-align:right">부가세</th>'
   +'<th>—</th><th style="text-align:right">하청금액</th><th style="text-align:right">하청공급가</th><th style="text-align:right">부가세(+)/3.3%(-)</th>'
   +'<th style="text-align:right">하청실지급액</th>'
   +'</tr></thead><tbody>'
@@ -3208,7 +3227,7 @@ function confirmRentMatch(){
 
 // ── CHECKLIST TAB ──
 // ══════════════════════════════════════════
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbxeiEWGmpPRQt0d97TUsE67brpuohE2gmgESwMqsAqcjeIQnzNeFw1OJN1yfoM3SwCN/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyev2xAqLpO6z9IGZkY3impX1Nzzrvm_0bYeh7Pyvtn70nkjlX2C_Nouudr_fjNAqjg/exec';
 
 // 도단위 약칭 추출 ("경기도" → "경기", "서울특별시" → "서울" 등)
 function _sidoShort(sido){
