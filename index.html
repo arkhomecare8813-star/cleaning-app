@@ -724,9 +724,9 @@ main{padding:18px 14px;max-width:1400px;}
         <select id="settle-snapshot-sel" onchange="loadSettleSnapshot(this.value)" style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;display:none;">
           <option value="">📂 저장된 정산 보기</option>
         </select>
-        <button class="excel-btn" onclick="exportExcel1()">&#128202; 엑셀1 정산내역</button>
-        <button class="excel-btn" onclick="exportExcel2()" style="background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 엑셀2 이체용</button>
-        <button class="excel-btn" onclick="exportExcel3()" style="background:#2a1a3a;border-color:#6a2d9a;color:#c084fc;">&#128202; 엑셀3 3.3%신고</button>
+        <button class="excel-btn" onclick="openExcelPopup(1)" style="min-height:42px;touch-action:manipulation;">&#128202; 총정산</button>
+        <button class="excel-btn" onclick="openExcelPopup(2)" style="min-height:42px;touch-action:manipulation;background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 이체용</button>
+        <button class="excel-btn" onclick="openExcelPopup(3)" style="min-height:42px;touch-action:manipulation;background:#2a1a3a;border-color:#6a2d9a;color:#c084fc;">&#128202; 3.3%신고</button>
       </div>
     </div>
     <div id="settle-content"></div>
@@ -1090,7 +1090,23 @@ function exportExcel1(){
   ws['!rows']=wsData.map((_,i)=>({hpt:i===0?22:18}));
 
   XLSX.utils.book_append_sheet(wb,ws,'정산내역');
-  XLSX.writeFile(wb,`정산내역_${yr}년${mo}월.xlsx`);
+  var filename = '정산내역_'+yr+'년'+mo+'월.xlsx';
+  XLSX.writeFile(wb, filename);
+}
+function buildExcel1(){
+  if(!sites.length||typeof XLSX==='undefined') return null;
+  initSettlePeriod();
+  const yrEl=document.getElementById('settle-year');
+  const moEl=document.getElementById('settle-month');
+  const yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
+  const mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+  var dummy={wb:null,filename:''};
+  // reuse exportExcel1 logic via XLSX capture
+  var _orig=XLSX.writeFile;
+  XLSX.writeFile=function(wb2,fn){ dummy.wb=wb2; dummy.filename=fn; };
+  exportExcel1();
+  XLSX.writeFile=_orig;
+  return dummy;
 }
 
 function exportExcel2(){
@@ -1127,7 +1143,17 @@ function exportExcel2(){
   ws['!rows']=wsData.map((_,i)=>({hpt:i===0?22:18}));
 
   XLSX.utils.book_append_sheet(wb,ws,'이체목록');
-  XLSX.writeFile(wb,`이체목록_${yr}년${mo}월.xlsx`);
+  var filename = '이체목록_'+yr+'년'+mo+'월.xlsx';
+  XLSX.writeFile(wb, filename);
+}
+function buildExcel2(){
+  if(!sites.length||typeof XLSX==='undefined') return null;
+  var dummy={wb:null,filename:''};
+  var _orig=XLSX.writeFile;
+  XLSX.writeFile=function(wb2,fn){ dummy.wb=wb2; dummy.filename=fn; };
+  exportExcel2();
+  XLSX.writeFile=_orig;
+  return dummy;
 }
 
 function exportExcel3(){
@@ -1204,6 +1230,161 @@ function exportExcel3(){
 
   XLSX.utils.book_append_sheet(wb, ws, '3.3%원천징수');
   XLSX.writeFile(wb, '3.3%원천징수_'+yr+'년'+mo+'월.xlsx');
+}
+function buildExcel3(){
+  if(!sites.length||typeof XLSX==='undefined') return null;
+  var dummy={wb:null,filename:''};
+  var _orig=XLSX.writeFile;
+  XLSX.writeFile=function(wb2,fn){ dummy.wb=wb2; dummy.filename=fn; };
+  exportExcel3();
+  XLSX.writeFile=_orig;
+  return dummy;
+}
+
+function openExcelPopup(num){
+  var labels = ['','총정산','이체용','3.3%신고'];
+  var cols   = ['','#4ade80','#7ab8ff','#c084fc'];
+  var label  = labels[num];
+  var col    = cols[num];
+
+  var w = document.createElement('div');
+  w.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:700;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
+  w.onclick = function(e){ if(e.target===w) w.remove(); };
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:22px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;';
+
+  // 타이틀
+  var titleRow = document.createElement('div');
+  titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+  var titleEl = document.createElement('div');
+  titleEl.style.cssText = 'font-size:15px;font-weight:800;color:'+col+';';
+  titleEl.textContent = '📊 '+label;
+  var closeBtn = document.createElement('button');
+  closeBtn.style.cssText = 'width:28px;height:28px;border-radius:50%;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:14px;cursor:pointer;';
+  closeBtn.textContent = '✕';
+  closeBtn.onclick = function(){ w.remove(); };
+  titleRow.appendChild(titleEl);
+  titleRow.appendChild(closeBtn);
+
+  // 다운로드 버튼
+  var dlBtn = document.createElement('button');
+  dlBtn.style.cssText = 'width:100%;padding:13px;border-radius:10px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:14px;font-weight:700;cursor:pointer;text-align:left;touch-action:manipulation;';
+  dlBtn.innerHTML = '⬇️ 다운로드';
+  dlBtn.onclick = function(){
+    w.remove();
+    if(num===1) exportExcel1();
+    else if(num===2) exportExcel2();
+    else exportExcel3();
+  };
+
+  // 이메일 입력 영역
+  var emailLabel = document.createElement('div');
+  emailLabel.style.cssText = 'font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;';
+  emailLabel.textContent = '📧 이메일 발송';
+
+  var inp = document.createElement('input');
+  inp.type = 'email';
+  inp.placeholder = 'example@email.com';
+  inp.style.cssText = 'width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:14px;outline:none;';
+
+  var emailBtn = document.createElement('button');
+  emailBtn.style.cssText = 'width:100%;padding:13px;border-radius:10px;border:none;background:#00e5a0;color:#000;font-size:14px;font-weight:900;cursor:pointer;touch-action:manipulation;';
+  emailBtn.textContent = '📧 이메일로 보내기';
+  emailBtn.onclick = function(){
+    var to = inp.value.trim();
+    if(!to){ showToast('이메일을 입력해주세요.'); return; }
+    w.remove();
+    _doEmailExcel(num, to);
+  };
+
+  // 카카오/공유 버튼
+  var kakaoBtn = document.createElement('button');
+  kakaoBtn.style.cssText = 'width:100%;padding:13px;border-radius:10px;border:none;background:#FEE500;color:#000;font-size:14px;font-weight:900;cursor:pointer;touch-action:manipulation;';
+  kakaoBtn.textContent = '💬 카카오톡 공유';
+  kakaoBtn.onclick = function(){
+    w.remove();
+    _shareExcelKakao(num);
+  };
+
+  // 취소
+  var cancelBtn = document.createElement('button');
+  cancelBtn.style.cssText = 'width:100%;padding:11px;border-radius:10px;border:1px solid #2c2c2c;background:transparent;color:#777;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+  cancelBtn.textContent = '취소';
+  cancelBtn.onclick = function(){ w.remove(); };
+
+  box.appendChild(titleRow);
+  box.appendChild(dlBtn);
+  box.appendChild(emailLabel);
+  box.appendChild(inp);
+  box.appendChild(emailBtn);
+  box.appendChild(kakaoBtn);
+  box.appendChild(cancelBtn);
+  w.appendChild(box);
+  document.body.appendChild(w);
+  setTimeout(function(){ inp.focus(); }, 150);
+}
+
+function _shareExcelKakao(num){
+  var built = num===1 ? buildExcel1() : num===2 ? buildExcel2() : buildExcel3();
+  if(!built||!built.wb){ showToast('❌ 데이터를 생성할 수 없습니다.'); return; }
+  var labels = ['','총정산','이체용','3.3%신고'];
+  var text = '(주)아크멤버스 - '+labels[num]+' ('+built.filename+')\n정산 파일을 공유합니다.';
+  if(navigator.share){
+    navigator.share({ title:'(주)아크멤버스 정산', text:text })
+      .catch(function(e){ if(e.name!=='AbortError') navigator.clipboard.writeText(text).then(function(){ showToast('📋 복사됐어요!'); }); });
+  } else {
+    navigator.clipboard.writeText(text).then(function(){ showToast('📋 복사됐어요!\n카카오톡에 붙여넣기 하세요.'); });
+  }
+}
+
+function _doEmailExcel(num, to){
+  if(!to){ showToast('이메일을 입력해주세요.'); return; }
+  if(!isGoogleLoggedIn()){ showToast('❌ Google 로그인 후 사용 가능합니다'); return; }
+
+  var built = num===1 ? buildExcel1() : num===2 ? buildExcel2() : buildExcel3();
+  if(!built||!built.wb){ showToast('❌ 데이터를 생성할 수 없습니다.'); return; }
+
+  showToast('⏳ 파일 준비 중...');
+
+  // wb → base64
+  var wbout = XLSX.write(built.wb, {bookType:'xlsx', type:'base64'});
+  var filename = built.filename;
+  var subject = '(주)아크멤버스 - ' + filename.replace('.xlsx','');
+
+  // MIME multipart with attachment
+  var boundary = 'boundary_' + Date.now();
+  var mime = 'To: '+to+'\r\n'
+    +'Subject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\n'
+    +'MIME-Version: 1.0\r\n'
+    +'Content-Type: multipart/mixed; boundary="'+boundary+'"\r\n\r\n'
+    +'--'+boundary+'\r\n'
+    +'Content-Type: text/plain; charset=utf-8\r\n'
+    +'Content-Transfer-Encoding: base64\r\n\r\n'
+    +btoa(unescape(encodeURIComponent('안녕하세요,\n\n'+subject+' 파일을 첨부드립니다.\n\n감사합니다.\n(주)아크멤버스')))
+    +'\r\n\r\n'
+    +'--'+boundary+'\r\n'
+    +'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n'
+    +'Content-Transfer-Encoding: base64\r\n'
+    +'Content-Disposition: attachment; filename="'+encodeURIComponent(filename)+'"\r\n\r\n'
+    +wbout+'\r\n\r\n'
+    +'--'+boundary+'--';
+
+  var encoded = btoa(unescape(encodeURIComponent(mime))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+  fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
+    method:'POST',
+    headers:{ Authorization:'Bearer '+googleAccessToken, 'Content-Type':'application/json' },
+    body: JSON.stringify({ raw: encoded })
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.id){
+      showToast('✅ 메일 발송 완료!\n→ '+to);
+    } else {
+      showToast('❌ 발송 실패: '+(d.error&&d.error.message||'오류'));
+    }
+  }).catch(function(){
+    showToast('❌ 네트워크 오류');
+  });
 }
 
 // CONFIRM POPUP
@@ -3499,7 +3680,7 @@ function openChecklistSite(siteId){
     // 공유 버튼
     +'<div style="padding:0 20px 24px;display:flex;gap:8px;">'
     +'<button onclick="clShareKakao('+siteId+')" style="flex:1;padding:11px;border-radius:9px;border:none;background:#FEE500;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">💬 카카오 공유</button>'
-    +'<button onclick="clShareEmail('+siteId+')" style="flex:1.5;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📧 이메일 전송</button>'
+    +'<button onclick="clShareEmail('+siteId+')" style="flex:1;padding:11px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📧 이메일 전송</button>'
     +'</div>';
 
   w.appendChild(box);
