@@ -194,7 +194,8 @@ main{padding:18px 14px;max-width:1400px;}
 .cal-title{font-size:16px;font-weight:800;font-family:'DM Mono',monospace;}
 .cal-nav-btn{width:40px;height:40px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
 .cal-nav-btn:hover{border-color:var(--accent);color:var(--accent);}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.cal-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(44px,1fr));min-width:308px;}
 .cal-dh{padding:9px 3px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid var(--bd);}
 .cal-dh:first-child{color:#ff8fa0;}.cal-dh:last-child{color:#7ab8ff;}
 .cal-cell{height:120px;padding:4px 3px;border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);cursor:pointer;transition:background 0.1s;display:flex;flex-direction:column;}
@@ -627,7 +628,7 @@ main{padding:18px 14px;max-width:1400px;}
         <div class="cal-title" id="cal-title"></div>
         <button class="cal-nav-btn" onclick="changeMonth(1)">&#9654;</button>
       </div>
-      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-scroll"><div class="cal-grid" id="cal-grid"></div></div>
     </div>
   </div>
   <!-- WEEKLY -->
@@ -3759,20 +3760,40 @@ function clLoadFiles(siteId){
         : '';
 
       var grid = files.map(function(f, i){
-        return '<a href="'+f.url+'" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);text-decoration:none;color:inherit;">'
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);">'
           +'<div style="width:36px;height:36px;border-radius:8px;background:#1e1e1e;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🖼️</div>'
           +'<div style="flex:1;min-width:0;">'
           +'<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+f.name+'</div>'
           +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">'+f.uploadedAt.slice(0,10)+'</div>'
           +'</div>'
-          +'<div style="font-size:11px;color:#00e5a0;font-weight:700;flex-shrink:0;">열기 →</div>'
-          +'</a>';
+          +'<a href="'+f.url+'" target="_blank" style="font-size:11px;color:#00e5a0;font-weight:700;flex-shrink:0;text-decoration:none;padding:4px 8px;">열기</a>'
+          +'<button onclick="clDeleteFile('+siteId+','+i+')" style="width:28px;height:28px;border-radius:6px;border:1px solid #3d1a1a;background:rgba(255,77,109,0.1);color:#ff4d6d;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>'
+          +'</div>';
       }).join('');
 
       el.innerHTML = folderBtn + grid;
     }).catch(function(){
       el.innerHTML = '<div style="text-align:center;color:#ff4d6d;font-size:13px;padding:20px 0;">불러오기 실패</div>';
     });
+}
+
+// 체크리스트 파일 삭제
+function clDeleteFile(siteId, idx){
+  showConfirm('사진 삭제', '이 사진을 목록에서 삭제할까요?', function(){
+    fetch(FB_URL+'/data/checklist/'+siteId+'.json')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var files = (d && d.files) ? d.files.slice() : [];
+        files.splice(idx, 1);
+        return fetch(FB_URL+'/data/checklist/'+siteId+'.json', {
+          method:'PUT',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ files:files, folderLink: d&&d.folderLink||null })
+        });
+      })
+      .then(function(){ clLoadFiles(siteId); showToast('🗑 삭제됐습니다.'); })
+      .catch(function(){ showToast('❌ 삭제 실패'); });
+  });
 }
 
 // 체크리스트 파일 업로드
@@ -3812,18 +3833,11 @@ function clUploadFiles(siteId){
               done++;
               // GAS 응답에서 folderLink를 받으면 Firebase에 즉시 저장
               if(d.folderLink && FB_URL && siteId){
-                var fbPath = FB_URL+'/data/checklist/'+siteId+'.json';
-                fetch(fbPath).then(function(r){return r.json();}).then(function(existing){
-                  var fileList = (existing && existing.files) ? existing.files : [];
-                  fetch(fbPath, {
-                    method:'PUT',
-                    headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({
-                      files: fileList,
-                      folderLink: d.folderLink,
-                      updatedAt: new Date().toISOString()
-                    })
-                  });
+                // folderLink만 PATCH — files는 GAS가 관리
+                fetch(FB_URL+'/data/checklist/'+siteId+'.json', {
+                  method:'PATCH',
+                  headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ folderLink: d.folderLink })
                 }).catch(function(){});
               }
             } else {
