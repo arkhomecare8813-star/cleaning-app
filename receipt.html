@@ -153,6 +153,33 @@ function loadSites(defaultSiteId){
     .then(function(data){
       allSites = Array.isArray(data) ? data.filter(function(s){return (s.status||'active')==='active';}) : [];
       var sel = document.getElementById('site-select');
+
+      if(defaultSiteId){
+        // 기본 현장 찾기
+        var target = allSites.find(function(s){ return String(s.id) === String(defaultSiteId); });
+        if(target){
+          // 같은 현장담당자(manager)의 현장만 표시
+          var managerName = target.manager || '';
+          var sameSites = managerName
+            ? allSites.filter(function(s){ return s.manager === managerName; })
+            : [target];
+
+          sel.innerHTML = '<option value="">-- 현장을 선택하세요 --</option>';
+          sameSites.forEach(function(s){
+            var opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.site + ' (' + s.company + ')';
+            sel.appendChild(opt);
+          });
+
+          // 기본 현장 자동 선택
+          sel.value = target.id;
+          onSiteSelect();
+          return;
+        }
+      }
+
+      // siteId 없으면 전체 목록
       sel.innerHTML = '<option value="">-- 현장을 선택하세요 --</option>';
       allSites.forEach(function(s){
         var opt = document.createElement('option');
@@ -160,11 +187,6 @@ function loadSites(defaultSiteId){
         opt.textContent = s.site + ' (' + s.company + ')';
         sel.appendChild(opt);
       });
-      // URL에 siteId 있으면 자동 선택
-      if(defaultSiteId){
-        sel.value = defaultSiteId;
-        onSiteSelect();
-      }
     })
     .catch(function(){ document.getElementById('site-select').innerHTML = '<option value="">현장 불러오기 실패</option>'; });
 }
@@ -286,6 +308,7 @@ function startUpload(){
               data: base64,
               mime: converted.type || 'image/jpeg'
             });
+            console.log('clientEmail 전송값:', selectedSite.clientEmail);
             fetch(GAS_URL, {method:'POST', body:body})
               .then(function(r){return r.json();})
               .then(function(d){
@@ -293,24 +316,24 @@ function startUpload(){
                   done++;
                   // supplies에도 기록 (정산 연동)
                   if(FB_URL && d.url){
-                    var supPath = FB_URL+'/data/supplies.json';
-                    fetch(supPath)
-                      .then(function(r){return r.json();})
-                      .then(function(existing){
-                        var arr = Array.isArray(existing) ? existing : [];
-                        arr.push({
-                          id: Date.now()+Math.floor(Math.random()*1000),
-                          co: selectedSite.company||'',
-                          siteId: String(selectedSite.id),
-                          siteName: selectedSite.site||'',
-                          item: memo||'비품',
-                          amount: amount,
-                          date: date,
-                          receipt: true,
-                          url: d.url
-                        });
-                        fetch(supPath,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(arr)});
-                      }).catch(function(){});
+                    // 개별 키로 저장 (덮어쓰기 방지)
+                    var supId = String(Date.now()+Math.floor(Math.random()*1000));
+                    var supPath = FB_URL+'/data/supplies/'+supId+'.json';
+                    fetch(supPath,{
+                      method:'PUT',
+                      headers:{'Content-Type':'application/json'},
+                      body:JSON.stringify({
+                        id: parseInt(supId),
+                        co: selectedSite.company||'',
+                        siteId: String(selectedSite.id),
+                        siteName: selectedSite.site||'',
+                        item: memo||'비품',
+                        amount: amount,
+                        date: date,
+                        receipt: true,
+                        url: d.url
+                      })
+                    }).catch(function(){});
                   }
                 } else { failed++; console.error('GAS 오류:', d.error); }
                 updateProgress(done+failed, total);
