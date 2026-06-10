@@ -161,8 +161,18 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 // ── 설정 ──
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyev2xAqLpO6z9IGZkY3impX1Nzzrvm_0bYeh7Pyvtn70nkjlX2C_Nouudr_fjNAqjg/exec';
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
-var TG_TOKEN = '8903150945:AAElyUuMWhhrXEvA53-9p5zR6Jt2Vo881Pg';
-var TG_CHAT_ID = '8210077880';
+var TG_TOKEN = '';
+var TG_CHAT_ID = '';
+
+// Firebase에서 텔레그램 설정 로드
+if(FB_URL){
+  fetch(FB_URL+'/data/tgConfig.json')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d && d.token)  TG_TOKEN   = d.token;
+      if(d && d.chatId) TG_CHAT_ID = d.chatId;
+    }).catch(function(){});
+}
 
 var params = {};
 var selectedFiles = [];
