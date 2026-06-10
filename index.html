@@ -4350,11 +4350,10 @@ function _onClientChkChange(el){
   var clientEmail = el.value;
   var checked = el.checked;
 
-  // 해당 이메일 담당자의 현장만 선택/해제
+  // 해당 이메일 담당자의 현장 선택/해제
   sites.forEach(function(s){
     if(s.clientEmail === clientEmail){
       _reportSelectedSites[s.id] = checked;
-      // 업체 체크박스 UI 업데이트
       var siteEl = document.querySelector('[data-site-id="'+s.id+'"]');
       if(siteEl) siteEl.checked = checked;
     }
@@ -4439,7 +4438,8 @@ function openEmailModal(){
   _calRangeEnd   = baseDateStr;
   _reportSelectedDates = [baseDateStr];
   _reportSelectedSites = {};
-  sites.forEach(function(s){ _reportSelectedSites[s.id] = true; });
+  // 기본값: 전체 해제 (거래처담당자 선택으로 자동 선택)
+  sites.forEach(function(s){ _reportSelectedSites[s.id] = false; });
   var d = new Date(baseDateStr+'T00:00:00');
   _calPickerYear  = d.getFullYear();
   _calPickerMonth = d.getMonth();
@@ -5069,6 +5069,15 @@ function doSendEmail(){
   document.querySelectorAll('.client-chk:checked').forEach(function(el){
     checkedClients.push(el.value);
   });
+
+  // 거래처담당자 선택 시 해당 현장 자동 선택
+  if(checkedClients.length){
+    sites.forEach(function(s){
+      if(checkedClients.indexOf(s.clientEmail) > -1){
+        _reportSelectedSites[s.id] = true;
+      }
+    });
+  }
 
   // 추가 수신자
   var extraTo = (document.getElementById('email-to')||{}).value||'';
