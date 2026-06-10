@@ -4149,7 +4149,8 @@ function makeUploadLink(site, dateStr){
     + '&date=' + encodeURIComponent(dateStr)
     + '&siteId=' + encodeURIComponent(site.id)
     + '&title=' + encodeURIComponent(appTitle);
-  if(site.manager) url += '&mgr=' + encodeURIComponent(site.manager);
+  if(site.manager)    url += '&mgr='       + encodeURIComponent(site.manager);
+  if(site.clientMgr)  url += '&clientMgr=' + encodeURIComponent(site.clientMgr);
   return url;
 }
 function makeSmsBody(site, dateStr){
