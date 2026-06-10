@@ -30,6 +30,7 @@ var settleInvoice = JSON.parse(localStorage.getItem('cm-invoice')||'{}');
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
 var rentBuildings = JSON.parse(localStorage.getItem('cm-rent-buildings')||'[]');
+var routines = JSON.parse(localStorage.getItem('cm-routines')||'[]');
 var rentTenants   = JSON.parse(localStorage.getItem('cm-rent-tenants')||'[]');
 var rentPayments  = JSON.parse(localStorage.getItem('cm-rent-payments')||'[]');
 function saveSmsTemplate(t){ SMS_TEMPLATE=t; localStorage.setItem('cm-sms-template',t); saveToFirebase(); }
@@ -468,6 +469,7 @@ main{padding:18px 14px;max-width:1400px;}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;" id="db-kpi"></div>
     <!-- 미보고 알림 -->
     <div id="db-alert" style="margin-bottom:14px;"></div>
+    <div id="db-routine" style="margin-bottom:14px;"></div>
     <!-- 월간 매출 차트 -->
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
@@ -2412,13 +2414,67 @@ function renderDashboard(){
   var alertEl=document.getElementById('db-alert');
   if(todayPending>0){
     var pendingNames=todayWork.filter(function(s){return!(todayData[s.id]&&todayData[s.id].photos>0);}).map(function(s){return s.site;});
-    alertEl.innerHTML='<div style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.35);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
-      +'<span style="font-size:18px;">🚨</span>'
-      +'<div><div style="font-size:13px;font-weight:800;color:#ff4d6d;">오늘 미보고 '+todayPending+'곳</div>'
-      +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+pendingNames.slice(0,5).join(' · ')+(pendingNames.length>5?' 외 '+(pendingNames.length-5)+'곳':'')+'</div></div>'
-      +'<button onclick="switchTab(\'report\')" style="margin-left:auto;padding:6px 14px;border-radius:7px;border:1px solid #ff4d6d;background:transparent;color:#ff4d6d;font-size:12px;font-weight:700;cursor:pointer;">보고 탭으로 →</button>'
+    alertEl.innerHTML='<div onclick="switchTab(\'report\')" style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.35);border-radius:10px;height:56px;padding:0 16px;display:flex;align-items:center;gap:10px;cursor:pointer;overflow:hidden;">'
+      +'<span style="font-size:18px;flex-shrink:0;">🚨</span>'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:800;color:#ff4d6d;">오늘 미보고 '+todayPending+'곳</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+pendingNames.slice(0,5).join(' · ')+(pendingNames.length>5?' 외 '+(pendingNames.length-5)+'곳':'')+'</div></div>'
+      +'<span style="font-size:11px;font-weight:700;color:#ff4d6d;flex-shrink:0;white-space:nowrap;">현장보고탭으로 →</span>'
       +'</div>';
   } else { alertEl.innerHTML=''; }
+
+  // ── 오늘/내일 할일 루틴 ──
+  var routineEl = document.getElementById('db-routine');
+  if(routineEl){
+    var today2 = todayStr();
+    var tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+    var tomorrowStr2 = tomorrow.toISOString().slice(0,10);
+    var todayRoutines    = routines.filter(function(r){ return matchesToday(r, today2); });
+    var tomorrowRoutines = routines.filter(function(r){ return matchesToday(r, tomorrowStr2); });
+
+    var TAB_NAMES = {dashboard:'대시보드',list:'업체/현장',contacts:'주소록',calendar:'월간 캘린더',weekly:'요일별 현황',report:'현장보고',checklist:'체크리스트',supply:'비품',settle:'정산'};
+
+    function makeRoutineBlock(list, bg, border, headerColor, headerText){
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'background:'+bg+';border:1px solid '+border+';border-radius:10px;padding:10px 14px;margin-bottom:8px;';
+      var hdr = document.createElement('div');
+      hdr.style.cssText = 'font-size:11px;font-weight:800;color:'+headerColor+';margin-bottom:8px;';
+      hdr.textContent = headerText;
+      wrap.appendChild(hdr);
+      // 그리드 컨테이너
+      var grid = document.createElement('div');
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:6px;';
+      list.forEach(function(r){
+        var card = document.createElement('div');
+        card.style.cssText = 'display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 10px;border-radius:8px;border:1px solid '+border+';background:rgba(255,255,255,0.03);cursor:'+(r.tab?'pointer':'default')+';overflow:hidden;';
+        var memo = document.createElement('span');
+        memo.style.cssText = 'font-size:12px;font-weight:700;color:#f0f0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;';
+        memo.textContent = r.memo;
+        card.appendChild(memo);
+        var arrow = document.createElement('span');
+        arrow.style.cssText = 'font-size:10px;font-weight:700;color:'+headerColor+';flex-shrink:0;margin-left:6px;white-space:nowrap;';
+        arrow.textContent = r.tab ? (TAB_NAMES[r.tab]||r.tab)+'탭으로' : '';
+        card.appendChild(arrow);
+        if(r.tab) card.addEventListener('click', function(){ switchTab(r.tab); });
+        grid.appendChild(card);
+      });
+      wrap.appendChild(grid);
+      return wrap;
+    }
+
+    routineEl.innerHTML = '';
+    if(todayRoutines.length){
+      routineEl.appendChild(makeRoutineBlock(
+        todayRoutines,
+        'rgba(0,229,160,0.06)', '#004d36', '#00e5a0', '✅ 오늘 할일'
+      ));
+    }
+    if(tomorrowRoutines.length){
+      routineEl.appendChild(makeRoutineBlock(
+        tomorrowRoutines,
+        'rgba(122,184,255,0.05)', 'rgba(122,184,255,0.2)', '#7ab8ff', '📅 내일 할일'
+      ));
+    }
+  }
 
   // ── 월간 차트 (최근 6개월 + 미래 6개월) ──
   var months=[];
@@ -5379,6 +5435,9 @@ function openSettings(){
     +'<input id="tg-chatid-input" type="text" placeholder="Chat ID (예: 8210077880)" value="'+(localStorage.getItem('tg-chat-id')||'')+'" style="width:100%;background:#161616;border:1px solid var(--bd);border-radius:7px;padding:9px 12px;color:var(--text);font-size:12px;outline:none;font-family:DM Mono,monospace;">'
     +'<button onclick="saveTelegramSettings()" style="padding:10px;border-radius:7px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">✅ 저장</button>'
     +'</div>'
+    +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">📋 업무 루틴</div>'
+    +'<div id="routine-list" style="margin-bottom:10px;"></div>'
+    +'<button onclick="openAddRoutineForm()" style="width:100%;padding:10px;border-radius:9px;border:1px dashed #2c2c2c;background:transparent;color:#00e5a0;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:20px;font-family:\'Noto Sans KR\',sans-serif;">&#43; 루틴 추가</button>'
     +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">데이터 백업</div>'
     +'<div style="display:flex;gap:8px;margin-bottom:20px;">'
     +'<button onclick="exportData()" style="flex:1;padding:12px;border-radius:9px;border:1px solid #004d36;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">⬇️ 백업 내보내기</button>'
@@ -5394,7 +5453,385 @@ function openSettings(){
     +'</div>';
   w.appendChild(box);
   document.body.appendChild(w);
+  renderRoutineList();
 }
+// ── 업무 루틴 ──
+function saveRoutines(){
+  localStorage.setItem('cm-routines', JSON.stringify(routines));
+}
+
+function getRoutineLabel(r){
+  if(r.repeatType === 'daily')   return '매일';
+  if(r.repeatType === 'weekday') return ['일','월','화','수','목','금','토'][r.weekday]+'요일마다';
+  if(r.repeatType === 'monthly') return '매월 '+r.monthDay+'일';
+  if(r.repeatType === 'once')    return r.date;
+  return '';
+}
+
+function matchesToday(r, dateStr){
+  var d = new Date(dateStr+'T00:00:00');
+  if(r.repeatType === 'daily')   return true;
+  if(r.repeatType === 'weekday') return d.getDay() === parseInt(r.weekday);
+  if(r.repeatType === 'monthly') return d.getDate() === parseInt(r.monthDay);
+  if(r.repeatType === 'once')    return r.date === dateStr;
+  return false;
+}
+
+function renderRoutineList(){
+  var el = document.getElementById('routine-list');
+  if(!el) return;
+  if(!routines.length){
+    el.innerHTML = '<div style="font-size:12px;color:#555;padding:8px 0;">등록된 루틴이 없어요.</div>';
+    return;
+  }
+  var TAB_NAMES = {'dashboard':'대시보드','list':'업체/현장','contacts':'주소록','calendar':'월간 캘린더','weekly':'요일별 현황','report':'현장보고','checklist':'체크리스트','supply':'비품','settle':'정산'};
+  el.innerHTML = '';
+  routines.forEach(function(r, i){
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1e1e1e;border-radius:8px;border:1px solid #2c2c2c;margin-bottom:5px;cursor:pointer;';
+    var info = document.createElement('div');
+    info.style.cssText = 'flex:1;min-width:0;';
+    var memo = document.createElement('div');
+    memo.style.cssText = 'font-size:12px;font-weight:700;color:#f0f0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    memo.textContent = r.memo;
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:10px;color:#555;margin-top:2px;';
+    sub.textContent = getRoutineLabel(r) + ' · ' + (TAB_NAMES[r.tab]||r.tab||'탭없음');
+    info.appendChild(memo);
+    info.appendChild(sub);
+    // 같은날 추가 버튼
+    var addSameBtn = document.createElement('button');
+    addSameBtn.style.cssText = 'width:26px;height:26px;border-radius:6px;border:1px solid #2c2c2c;background:#272727;color:#7ab8ff;font-size:13px;font-weight:900;cursor:pointer;flex-shrink:0;';
+    addSameBtn.textContent = '＋';
+    addSameBtn.title = '같은 날 할일 추가';
+    addSameBtn.onclick = function(e){ e.stopPropagation(); openEditRoutineForm(i); };
+    // 수정 버튼
+    var editBtn = document.createElement('button');
+    editBtn.style.cssText = 'width:26px;height:26px;border-radius:6px;border:1px solid #2c4a2c;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:11px;cursor:pointer;flex-shrink:0;';
+    editBtn.textContent = '✏️';
+    editBtn.title = '루틴 수정';
+    editBtn.onclick = function(e){ e.stopPropagation(); openModifyRoutineForm(i); };
+    // 삭제 버튼
+    var delBtn = document.createElement('button');
+    delBtn.style.cssText = 'width:26px;height:26px;border-radius:6px;border:1px solid #3d1a1a;background:rgba(255,77,109,0.1);color:#ff4d6d;font-size:12px;cursor:pointer;flex-shrink:0;';
+    delBtn.textContent = '✕';
+    delBtn.onclick = function(e){ e.stopPropagation(); deleteRoutine(i); };
+    row.appendChild(info);
+    row.appendChild(addSameBtn);
+    row.appendChild(editBtn);
+    row.appendChild(delBtn);
+    el.appendChild(row);
+  });
+}
+
+var _editingRoutineIdx = -1;
+
+function openModifyRoutineForm(idx){
+  _editingRoutineIdx = idx;
+  var r = routines[idx];
+  if(!r) return;
+
+  var existing = document.getElementById('add-routine-form');
+  if(existing) existing.remove();
+  var listEl = document.getElementById('routine-list');
+  if(listEl) listEl.style.display = 'none';
+
+  openAddRoutineForm();
+
+  setTimeout(function(){
+    var typeEl = document.getElementById('rt-type');
+    if(typeEl){ typeEl.value = r.repeatType; updateRoutineForm(); }
+    setTimeout(function(){
+      var memoEl = document.getElementById('rt-memo');
+      var tabEl  = document.getElementById('rt-tab');
+      if(memoEl) memoEl.value = r.memo;
+      if(tabEl && r.tab) tabEl.value = r.tab;
+      if(r.repeatType === 'monthly'){
+        var md = document.getElementById('rt-monthday');
+        if(md) md.value = r.monthDay;
+      } else if(r.repeatType === 'once'){
+        var dt = document.getElementById('rt-date');
+        if(dt) dt.value = r.date;
+      } else if(r.repeatType === 'weekday'){
+        var days = r.weekdays||[];
+        document.querySelectorAll('#rt-detail button[data-dow]').forEach(function(btn){
+          if(days.indexOf(parseInt(btn.dataset.dow))>-1){
+            btn.dataset.active='1';
+            btn.style.background='rgba(0,229,160,0.2)';
+            btn.style.color='#00e5a0';
+            btn.style.borderColor='#00e5a0';
+          }
+        });
+        updateWeekdayVal();
+      }
+      var form = document.getElementById('add-routine-form');
+      if(form){
+        var titleEl = form.querySelector('div');
+        if(titleEl) titleEl.textContent = '루틴 수정';
+        var btns = form.querySelectorAll('button');
+        if(btns.length >= 2) btns[btns.length-1].textContent = '✅ 수정 저장';
+        var cancelBtn = btns[0];
+        if(cancelBtn) cancelBtn.onclick = function(){
+          _editingRoutineIdx = -1;
+          form.remove();
+          var listEl2 = document.getElementById('routine-list');
+          if(listEl2) listEl2.style.display = '';
+        };
+      }
+    }, 60);
+  }, 60);
+}
+
+function openEditRoutineForm(idx){
+  // 같은 날짜/요일에 새 할일 추가 (빈 폼, 날짜 조건만 복사)
+  var r = routines[idx];
+  if(!r) return;
+
+  var existing = document.getElementById('add-routine-form');
+  if(existing) existing.remove();
+
+  // 루틴 리스트 숨기기
+  var listEl = document.getElementById('routine-list');
+  if(listEl) listEl.style.display = 'none';
+
+  openAddRoutineForm();
+
+  setTimeout(function(){
+    // 날짜 조건 복사 (메모/탭은 빈칸)
+    var typeEl = document.getElementById('rt-type');
+    if(typeEl){ typeEl.value = r.repeatType; updateRoutineForm(); }
+
+    setTimeout(function(){
+      if(r.repeatType === 'monthly'){
+        var md = document.getElementById('rt-monthday');
+        if(md) md.value = r.monthDay;
+      } else if(r.repeatType === 'once'){
+        var dt = document.getElementById('rt-date');
+        if(dt) dt.value = r.date;
+      } else if(r.repeatType === 'weekday'){
+        var days = r.weekdays || [];
+        document.querySelectorAll('#rt-detail button[data-dow]').forEach(function(btn){
+          if(days.indexOf(parseInt(btn.dataset.dow)) > -1){
+            btn.dataset.active = '1';
+            btn.style.background = 'rgba(0,229,160,0.2)';
+            btn.style.color = '#00e5a0';
+            btn.style.borderColor = '#00e5a0';
+          }
+        });
+        updateWeekdayVal();
+      }
+      // 타이틀 변경
+      var form = document.getElementById('add-routine-form');
+      if(form){
+        var titleEl = form.querySelector('div');
+        if(titleEl) titleEl.textContent = '같은 날 할일 추가';
+      }
+      // 취소 시 리스트 다시 표시
+      var cancelBtn = form && form.querySelector('button');
+      if(cancelBtn){
+        cancelBtn.onclick = function(){
+          _editingRoutineIdx = -1;
+          form.remove();
+          var listEl2 = document.getElementById('routine-list');
+          if(listEl2) listEl2.style.display = '';
+        };
+      }
+    }, 60);
+  }, 60);
+}
+
+function deleteRoutine(idx){
+  routines.splice(idx, 1);
+  saveRoutines();
+  renderRoutineList();
+  renderDashboard();
+}
+
+function openAddRoutineForm(){
+  var existing = document.getElementById('add-routine-form');
+  if(existing){ existing.remove(); return; }
+  var el = document.getElementById('routine-list');
+  if(!el) return;
+
+  var form = document.createElement('div');
+  form.id = 'add-routine-form';
+  form.style.cssText = 'background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:14px;margin-bottom:10px;display:flex;flex-direction:column;gap:10px;';
+
+  var title = document.createElement('div');
+  title.style.cssText = 'font-size:11px;font-weight:800;color:#00e5a0;';
+  title.textContent = '새 루틴 추가';
+
+  // 반복 유형
+  var typeWrap = document.createElement('div');
+  var typeLbl = document.createElement('div');
+  typeLbl.style.cssText = 'font-size:10px;color:#777;margin-bottom:5px;';
+  typeLbl.textContent = '반복 유형';
+  var typeEl = document.createElement('select');
+  typeEl.id = 'rt-type';
+  typeEl.style.cssText = 'width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:7px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;';
+  [['daily','매일'],['weekday','매주 요일'],['monthly','매월 날짜'],['once','특정 날짜']].forEach(function(o){
+    var opt = document.createElement('option'); opt.value=o[0]; opt.textContent=o[1]; typeEl.appendChild(opt);
+  });
+  typeEl.onchange = updateRoutineForm;
+  typeWrap.appendChild(typeLbl); typeWrap.appendChild(typeEl);
+
+  // 동적 옵션
+  var detail = document.createElement('div');
+  detail.id = 'rt-detail';
+
+  // 메모
+  var memoWrap = document.createElement('div');
+  var memoLbl = document.createElement('div');
+  memoLbl.style.cssText = 'font-size:10px;color:#777;margin-bottom:5px;';
+  memoLbl.textContent = '할일 메모 (50자 이내)';
+  var memoEl = document.createElement('input');
+  memoEl.id = 'rt-memo'; memoEl.type='text'; memoEl.maxLength=50;
+  memoEl.placeholder='예: 정산 마감일 확인';
+  memoEl.style.cssText = 'width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:7px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;';
+  memoWrap.appendChild(memoLbl); memoWrap.appendChild(memoEl);
+
+  // 이동 탭
+  var tabWrap = document.createElement('div');
+  var tabLbl = document.createElement('div');
+  tabLbl.style.cssText = 'font-size:10px;color:#777;margin-bottom:5px;';
+  tabLbl.textContent = '클릭 시 이동 탭';
+  var tabEl = document.createElement('select');
+  tabEl.id = 'rt-tab';
+  tabEl.style.cssText = 'width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:7px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;';
+  [['','없음'],['dashboard','대시보드'],['list','업체/현장'],['contacts','주소록'],['calendar','월간 캘린더'],['weekly','요일별 현황'],['report','현장보고'],['checklist','체크리스트'],['supply','비품'],['settle','정산']].forEach(function(o){
+    var opt = document.createElement('option'); opt.value=o[0]; opt.textContent=o[1]; tabEl.appendChild(opt);
+  });
+  tabWrap.appendChild(tabLbl); tabWrap.appendChild(tabEl);
+
+  // 버튼
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:8px;';
+  var cancelBtn = document.createElement('button');
+  cancelBtn.style.cssText = 'flex:1;padding:9px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:13px;font-weight:700;cursor:pointer;';
+  cancelBtn.textContent = '취소';
+  cancelBtn.onclick = function(){ _editingRoutineIdx = -1; form.remove(); };
+  var saveBtn = document.createElement('button');
+  saveBtn.style.cssText = 'flex:2;padding:9px;border-radius:8px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;';
+  saveBtn.textContent = '✅ 저장';
+  saveBtn.onclick = saveNewRoutine;
+  btnRow.appendChild(cancelBtn); btnRow.appendChild(saveBtn);
+
+  form.appendChild(title);
+  form.appendChild(typeWrap);
+  form.appendChild(detail);
+  form.appendChild(memoWrap);
+  form.appendChild(tabWrap);
+  form.appendChild(btnRow);
+
+  el.parentNode.insertBefore(form, el);
+  updateRoutineForm();
+}
+
+function updateRoutineForm(){
+  var type = (document.getElementById('rt-type')||{}).value;
+  var detail = document.getElementById('rt-detail');
+  if(!detail) return;
+  detail.innerHTML = '';
+
+  if(type === 'weekday'){
+    var lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:10px;color:#777;margin-bottom:5px;';
+    lbl.textContent = '요일 선택';
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:4px;';
+    ['일','월','화','수','목','금','토'].forEach(function(d, i){
+      var btn = document.createElement('button');
+      btn.style.cssText = 'flex:1;padding:6px 0;border-radius:6px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:12px;font-weight:700;cursor:pointer;';
+      btn.textContent = d;
+      btn.dataset.dow = i;
+      btn.onclick = function(){
+        var isActive = this.dataset.active === '1';
+        this.dataset.active = isActive ? '0' : '1';
+        this.style.background = isActive ? '#1e1e1e' : 'rgba(0,229,160,0.2)';
+        this.style.color = isActive ? '#777' : '#00e5a0';
+        this.style.borderColor = isActive ? '#2c2c2c' : '#00e5a0';
+        updateWeekdayVal();
+      };
+      row.appendChild(btn);
+    });
+    var hidden = document.createElement('input');
+    hidden.type = 'hidden'; hidden.id = 'rt-weekday'; hidden.value = '';
+    detail.appendChild(lbl);
+    detail.appendChild(row);
+    detail.appendChild(hidden);
+  } else if(type === 'monthly'){
+    detail.innerHTML = '<div style="font-size:10px;color:#777;margin-bottom:5px;">매월 며칠?</div><input id="rt-monthday" type="number" min="1" max="31" placeholder="예: 25" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:7px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;">';
+  } else if(type === 'once'){
+    detail.innerHTML = '<div style="font-size:10px;color:#777;margin-bottom:5px;">날짜 선택</div><input id="rt-date" type="date" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:7px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;color-scheme:dark;">';
+  }
+}
+
+
+function updateWeekdayVal(){
+  var val = [];
+  document.querySelectorAll('#rt-detail button').forEach(function(b){
+    if(b.dataset.active === '1') val.push(b.dataset.dow);
+  });
+  var inp = document.getElementById('rt-weekday');
+  if(inp) inp.value = val.join(',');
+}
+
+function saveNewRoutine(){
+  var type  = (document.getElementById('rt-type') ||{}).value||'daily';
+  var memo  = ((document.getElementById('rt-memo') ||{}).value||'').trim();
+  var tab   = (document.getElementById('rt-tab')  ||{}).value||'';
+  if(!memo){ showToast('할일 메모를 입력해주세요.'); return; }
+
+  var r = { id: Date.now(), repeatType: type, memo: memo, tab: tab };
+
+  if(type === 'weekday'){
+    var wval = (document.getElementById('rt-weekday')||{}).value||'';
+    if(!wval){ showToast('요일을 선택해주세요.'); return; }
+    r.weekdays = wval.split(',').map(Number);
+  } else if(type === 'monthly'){
+    var mday = parseInt((document.getElementById('rt-monthday')||{}).value||'0');
+    if(!mday){ showToast('날짜를 입력해주세요.'); return; }
+    r.monthDay = mday;
+  } else if(type === 'once'){
+    var dt = (document.getElementById('rt-date')||{}).value||'';
+    if(!dt){ showToast('날짜를 선택해주세요.'); return; }
+    r.date = dt;
+  }
+
+  if(_editingRoutineIdx >= 0){
+    // 수정 모드 — 기존 항목 교체
+    routines[_editingRoutineIdx] = r;
+    _editingRoutineIdx = -1;
+    showToast('✅ 루틴이 수정됐어요!');
+  } else {
+    // 추가 모드
+    routines.push(r);
+    showToast('✅ 루틴이 추가됐어요!');
+  }
+
+  saveRoutines();
+  var form = document.getElementById('add-routine-form');
+  if(form) form.remove();
+  var listEl = document.getElementById('routine-list');
+  if(listEl) listEl.style.display = '';
+  renderRoutineList();
+  renderDashboard();
+}
+
+// weekday → 복수 요일 지원으로 matchesToday 수정
+function matchesToday(r, dateStr){
+  var d = new Date(dateStr+'T00:00:00');
+  var dow = d.getDay();
+  if(r.repeatType === 'daily')   return true;
+  if(r.repeatType === 'weekday'){
+    var days = r.weekdays || (r.weekday !== undefined ? [parseInt(r.weekday)] : []);
+    return days.indexOf(dow) > -1;
+  }
+  if(r.repeatType === 'monthly') return d.getDate() === parseInt(r.monthDay);
+  if(r.repeatType === 'once')    return r.date === dateStr;
+  return false;
+}
+
 function saveTelegramSettings(){
   var token  = (document.getElementById('tg-token-input') ||{}).value||'';
   var chatId = (document.getElementById('tg-chatid-input')||{}).value||'';
