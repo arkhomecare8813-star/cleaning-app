@@ -15,7 +15,7 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
-var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n아래 링크에서 사진을 업로드해주세요!\n\n{link}';
+var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || '{link}\n[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n사진을 업로드해주세요!';
 // 모든 전역 변수 맨 위 선언
 var sites = JSON.parse(localStorage.getItem('cm-sites')||'[]');
 var appTitle = localStorage.getItem('cm-title')||'청소팀 관리';
@@ -5212,12 +5212,17 @@ function _showCopyFallback(text){
 }
 
 function openSmsTemplateModal(){
+  var DEFAULT_TPL = '{link}\n[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n사진을 업로드해주세요!';
   var w=document.createElement('div');
   w.id='sms-tpl-wrap';
   w.style.cssText='display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
   var box=document.createElement('div');
   box.style.cssText='background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:22px;width:100%;max-width:420px;';
-  var title=document.createElement('div');title.style.cssText='font-size:15px;font-weight:800;margin-bottom:6px;color:#00e5a0;';title.textContent='⚙️ 문자 양식 수정';box.appendChild(title);
+  var titleRow=document.createElement('div');titleRow.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+  var title=document.createElement('div');title.style.cssText='font-size:15px;font-weight:800;color:#00e5a0;';title.textContent='⚙️ 문자 양식 수정';
+  var resetBtn=document.createElement('button');resetBtn.style.cssText='font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;cursor:pointer;';resetBtn.textContent='기본값으로';
+  resetBtn.onclick=function(){ ta.value=DEFAULT_TPL; preview.textContent='미리보기:\n'+DEFAULT_TPL.replace(/{link}/g,'https://...'); };
+  titleRow.appendChild(title);titleRow.appendChild(resetBtn);box.appendChild(titleRow);
   var hint=document.createElement('div');hint.style.cssText='font-size:11px;color:#777;margin-bottom:14px;line-height:1.6;';hint.textContent='{link}=업로드링크  {date}=날짜  {site}=현장명  {manager}=담당자  {company}=업체명';box.appendChild(hint);
   var ta=document.createElement('textarea');ta.id='sms-tpl-ta';
   ta.style.cssText='width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:14px;outline:none;resize:vertical;min-height:120px;font-family:Noto Sans KR,sans-serif;line-height:1.7;';
