@@ -6068,10 +6068,13 @@ function renderReceipts(){
     el.innerHTML = all.map(function(r){
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);">'
         +'<div style="flex:1;min-width:0;">'
-        +'<div style="font-size:13px;font-weight:700;color:var(--text);">'+r.siteName+'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<span style="font-size:13px;font-weight:700;color:var(--text);">'+r.siteName+'</span>'
+        +(r.amount?'<span style="font-family:DM Mono,monospace;font-size:12px;font-weight:700;color:#ffb547;">'+Number(r.amount).toLocaleString('ko-KR')+'원</span>':'')
+        +'</div>'
         +'<div style="font-size:11px;color:#555;margin-top:2px;">'+r.company+' · '+(r.date||'')+(r.memo?' · '+r.memo:'')+'</div>'
         +'</div>'
-        +'<a href="'+r.url+'" target="_blank" style="font-size:11px;color:#ffb547;font-weight:700;text-decoration:none;flex-shrink:0;">🧾 보기</a>'
+        +(r.url?'<a href="'+r.url+'" target="_blank" style="font-size:11px;color:#ffb547;font-weight:700;text-decoration:none;flex-shrink:0;padding:5px 8px;border:1px solid #3a2800;border-radius:7px;background:rgba(255,181,71,0.08);">🧾 영수증</a>':'')
         +'</div>';
     }).join('');
   });
