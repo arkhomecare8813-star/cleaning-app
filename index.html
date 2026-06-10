@@ -6014,10 +6014,11 @@ function sendReceiptLink(){
 
   var smsBtn=document.createElement('button');
   smsBtn.style.cssText='padding:12px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:13px;font-weight:900;cursor:pointer;';
-  smsBtn.textContent='📱 문자로 보내기';
+  smsBtn.textContent='📱 문자로 보내기'+(site.phone?' ('+site.phone+')':'');
   smsBtn.onclick=function(){
     var body=encodeURIComponent(link+'\n['+appTitle+'] '+site.site+' 영수증 업로드 링크입니다.');
-    window.open('sms:?body='+body);
+    var tel = site.phone ? site.phone.replace(/[^0-9+]/g,'') : '';
+    window.open('sms:'+(tel||'')+  '?body='+body);
     w.remove();
   };
 
