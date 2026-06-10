@@ -1326,15 +1326,53 @@ function openExcelPopup(num){
 }
 
 function _shareExcelKakao(num){
-  var built = num===1 ? buildExcel1() : num===2 ? buildExcel2() : buildExcel3();
-  if(!built||!built.wb){ showToast('❌ 데이터를 생성할 수 없습니다.'); return; }
-  var labels = ['','총정산','이체용','3.3%신고'];
-  var text = '(주)아크멤버스 - '+labels[num]+' ('+built.filename+')\n정산 파일을 공유합니다.';
-  if(navigator.share){
-    navigator.share({ title:'(주)아크멤버스 정산', text:text })
-      .catch(function(e){ if(e.name!=='AbortError') navigator.clipboard.writeText(text).then(function(){ showToast('📋 복사됐어요!'); }); });
+  initSettlePeriod();
+  var yrEl=document.getElementById('settle-year');
+  var moEl=document.getElementById('settle-month');
+  var yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
+  var mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+  var labels=['','총정산','이체용','3.3%신고'];
+
+  var lines = ['📊 (주)아크멤버스 '+labels[num]+' ('+yr+'년 '+mo+'월)',''];
+
+  if(num===1){
+    var companies=[...new Set(sites.map(function(s){return s.company;}))].sort();
+    companies.forEach(function(co){
+      var coSites=sites.filter(function(s){return s.company===co;});
+      var coTotal=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+      lines.push('🏢 '+co+' — 원청 '+coTotal.toLocaleString('ko-KR')+'원');
+    });
+    var grand=sites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+    lines.push('');
+    lines.push('💰 총 원청: '+grand.toLocaleString('ko-KR')+'원');
+  } else if(num===2){
+    var t2=sites.filter(function(s){return s.bank&&s.account&&(s.priceSub||0)>0;});
+    t2.forEach(function(s){
+      var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
+      lines.push(s.bank+' '+s.account+' '+st.payout.toLocaleString('ko-KR')+'원 ('+s.company+')');
+    });
+    var total2=t2.reduce(function(a,s){var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');return a+st.payout;},0);
+    lines.push('');
+    lines.push('💰 총 이체: '+total2.toLocaleString('ko-KR')+'원');
   } else {
-    navigator.clipboard.writeText(text).then(function(){ showToast('📋 복사됐어요!\n카카오톡에 붙여넣기 하세요.'); });
+    var t3=sites.filter(function(s){return (s.subtaxtype||'none')==='t33'&&(s.priceSub||0)>0;});
+    t3.forEach(function(s,i){
+      var 충=s.priceSub||0;
+      var 세=Math.round(충*0.033);
+      var 실=충-세;
+      lines.push((i+1)+'. '+(s.manager||s.site)+' — 충지급 '+충.toLocaleString('ko-KR')+'원 / 실지급 '+실.toLocaleString('ko-KR')+'원');
+    });
+    var total3=t3.reduce(function(a,s){return a+(s.priceSub||0);},0);
+    lines.push('');
+    lines.push('💰 총 지급: '+total3.toLocaleString('ko-KR')+'원');
+  }
+
+  var text=lines.join('\n');
+  if(navigator.share){
+    navigator.share({title:'(주)아크멤버스 '+labels[num], text:text})
+      .catch(function(e){ if(e.name!=='AbortError') navigator.clipboard.writeText(text).then(function(){showToast('📋 복사됐어요!');});});
+  } else {
+    navigator.clipboard.writeText(text).then(function(){showToast('📋 복사됐어요!\n카카오톡에 붙여넣기 하세요.');});
   }
 }
 
@@ -1347,30 +1385,42 @@ function _doEmailExcel(num, to){
 
   showToast('⏳ 파일 준비 중...');
 
-  // wb → base64
-  var wbout = XLSX.write(built.wb, {bookType:'xlsx', type:'base64'});
+  var wbout   = XLSX.write(built.wb, {bookType:'xlsx', type:'base64'});
   var filename = built.filename;
-  var subject = '(주)아크멤버스 - ' + filename.replace('.xlsx','');
+  var subject  = '(주)아크멤버스 - ' + filename.replace('.xlsx','');
+  var bodyText = '안녕하세요,\n\n' + subject + ' 파일을 첨부드립니다.\n\n감사합니다.\n(주)아크멤버스';
 
-  // MIME multipart with attachment
-  var boundary = 'boundary_' + Date.now();
-  var mime = 'To: '+to+'\r\n'
-    +'Subject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=\r\n'
-    +'MIME-Version: 1.0\r\n'
-    +'Content-Type: multipart/mixed; boundary="'+boundary+'"\r\n\r\n'
-    +'--'+boundary+'\r\n'
-    +'Content-Type: text/plain; charset=utf-8\r\n'
-    +'Content-Transfer-Encoding: base64\r\n\r\n'
-    +btoa(unescape(encodeURIComponent('안녕하세요,\n\n'+subject+' 파일을 첨부드립니다.\n\n감사합니다.\n(주)아크멤버스')))
-    +'\r\n\r\n'
-    +'--'+boundary+'\r\n'
-    +'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n'
-    +'Content-Transfer-Encoding: base64\r\n'
-    +'Content-Disposition: attachment; filename="'+encodeURIComponent(filename)+'"\r\n\r\n'
-    +wbout+'\r\n\r\n'
-    +'--'+boundary+'--';
+  // UTF-8 body → base64
+  function utf8ToBase64(str){
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(m,p){return String.fromCharCode('0x'+p);}));
+  }
 
-  var encoded = btoa(unescape(encodeURIComponent(mime))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  var boundary = 'bnd_' + Date.now();
+  var rawLines = [
+    'To: ' + to,
+    'Subject: =?UTF-8?B?' + utf8ToBase64(subject) + '?=',
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="' + boundary + '"',
+    '',
+    '--' + boundary,
+    'Content-Type: text/plain; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    utf8ToBase64(bodyText),
+    '',
+    '--' + boundary,
+    'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'Content-Transfer-Encoding: base64',
+    'Content-Disposition: attachment; filename="' + filename + '"',
+    '',
+    wbout,
+    '',
+    '--' + boundary + '--'
+  ];
+
+  var raw = rawLines.join('\r\n');
+  // base64url encode (ASCII only at this point)
+  var encoded = btoa(raw).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 
   fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
     method:'POST',
@@ -1380,10 +1430,12 @@ function _doEmailExcel(num, to){
     if(d.id){
       showToast('✅ 메일 발송 완료!\n→ '+to);
     } else {
-      showToast('❌ 발송 실패: '+(d.error&&d.error.message||'오류'));
+      console.error('Gmail 오류:', JSON.stringify(d));
+      showToast('❌ 발송 실패: '+(d.error&&d.error.message||JSON.stringify(d)));
     }
-  }).catch(function(){
+  }).catch(function(e){
     showToast('❌ 네트워크 오류');
+    console.error(e);
   });
 }
 
