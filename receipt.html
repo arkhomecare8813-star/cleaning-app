@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>비품 영수증 업로드</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js"></script>
+<style>
+:root{
+  --bg:#0a0a0a;--sf:#161616;--sf2:#1e1e1e;--sf3:#272727;
+  --bd:#2c2c2c;--accent:#ffb547;--a2:#3a2800;
+  --text:#f0f0f0;--muted:#777;--danger:#ff4d6d;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 80px;}
+.wrap{width:100%;max-width:480px;}
+.logo-row{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.logo-icon{width:38px;height:38px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.logo-title{font-size:18px;font-weight:900;letter-spacing:-0.5px;}
+.logo-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;margin-bottom:14px;}
+.info-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.upload-zone{border:2px dashed var(--bd);border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--sf2);}
+.upload-zone.has-files{border-color:var(--accent);border-style:solid;}
+.upload-big-icon{font-size:52px;margin-bottom:12px;line-height:1;}
+.upload-text{font-size:16px;font-weight:800;margin-bottom:5px;}
+.upload-sub{font-size:12px;color:var(--muted);line-height:1.6;}
+#file-input{display:none;}
+.preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;}
+.preview-item{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--sf3);}
+.preview-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.preview-remove{position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.75);color:#fff;border:none;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:900;}
+.upload-btn{width:100%;padding:16px;border-radius:13px;background:var(--accent);border:none;color:#000;font-size:16px;font-weight:900;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;}
+.upload-btn:disabled{background:#2c2c2c;color:#555;cursor:not-allowed;}
+.prog-wrap{display:none;margin-top:14px;}
+.prog-top{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;}
+.prog-bar{height:6px;background:var(--sf2);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s;width:0%;}
+.err-box{display:none;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:12px;font-size:13px;color:var(--danger);margin-top:10px;}
+.success{text-align:center;padding:20px 0;}
+.success-icon{font-size:52px;margin-bottom:12px;}
+.success-title{font-size:20px;font-weight:900;margin-bottom:6px;}
+.success-count{font-family:'DM Mono',monospace;font-size:32px;font-weight:900;color:var(--accent);margin:10px 0;}
+.success-path{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:16px;}
+.select-style{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;}
+.input-style{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;}
+textarea.input-style{resize:vertical;min-height:80px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo-row">
+    <div class="logo-icon">🧾</div>
+    <div>
+      <div class="logo-title" id="app-title">청소팀 관리</div>
+      <div class="logo-sub">비품 영수증 업로드</div>
+    </div>
+  </div>
+
+  <!-- 현장 선택 카드 -->
+  <div class="card" id="site-select-card">
+    <div class="info-lbl">현장 선택</div>
+    <select class="select-style" id="site-select" onchange="onSiteSelect()">
+      <option value="">-- 현장을 선택하세요 --</option>
+    </select>
+    <div id="site-info" style="margin-top:12px;display:none;">
+      <div style="font-size:12px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;">
+        <span id="site-co-label"></span>
+        <span id="site-client-label"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 업로드 카드 -->
+  <div class="card" id="upload-card" style="display:none;">
+    <div style="margin-bottom:14px;">
+      <div class="info-lbl">날짜</div>
+      <input type="date" id="receipt-date" class="input-style" style="color-scheme:dark;">
+    </div>
+    <div style="margin-bottom:14px;">
+      <div class="info-lbl">메모 (선택사항)</div>
+      <textarea id="receipt-memo" class="input-style" placeholder="비품명, 수량, 금액 등을 입력하세요"></textarea>
+    </div>
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-big-icon">🧾</div>
+      <div class="upload-text">영수증 사진을 탭해서 선택</div>
+      <div class="upload-sub">JPG · PNG · HEIC 모두 가능</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*" multiple onchange="handleFiles(this.files)">
+    <div class="preview-grid" id="preview-grid"></div>
+    <button class="upload-btn" id="upload-btn" onclick="startUpload()" disabled>
+      <span id="upload-btn-text">사진을 먼저 선택해주세요</span>
+    </button>
+    <div class="prog-wrap" id="prog-wrap">
+      <div class="prog-top">
+        <span id="prog-text">업로드 중...</span>
+        <span id="prog-pct">0%</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+    </div>
+    <div class="err-box" id="err-box"></div>
+  </div>
+
+  <!-- 완료 카드 -->
+  <div class="card" id="success-card" style="display:none;">
+    <div class="success">
+      <div class="success-icon">✅</div>
+      <div class="success-title">영수증 업로드 완료!</div>
+      <div class="success-count" id="success-count">0장</div>
+      <div class="success-path" id="success-path"></div>
+      <button onclick="resetUpload()" style="padding:12px 28px;border-radius:10px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">추가 업로드</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyev2xAqLpO6z9IGZkY3impX1Nzzrvm_0bYeh7Pyvtn70nkjlX2C_Nouudr_fjNAqjg/exec';
+var FB_URL  = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+var selectedFiles = [];
+var isUploading   = false;
+var selectedSite  = null;
+var allSites      = [];
+
+// ── 초기화 ──
+function init(){
+  // URL 파라미터 파싱
+  var params = {};
+  location.search.slice(1).split('&').forEach(function(p){
+    var i = p.indexOf('=');
+    if(i > -1) params[decodeURIComponent(p.slice(0,i))] = decodeURIComponent(p.slice(i+1));
+  });
+
+  if(params.title) document.getElementById('app-title').textContent = params.title;
+
+  // 오늘 날짜 설정
+  var today = new Date();
+  var dateStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  document.getElementById('receipt-date').value = dateStr;
+
+  // Firebase에서 현장 목록 로드
+  loadSites(params.siteId||'');
+}
+
+function loadSites(defaultSiteId){
+  fetch(FB_URL+'/data/sites.json')
+    .then(function(r){return r.json();})
+    .then(function(data){
+      allSites = Array.isArray(data) ? data.filter(function(s){return (s.status||'active')==='active';}) : [];
+      var sel = document.getElementById('site-select');
+      sel.innerHTML = '<option value="">-- 현장을 선택하세요 --</option>';
+      allSites.forEach(function(s){
+        var opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.site + ' (' + s.company + ')';
+        sel.appendChild(opt);
+      });
+      // URL에 siteId 있으면 자동 선택
+      if(defaultSiteId){
+        sel.value = defaultSiteId;
+        onSiteSelect();
+      }
+    })
+    .catch(function(){ document.getElementById('site-select').innerHTML = '<option value="">현장 불러오기 실패</option>'; });
+}
+
+function onSiteSelect(){
+  var sel = document.getElementById('site-select');
+  var siteId = sel.value;
+  if(!siteId){
+    selectedSite = null;
+    document.getElementById('upload-card').style.display = 'none';
+    document.getElementById('site-info').style.display = 'none';
+    return;
+  }
+  selectedSite = allSites.find(function(s){ return String(s.id) === String(siteId); });
+  if(!selectedSite) return;
+
+  // 현장 정보 표시
+  var infoEl = document.getElementById('site-info');
+  infoEl.style.display = '';
+  document.getElementById('site-co-label').textContent = '🏢 ' + (selectedSite.company||'');
+  document.getElementById('site-client-label').textContent = selectedSite.clientMgr ? '👤 거래처: ' + selectedSite.clientMgr : '';
+
+  document.getElementById('upload-card').style.display = '';
+}
+
+// ── 파일 처리 ──
+function handleFiles(files){
+  var arr = Array.from(files);
+  if(!arr.length) return;
+  arr.forEach(function(f){ if(!selectedFiles.find(function(x){return x.name===f.name;})) selectedFiles.push(f); });
+  renderPreviews();
+  updateBtn();
+}
+
+function renderPreviews(){
+  var grid = document.getElementById('preview-grid');
+  grid.innerHTML = '';
+  var show = selectedFiles.slice(0,9);
+  show.forEach(function(f, idx){
+    var item = document.createElement('div');
+    item.className = 'preview-item';
+    var img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    var rm = document.createElement('button');
+    rm.className = 'preview-remove';
+    rm.textContent = '✕';
+    rm.onclick = function(){ selectedFiles.splice(idx,1); renderPreviews(); updateBtn(); };
+    item.appendChild(img); item.appendChild(rm);
+    grid.appendChild(item);
+  });
+  if(selectedFiles.length > 9){
+    var more = document.createElement('div');
+    more.className = 'preview-more';
+    more.textContent = '+' + (selectedFiles.length-9) + '장 더';
+    grid.appendChild(more);
+  }
+  document.getElementById('upload-zone').classList.toggle('has-files', selectedFiles.length > 0);
+}
+
+function updateBtn(){
+  var btn = document.getElementById('upload-btn');
+  var txt = document.getElementById('upload-btn-text');
+  if(!selectedFiles.length){ btn.disabled=true; txt.textContent='사진을 먼저 선택해주세요'; return; }
+  btn.disabled = false;
+  txt.textContent = '📤 영수증 ' + selectedFiles.length + '장 업로드';
+}
+
+function updateProgress(done, total){
+  var pct = Math.round(done/total*100);
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-pct').textContent = pct+'%';
+  document.getElementById('prog-text').textContent = done+'/'+total+'장 완료';
+}
+
+// ── 업로드 ──
+function startUpload(){
+  if(isUploading || !selectedFiles.length) return;
+  if(!selectedSite){ alert('현장을 선택해주세요.'); return; }
+
+  isUploading = true;
+  document.getElementById('upload-btn').disabled = true;
+  document.getElementById('upload-btn-text').textContent = '업로드 중...';
+  document.getElementById('prog-wrap').style.display = '';
+  document.getElementById('err-box').style.display = 'none';
+  updateProgress(0, selectedFiles.length);
+
+  var date  = document.getElementById('receipt-date').value || new Date().toISOString().slice(0,10);
+  var memo  = document.getElementById('receipt-memo').value.trim();
+  var files = selectedFiles.slice();
+  var done  = 0;
+  var failed = 0;
+  var total  = files.length;
+
+  function uploadOne(file){
+    return new Promise(function(resolve){
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        // HEIC 변환
+        var p = Promise.resolve(file);
+        if(file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')){
+          p = heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 }).catch(function(){ return file; });
+        }
+        p.then(function(converted){
+          var fr2 = new FileReader();
+          fr2.onload = function(ev2){
+            var base64 = ev2.target.result.split(',')[1];
+            var body = JSON.stringify({
+              type: 'receipt',
+              co:   selectedSite.company || '미분류',
+              site: selectedSite.site    || '미분류',
+              date: date,
+              memo: memo,
+              siteId:      String(selectedSite.id),
+              clientEmail: selectedSite.clientEmail || '',
+              clientMgr:   selectedSite.clientMgr   || '',
+              name: 'receipt_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)+'.jpg',
+              data: base64,
+              mime: converted.type || 'image/jpeg'
+            });
+            fetch(GAS_URL, {method:'POST', body:body})
+              .then(function(r){return r.json();})
+              .then(function(d){
+                if(d.ok) done++; else { failed++; console.error('GAS 오류:', d.error); }
+                updateProgress(done+failed, total);
+                resolve();
+              })
+              .catch(function(err){ failed++; updateProgress(done+failed, total); resolve(); });
+          };
+          fr2.readAsDataURL(converted instanceof Blob ? converted : file);
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // 병렬 업로드 (최대 3개)
+  function runPool(arr, concurrency){
+    var queue   = arr.slice();
+    var active  = 0;
+    var results = [];
+    return new Promise(function(resolve){
+      function next(){
+        while(active < concurrency && queue.length){
+          active++;
+          var f = queue.shift();
+          uploadOne(f).then(function(){
+            active--;
+            results.push(1);
+            if(queue.length) next();
+            else if(active === 0) resolve(results);
+          });
+        }
+      }
+      next();
+    });
+  }
+
+  runPool(files, 3).then(function(){
+    isUploading = false;
+    document.getElementById('prog-wrap').style.display = 'none';
+    if(failed === 0){
+      document.getElementById('upload-card').style.display = 'none';
+      var sc = document.getElementById('success-card');
+      sc.style.display = '';
+      document.getElementById('success-count').textContent = done+'장';
+      document.getElementById('success-path').innerHTML =
+        '<strong>'+selectedSite.site+'</strong> 영수증 '+done+'장이<br>성공적으로 저장되었습니다.'
+        +(selectedSite.clientEmail ? '<br><span style="color:#00e5a0;">📧 '+selectedSite.clientMgr+'님께 이메일이 발송됐어요.</span>' : '');
+    } else {
+      var eb = document.getElementById('err-box');
+      eb.textContent = done+'장 성공, '+failed+'장 실패. 실패한 사진을 다시 업로드해주세요.';
+      eb.style.display = '';
+      document.getElementById('upload-btn').disabled = false;
+      document.getElementById('upload-btn-text').textContent = '📤 다시 업로드';
+    }
+  });
+}
+
+function resetUpload(){
+  selectedFiles = [];
+  isUploading   = false;
+  document.getElementById('preview-grid').innerHTML = '';
+  document.getElementById('upload-zone').classList.remove('has-files');
+  document.getElementById('receipt-memo').value = '';
+  document.getElementById('err-box').style.display = 'none';
+  document.getElementById('success-card').style.display = 'none';
+  document.getElementById('upload-card').style.display = selectedSite ? '' : 'none';
+  document.getElementById('file-input').value = '';
+  updateBtn();
+}
+
+init();
+</script>
+</body>
+</html>
