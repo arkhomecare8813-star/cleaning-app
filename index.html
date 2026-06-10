@@ -9,6 +9,7 @@
 <script>
 var GOOGLE_CLIENT_ID = '153086645737-gt2q62bpdboqc0m9op0u4h77gsivfosp.apps.googleusercontent.com';
 var DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/gmail.send';
+window._GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID;
 var googleAccessToken = localStorage.getItem('g-token') || null;
 var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 
@@ -117,6 +118,7 @@ function attachEmailAutocomplete(inputEl){
 
 function isGoogleLoggedIn(){ return googleAccessToken && Date.now() < googleTokenExpiry; }
 function googleLogin(){
+  window._GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID;
   var base = location.href.split('#')[0].split('?')[0];
   window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth'
     + '?client_id=' + GOOGLE_CLIENT_ID
@@ -5571,8 +5573,92 @@ function checkGoogleToken(){
       history.replaceState({},document.title,location.pathname);
       updateGoogleUI(true);
       showToast('✅ Google 로그인 성공! Drive & Gmail 연동 완료');
+      _scheduleTokenRefresh();
     }
+  } else if(isGoogleLoggedIn()){
+    _scheduleTokenRefresh();
   }
+}
+
+// ── Silent Token Refresh ──
+var _tokenRefreshTimer = null;
+function _scheduleTokenRefresh(){
+  clearTimeout(_tokenRefreshTimer);
+  var remaining = googleTokenExpiry - Date.now();
+  // 만료 3분 전에 silent refresh 시도
+  var delay = Math.max(remaining - 3*60*1000, 10*1000);
+  _tokenRefreshTimer = setTimeout(_silentRefresh, delay);
+}
+
+function _silentRefresh(){
+  var CLIENT_ID = document.querySelector('meta[name="g-client-id"]');
+  if(!CLIENT_ID){ _refreshViaIframe(); return; }
+  _refreshViaIframe();
+}
+
+function _refreshViaIframe(){
+  // 기존 googleLogin에서 REDIRECT_URI, CLIENT_ID 추출
+  var loginBtn = document.getElementById('g-login-btn');
+  if(!loginBtn) return;
+
+  // iframe으로 prompt=none silent 재인증
+  var iframe = document.getElementById('g-silent-iframe');
+  if(!iframe){
+    iframe = document.createElement('iframe');
+    iframe.id = 'g-silent-iframe';
+    iframe.style.cssText = 'display:none;width:0;height:0;border:none;position:absolute;';
+    document.body.appendChild(iframe);
+  }
+
+  // googleLogin() 함수에서 URL 파라미터 재사용
+  var authUrl = _buildAuthUrl('none');
+  if(!authUrl) return;
+
+  iframe.src = authUrl;
+
+  // iframe 내 redirect 감지
+  var checkTimer = setInterval(function(){
+    try{
+      var iframeUrl = iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.href;
+      if(iframeUrl && iframeUrl.indexOf('access_token') > -1){
+        clearInterval(checkTimer);
+        var hash = iframeUrl.split('#')[1] || '';
+        var p={};
+        hash.split('&').forEach(function(s){
+          var i=s.indexOf('=');
+          if(i>-1)p[s.slice(0,i)]=decodeURIComponent(s.slice(i+1));
+        });
+        if(p.access_token){
+          googleAccessToken = p.access_token;
+          googleTokenExpiry = Date.now()+(parseInt(p.expires_in||3600)*1000);
+          localStorage.setItem('g-token', googleAccessToken);
+          localStorage.setItem('g-token-exp', String(googleTokenExpiry));
+          updateGoogleUI(true);
+          iframe.src = 'about:blank';
+          _scheduleTokenRefresh();
+        }
+      }
+    } catch(e){
+      // cross-origin 오류는 무시 (redirect 전 상태)
+    }
+  }, 500);
+
+  // 10초 후 포기
+  setTimeout(function(){ clearInterval(checkTimer); iframe.src='about:blank'; }, 10000);
+}
+
+function _buildAuthUrl(prompt){
+  // googleLogin 함수와 동일한 파라미터로 URL 생성
+  var scopes = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/gmail.send';
+  var redirectUri = location.origin + location.pathname;
+  var clientId = window._GOOGLE_CLIENT_ID;
+  if(!clientId) return null;
+  return 'https://accounts.google.com/o/oauth2/v2/auth'
+    +'?client_id='+encodeURIComponent(clientId)
+    +'&redirect_uri='+encodeURIComponent(redirectUri)
+    +'&response_type=token'
+    +'&scope='+encodeURIComponent(scopes)
+    +'&prompt='+(prompt||'none');
 }
 
 loadFromFirebase(function(){
