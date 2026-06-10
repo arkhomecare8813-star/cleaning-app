@@ -207,7 +207,7 @@ function onSiteSelect(){
   var infoEl = document.getElementById('site-info');
   infoEl.style.display = '';
   document.getElementById('site-co-label').textContent = '🏢 ' + (selectedSite.company||'');
-  document.getElementById('site-client-label').textContent = selectedSite.clientMgr ? '👤 거래처: ' + selectedSite.clientMgr : '';
+  document.getElementById('site-client-label').textContent = selectedSite.clientEmail ? '👤 거래처: (주)아크멤버스' : '';
 
   document.getElementById('upload-card').style.display = '';
 }
@@ -380,7 +380,7 @@ function startUpload(){
       document.getElementById('success-count').textContent = done+'장';
       document.getElementById('success-path').innerHTML =
         '<strong>'+selectedSite.site+'</strong> 영수증 '+done+'장이<br>성공적으로 저장되었습니다.'
-        +(selectedSite.clientEmail ? '<br><span style="color:#00e5a0;">📧 '+selectedSite.clientMgr+'님께 이메일이 발송됐어요.</span>' : '');
+        +(selectedSite.clientEmail ? '<br><span style="color:#00e5a0;">📧 (주)아크멤버스님께 이메일이 발송됐어요.</span>' : '');
     } else {
       var eb = document.getElementById('err-box');
       eb.textContent = done+'장 성공, '+failed+'장 실패. 실패한 사진을 다시 업로드해주세요.';
