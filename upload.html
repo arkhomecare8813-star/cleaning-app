@@ -132,6 +132,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <button class="upload-btn" id="upload-btn" onclick="startUpload()" disabled>
       <span id="upload-btn-text">사진을 먼저 선택해주세요</span>
     </button>
+    <textarea id="memo-input" placeholder="📝 에로사항 메모 (선택사항)&#10;특이사항, 요청사항 등을 입력하세요" style="width:100%;margin-top:12px;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:10px;padding:12px;color:#f0f0f0;font-size:14px;font-family:'Noto Sans KR',sans-serif;resize:vertical;min-height:80px;outline:none;line-height:1.6;"></textarea>
     <div class="prog-wrap" id="prog-wrap">
       <div class="prog-top">
         <span id="prog-text">업로드 중...</span>
@@ -160,6 +161,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 // ── 설정 ──
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyev2xAqLpO6z9IGZkY3impX1Nzzrvm_0bYeh7Pyvtn70nkjlX2C_Nouudr_fjNAqjg/exec';
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
+var TG_TOKEN = '8903150945:AAElyUuMWhhrXEvA53-9p5zR6Jt2Vo881Pg';
+var TG_CHAT_ID = '8210077880';
 
 var params = {};
 var selectedFiles = [];
@@ -441,6 +444,11 @@ function onDone(done, failed){
     document.getElementById('success-count').textContent = done + '장';
     document.getElementById('success-path').innerHTML =
       '<strong>' + (params.site || '') + '</strong> 현장 사진 ' + done + '장이<br>성공적으로 저장되었습니다.';
+
+    // 텔레그램 알림 발송 (메모 있을 때만)
+    var memo = (document.getElementById('memo-input')||{}).value||'';
+    memo = memo.trim();
+    if(memo) sendTelegramNotification(done, memo);
   } else {
     var eb = document.getElementById('err-box');
     eb.textContent = done + '장 성공, ' + failed + '장 실패. 실패한 사진을 다시 업로드해주세요.';
@@ -453,6 +461,42 @@ function onDone(done, failed){
 }
 
 // ── 초기화 (추가 업로드용) ──
+function sendTelegramNotification(photoCount, memo){
+  if(!TG_TOKEN || !TG_CHAT_ID) return;
+
+  var site    = params.site    || '알 수 없는 현장';
+  var co      = params.co      || '';
+  var mgr     = params.clientMgr || params.mgr || '';
+  var date    = params.date    || '';
+
+  // 발신명: 현장명 · 거래처담당자
+  var sender = site + (mgr ? ' · ' + mgr : '');
+
+  var lines = [
+    '📸 <b>' + sender + '</b>',
+    '📅 ' + date + ' | 📷 ' + photoCount + '장 업로드',
+  ];
+  if(co) lines.push('🏢 ' + co);
+  if(memo){
+    lines.push('');
+    lines.push('📝 <b>에로사항</b>');
+    lines.push(memo);
+  }
+
+  var text = lines.join('
+');
+
+  fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: TG_CHAT_ID,
+      text: text,
+      parse_mode: 'HTML'
+    })
+  }).catch(function(){});
+}
+
 function resetUpload(){
   selectedFiles = [];
   document.getElementById('preview-grid').innerHTML = '';
