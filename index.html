@@ -758,6 +758,29 @@ main{padding:18px 14px;max-width:1400px;}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div style="font-size:15px;font-weight:800;">🛒 비품 구매 내역</div>
     </div>
+
+    <!-- 영수증 링크 발송 -->
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;color:#ffb547;margin-bottom:12px;">🧾 영수증 업로드 링크 발송</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <select id="receipt-link-site" style="flex:1;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;">
+          <option value="">현장 선택</option>
+        </select>
+        <button onclick="sendReceiptLink()" style="padding:8px 14px;border-radius:8px;border:none;background:#ffb547;color:#000;font-size:13px;font-weight:900;cursor:pointer;white-space:nowrap;">링크 발송</button>
+      </div>
+    </div>
+
+    <!-- 영수증 목록 -->
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:#ffb547;">🧾 영수증 목록</div>
+        <select id="receipt-filter-site" onchange="renderReceipts()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:5px 8px;color:var(--text);font-size:12px;outline:none;">
+          <option value="">전체 현장</option>
+        </select>
+      </div>
+      <div id="receipt-list"><div style="text-align:center;color:#555;font-size:13px;padding:20px 0;">영수증이 없습니다.</div></div>
+    </div>
+
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px;">
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:14px;">+ 비품 추가</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -4186,7 +4209,7 @@ function switchTab(name){
   if(name==='dashboard')renderDashboard();
   if(name==='contacts'){initContactsSido();renderContacts();}
   if(name==='settle'){renderSettle();updateSnapshotSel();}
-  if(name==='supply')renderSupply();
+  if(name==='supply'){ renderSupply(); initReceiptSelects(); renderReceipts(); }
   if(name==='report'){renderReport();}
   if(name==='checklist')renderChecklist();
   if(name==='list'){initFormPreviewListeners();updateFormPreview();}
@@ -5938,6 +5961,118 @@ function deleteSupply(id){
   showConfirm('비품 삭제','이 항목을 삭제할까요?',function(){
     supplies=supplies.filter(function(s){return s.id!==id;});
     saveSupplies();renderSupply();
+  });
+}
+
+// ── 영수증 링크 발송 ──
+function initReceiptSelects(){
+  var linkSel   = document.getElementById('receipt-link-site');
+  var filterSel = document.getElementById('receipt-filter-site');
+  if(!linkSel || !filterSel) return;
+
+  var activeSites = sites.filter(function(s){ return (s.status||'active')==='active'; });
+  linkSel.innerHTML   = '<option value="">현장 선택</option>';
+  filterSel.innerHTML = '<option value="">전체 현장</option>';
+  activeSites.forEach(function(s){
+    var opt1 = document.createElement('option'); opt1.value=s.id; opt1.textContent=s.site+' ('+s.company+')';
+    var opt2 = document.createElement('option'); opt2.value=s.id; opt2.textContent=s.site+' ('+s.company+')';
+    linkSel.appendChild(opt1);
+    filterSel.appendChild(opt2);
+  });
+}
+
+function sendReceiptLink(){
+  var sel = document.getElementById('receipt-link-site');
+  var siteId = sel && sel.value;
+  if(!siteId){ showToast('현장을 선택해주세요.'); return; }
+  var site = sites.find(function(s){ return String(s.id)===String(siteId); });
+  if(!site){ showToast('현장 정보를 찾을 수 없습니다.'); return; }
+
+  var base = location.href.split('/index.html')[0].split('#')[0].split('?')[0];
+  if(base.slice(-1)==='/') base=base.slice(0,-1);
+  var link = base+'/receipt.html?siteId='+encodeURIComponent(site.id)+'&title='+encodeURIComponent(appTitle);
+
+  // 공유 팝업
+  var w = document.createElement('div');
+  w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:700;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
+  w.onclick=function(e){if(e.target===w)w.remove();};
+  var box=document.createElement('div');
+  box.style.cssText='background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:22px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px;';
+
+  var titleEl=document.createElement('div');
+  titleEl.style.cssText='font-size:14px;font-weight:800;color:#ffb547;';
+  titleEl.textContent='🧾 '+site.site+' 영수증 링크';
+
+  var linkBox=document.createElement('div');
+  linkBox.style.cssText='background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px;font-size:11px;color:#777;word-break:break-all;font-family:DM Mono,monospace;';
+  linkBox.textContent=link;
+
+  var copyBtn=document.createElement('button');
+  copyBtn.style.cssText='padding:12px;border-radius:9px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;';
+  copyBtn.textContent='🔗 링크 복사';
+  copyBtn.onclick=function(){ navigator.clipboard.writeText(link).then(function(){ showToast('📋 링크가 복사됐어요!'); w.remove(); }); };
+
+  var smsBtn=document.createElement('button');
+  smsBtn.style.cssText='padding:12px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:13px;font-weight:900;cursor:pointer;';
+  smsBtn.textContent='📱 문자로 보내기';
+  smsBtn.onclick=function(){
+    var body=encodeURIComponent(link+'\n['+appTitle+'] '+site.site+' 영수증 업로드 링크입니다.');
+    window.open('sms:?body='+body);
+    w.remove();
+  };
+
+  var closeBtn=document.createElement('button');
+  closeBtn.style.cssText='padding:10px;border-radius:9px;border:1px solid #2c2c2c;background:transparent;color:#777;font-size:13px;font-weight:700;cursor:pointer;';
+  closeBtn.textContent='닫기';
+  closeBtn.onclick=function(){w.remove();};
+
+  box.appendChild(titleEl); box.appendChild(linkBox);
+  box.appendChild(copyBtn); box.appendChild(smsBtn); box.appendChild(closeBtn);
+  w.appendChild(box); document.body.appendChild(w);
+}
+
+function renderReceipts(){
+  var el = document.getElementById('receipt-list');
+  if(!el) return;
+  el.innerHTML = '<div style="text-align:center;color:#555;font-size:13px;padding:20px 0;">불러오는 중...</div>';
+
+  var filterSiteId = (document.getElementById('receipt-filter-site')||{}).value||'';
+  var targetSites = sites.filter(function(s){
+    return (s.status||'active')==='active' && (!filterSiteId || String(s.id)===String(filterSiteId));
+  });
+
+  // 각 현장의 영수증 로드
+  var fetches = targetSites.map(function(s){
+    return fetch(FB_URL+'/data/receipts/'+s.id+'.json')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d) return [];
+        return Object.entries(d).map(function(kv){
+          return Object.assign({}, kv[1], { siteId: s.id, siteName: s.site, company: s.company });
+        });
+      })
+      .catch(function(){ return []; });
+  });
+
+  Promise.all(fetches).then(function(results){
+    var all = [].concat.apply([], results);
+    // 날짜 내림차순 정렬
+    all.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+
+    if(!all.length){
+      el.innerHTML='<div style="text-align:center;color:#555;font-size:13px;padding:20px 0;">영수증이 없습니다.</div>';
+      return;
+    }
+
+    el.innerHTML = all.map(function(r){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);">'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--text);">'+r.siteName+'</div>'
+        +'<div style="font-size:11px;color:#555;margin-top:2px;">'+r.company+' · '+(r.date||'')+(r.memo?' · '+r.memo:'')+'</div>'
+        +'</div>'
+        +'<a href="'+r.url+'" target="_blank" style="font-size:11px;color:#ffb547;font-weight:700;text-decoration:none;flex-shrink:0;">🧾 보기</a>'
+        +'</div>';
+    }).join('');
   });
 }
 
