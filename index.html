@@ -4335,6 +4335,33 @@ function renderReport(){
   });
 }
 
+// ── 거래처담당자 체크 → 해당 현장 자동 선택 + 미리보기 갱신 ──
+function _onClientChkChange(el){
+  var clientEmail = el.value;
+  var checked = el.checked;
+
+  // 해당 이메일 담당자의 현장만 선택/해제
+  sites.forEach(function(s){
+    if(s.clientEmail === clientEmail){
+      _reportSelectedSites[s.id] = checked;
+      // 업체 체크박스 UI 업데이트
+      var siteEl = document.querySelector('[data-site-id="'+s.id+'"]');
+      if(siteEl) siteEl.checked = checked;
+    }
+  });
+
+  // 업체 헤더 체크박스 상태 동기화
+  var cos = [...new Set(sites.map(function(s){return s.company;}))];
+  cos.forEach(function(co){
+    var coSites = sites.filter(function(s){return s.company===co;});
+    var allChecked = coSites.every(function(s){return _reportSelectedSites[s.id];});
+    var coChk = document.querySelector('[data-co="'+co+'"]');
+    if(coChk) coChk.checked = allChecked;
+  });
+
+  refreshReportPreview();
+}
+
 // ── 미보고 Skip ──
 function skipUnreported(siteId, dateStr){
   var fbPath = FB_URL+'/data/reportLog/'+siteId+'/'+dateStr+'.json';
@@ -4635,7 +4662,7 @@ function _renderReportModal(){
       });
       if(!clients.length) return '';
       var items = clients.map(function(c){
-        return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;cursor:pointer;margin-bottom:5px;">'          +'<input type="checkbox" class="client-chk" value="'+c.email+'" style="accent-color:#00e5a0;width:15px;height:15px;cursor:pointer;">'          +'<span style="font-size:13px;font-weight:700;color:#f0f0f0;flex:1;">'+c.name+'</span>'          +'<span style="font-size:11px;color:#555;">'+c.email+'</span>'          +'</label>';
+        return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;cursor:pointer;margin-bottom:5px;">'          +'<input type="checkbox" class="client-chk" value="'+c.email+'" onchange="_onClientChkChange(this)" style="accent-color:#00e5a0;width:15px;height:15px;cursor:pointer;">'          +'<span style="font-size:13px;font-weight:700;color:#f0f0f0;flex:1;">'+c.name+'</span>'          +'<span style="font-size:11px;color:#555;">'+c.email+'</span>'          +'</label>';
       }).join('');
       return '<div style="margin-bottom:12px;">'        +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">👤 거래처 담당자</div>'        +items        +'</div>';
     })()
