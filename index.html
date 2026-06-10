@@ -2784,7 +2784,7 @@ function openKpiPopup(key){
         +'<button onclick="copyUploadLink(\''+s.id+'\',\''+todayS+'\')" style="padding:5px 12px;border-radius:6px;border:1px solid #2c2c2c;background:transparent;color:#7ab8ff;font-size:11px;font-weight:700;cursor:pointer;">🔗 링크복사</button>'
         +'</div></div></div>';
     }).join('')
-    +(pendingSites.length>1?'<button onclick="sendSmsAllPending(\''+todayS+'\');renderDashboard();" style="width:100%;margin-top:12px;padding:10px;border-radius:8px;border:none;background:#ff4d6d;color:#fff;font-size:13px;font-weight:900;cursor:pointer;">📱 전체 '+pendingSites.length+'곳 일괄 발송</button>':'')
+
     :'<div style="padding:20px 0;text-align:center;color:#00e5a0;font-size:14px;font-weight:700;">✅ 오늘 모든 현장 보고 완료!</div>';
   }
 
@@ -4211,7 +4211,7 @@ function renderReport(){
     +'</div>';
 
   if(pendingCount>0){
-    html+='<button onclick="sendSmsAllPending(\''+today+'\')" style="width:100%;padding:12px;border-radius:10px;border:none;background:#ff4d6d;color:#fff;font-size:14px;font-weight:900;cursor:pointer;margin-bottom:14px;font-family:\'Noto Sans KR\',sans-serif;">📱 미완료 '+pendingCount+'곳 전체 재발송</button>';
+
   } else if(workSites.length>0){
     html+='<div style="text-align:center;padding:10px;background:rgba(0,229,160,0.07);border:1px solid #004d36;border-radius:10px;margin-bottom:14px;font-size:13px;font-weight:700;color:#00e5a0;">✅ 오늘 모든 현장 사진 접수 완료!</div>';
   }
@@ -4325,7 +4325,7 @@ function renderReport(){
         +'<div style="font-size:11px;color:#777;">(작업 '+coWork.length+'곳)</div>'
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:8px;">'
-        +(coWork.length>0?'<button onclick="sendSmsAll(\''+co+'\',\''+today+'\')" style="padding:4px 9px;border-radius:6px;border:1px solid #3a2800;background:rgba(58,40,0,0.5);color:#ffb547;font-size:10px;font-weight:700;cursor:pointer;">📱 전체발송</button>':'')
+
         +'<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:700;color:'+(coWork.length>0?(coOk===coWork.length?'#00e5a0':'#ff4d6d'):'#555')+'">'+(coWork.length>0?coOk+'/'+coWork.length:'—')+'</div>'
         +'</div></div>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:12px;">'+cards+'</div>'
