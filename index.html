@@ -5356,6 +5356,12 @@ function openSettings(){
     +'<button onclick="document.getElementById(\'settings-wrap\').remove()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;">✕</button>'
     +'</div>'
     +'<div style="padding:20px;">'
+    +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">📱 텔레그램 알림 설정</div>'
+    +'<div style="background:var(--sf2);border-radius:9px;padding:14px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;">'
+    +'<input id="tg-token-input" type="text" placeholder="Bot Token (예: 123456:ABCdef...)" value="'+(localStorage.getItem('tg-token')||'')+'" style="width:100%;background:#161616;border:1px solid var(--bd);border-radius:7px;padding:9px 12px;color:var(--text);font-size:12px;outline:none;font-family:DM Mono,monospace;">'
+    +'<input id="tg-chatid-input" type="text" placeholder="Chat ID (예: 8210077880)" value="'+(localStorage.getItem('tg-chat-id')||'')+'" style="width:100%;background:#161616;border:1px solid var(--bd);border-radius:7px;padding:9px 12px;color:var(--text);font-size:12px;outline:none;font-family:DM Mono,monospace;">'
+    +'<button onclick="saveTelegramSettings()" style="padding:10px;border-radius:7px;border:none;background:#00e5a0;color:#000;font-size:13px;font-weight:900;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">✅ 저장</button>'
+    +'</div>'
     +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">데이터 백업</div>'
     +'<div style="display:flex;gap:8px;margin-bottom:20px;">'
     +'<button onclick="exportData()" style="flex:1;padding:12px;border-radius:9px;border:1px solid #004d36;background:rgba(0,229,160,0.08);color:#00e5a0;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">⬇️ 백업 내보내기</button>'
@@ -5372,6 +5378,22 @@ function openSettings(){
   w.appendChild(box);
   document.body.appendChild(w);
 }
+function saveTelegramSettings(){
+  var token  = (document.getElementById('tg-token-input') ||{}).value||'';
+  var chatId = (document.getElementById('tg-chatid-input')||{}).value||'';
+  token  = token.trim();
+  chatId = chatId.trim();
+  localStorage.setItem('tg-token',   token);
+  localStorage.setItem('tg-chat-id', chatId);
+  // Firebase에도 저장
+  fetch(FB_URL+'/data/tgConfig.json',{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ token: token, chatId: chatId })
+  }).then(function(){ showToast('✅ 텔레그램 설정 저장됐어요!'); document.getElementById('settings-wrap').remove(); })
+    .catch(function(){ showToast('❌ 저장 실패'); });
+}
+
 function saveSupplies(){ localStorage.setItem('cm-supplies', JSON.stringify(supplies)); saveToFirebase(); }
 
 function updateSpSites(){
