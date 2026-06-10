@@ -67,16 +67,17 @@ function googleLogout(){
   updateGoogleUI(false);
 }
 function updateGoogleUI(on){
-  var dot = document.getElementById('g-dot');
-  var txt = document.getElementById('g-txt');
-  var sub = document.getElementById('g-sub');
+  var dot  = document.getElementById('g-dot');
+  var txt  = document.getElementById('g-txt');
+  var sub  = document.getElementById('g-sub');
   var lbtn = document.getElementById('g-login-btn');
   var obtn = document.getElementById('g-logout-btn');
+  if(lbtn) lbtn.style.display = on ? 'none' : '';
+  if(obtn) obtn.style.display = on ? '' : 'none';
   if(!dot) return;
   if(on){
     dot.style.background='#00e5a0'; txt.textContent='Google 연동 완료 ✓';
     sub.textContent='Drive 사진 저장 · Gmail 발송 활성화됨';
-    lbtn.style.display='none'; obtn.style.display='';
   } else {
     dot.style.background='#ff4d6d'; txt.textContent='Google 연동 필요';
     sub.textContent='Drive 사진 저장 · Gmail 발송을 사용하려면 로그인하세요';
@@ -368,8 +369,12 @@ main{padding:18px 14px;max-width:1400px;}
     </div>
     <input class="title-input" id="title-input" style="display:none" onblur="saveTitle()" onkeydown="if(event.key==='Enter')saveTitle()">
   </div>
-  <button onclick="openRentApp()" style="margin-left:auto;padding:0 12px;height:36px;border-radius:9px;border:1px solid #2c2c2c;background:#1a1a1a;color:#ffb547;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:5px;flex-shrink:0;font-family:'Noto Sans KR',sans-serif;">🏠 임대관리</button>
-  <button onclick="openSettings()" style="width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px;">⚙️</button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <button id="g-login-btn" onclick="googleLogin()" style="height:36px;padding:0 12px;border-radius:9px;border:1px solid #2c2c2c;background:#1a1a1a;color:#7ab8ff;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:'Noto Sans KR',sans-serif;">🔗 Google 로그인</button>
+    <button id="g-logout-btn" onclick="googleLogout()" style="height:36px;padding:0 12px;border-radius:9px;border:1px solid #2c2c2c;background:#1a1a1a;color:#555;font-size:12px;font-weight:700;cursor:pointer;display:none;font-family:'Noto Sans KR',sans-serif;">로그아웃</button>
+    <button onclick="openRentApp()" style="height:36px;padding:0 12px;border-radius:9px;border:1px solid #2c2c2c;background:#1a1a1a;color:#ffb547;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:5px;flex-shrink:0;font-family:'Noto Sans KR',sans-serif;">🏠 임대관리</button>
+    <button onclick="openSettings()" style="width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">⚙️</button>
+  </div>
 </header>
 <input type="file" id="file-import" accept=".json" onchange="importData(event)" style="display:none">
 <div class="tabs">
@@ -635,18 +640,10 @@ main{padding:18px 14px;max-width:1400px;}
   </div>
   <!-- REPORT -->
   <div class="view" id="view-report">
-    <div style="background:#161616;border:1px solid #2c2c2c;border-radius:10px;padding:11px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div id="g-dot" style="width:9px;height:9px;border-radius:50%;background:#ff4d6d;flex-shrink:0;"></div>
-        <div>
-          <div id="g-txt" style="font-size:13px;font-weight:700;">Google 연동 필요</div>
-          <div id="g-sub" style="font-size:11px;color:#777;">Drive 사진 저장 · Gmail 발송을 사용하려면 로그인하세요</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button id="g-login-btn" class="btn btn-primary" style="min-height:34px;font-size:12px;padding:6px 14px;" onclick="googleLogin()">&#128279; Google 로그인</button>
-        <button id="g-logout-btn" class="btn btn-ghost" style="min-height:34px;font-size:12px;padding:6px 14px;display:none;" onclick="googleLogout()">로그아웃</button>
-      </div>
+    <div style="display:none;">
+      <div id="g-dot"></div>
+      <div id="g-txt"></div>
+      <div id="g-sub"></div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:10px;">
