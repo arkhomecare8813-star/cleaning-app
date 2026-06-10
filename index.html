@@ -1400,14 +1400,21 @@ function _shareExcelKakao(num){
 
   if(num===1){
     var companies=[...new Set(sites.map(function(s){return s.company;}))].sort();
+    var grandMain=0, grandSub=0, grandProfit=0;
     companies.forEach(function(co){
       var coSites=sites.filter(function(s){return s.company===co;});
-      var coTotal=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
-      lines.push('🏢 '+co+' — 원청 '+coTotal.toLocaleString('ko-KR')+'원');
+      var coMain  =coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+      var coSub   =coSites.reduce(function(a,s){var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');return a+st.payout;},0);
+      var coProfit=coMain-coSub;
+      grandMain+=coMain; grandSub+=coSub; grandProfit+=coProfit;
+      lines.push('🏢 '+co);
+      lines.push('  원청 '+coMain.toLocaleString('ko-KR')+'원  하청 '+coSub.toLocaleString('ko-KR')+'원  이익 '+coProfit.toLocaleString('ko-KR')+'원');
     });
-    var grand=sites.reduce(function(a,s){return a+(s.priceMain||0);},0);
     lines.push('');
-    lines.push('💰 총 원청: '+grand.toLocaleString('ko-KR')+'원');
+    lines.push('─────────────────');
+    lines.push('💰 원청 합계: '+grandMain.toLocaleString('ko-KR')+'원');
+    lines.push('💸 하청 합계: '+grandSub.toLocaleString('ko-KR')+'원');
+    lines.push('📈 영업이익: '+grandProfit.toLocaleString('ko-KR')+'원');
   } else if(num===2){
     var t2=sites.filter(function(s){return s.bank&&s.account&&(s.priceSub||0)>0;});
     t2.forEach(function(s){
@@ -4259,6 +4266,21 @@ function renderReport(){
   renderUnreported();
 }
 
+// ── 미보고 Skip ──
+function skipUnreported(siteId, dateStr){
+  var fbPath = FB_URL+'/data/reportLog/'+siteId+'/'+dateStr+'.json';
+  fetch(fbPath, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ skipped:true, skippedAt:new Date().toISOString() })
+  }).then(function(){
+    showToast('⏭ '+dateStr+' Skip 처리됐어요.');
+    renderUnreported();
+  }).catch(function(){
+    showToast('❌ 처리 실패');
+  });
+}
+
 // ── 미보고 누적 현황 ──
 function renderUnreported(){
   var el = document.getElementById('unreported-section');
@@ -4295,7 +4317,7 @@ function renderUnreported(){
               while(cur <= yesterday){
                 var ds = cur.toISOString().slice(0,10);
                 var dow = cur.getDay();
-                if(s.days && s.days.includes(dow) && !siteLog[ds]){
+                var log = siteLog[ds]; var isReported = log && log.count > 0; var isSkipped = log && log.skipped; if(s.days && s.days.includes(dow) && !isReported && !isSkipped){
                   if(s.startDate && cur < new Date(s.startDate+'T00:00:00')){ cur.setDate(cur.getDate()+1); continue; }
                   if(s.endDate   && cur > new Date(s.endDate  +'T00:00:00')){ cur.setDate(cur.getDate()+1); continue; }
                   unreportedDates.push(ds);
@@ -4320,7 +4342,9 @@ function renderUnreported(){
               var dateList = show.map(function(d){
                 var diff = Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(1000*60*60*24));
                 var label = diff===1?' (어제)':' ('+diff+'일전)';
-                return '<span style="background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.3);border-radius:5px;padding:2px 7px;font-size:10px;font-family:DM Mono,monospace;color:#ff4d6d;">'+d+label+'</span>';
+                return '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.3);border-radius:5px;padding:2px 4px 2px 7px;font-size:10px;font-family:DM Mono,monospace;color:#ff4d6d;">'+d+label
+                  +'<button onclick="skipUnreported(\''+item.site.id+'\',\''+d+'\')" style="width:14px;height:14px;border-radius:3px;border:none;background:rgba(255,77,109,0.2);color:#ff4d6d;font-size:9px;cursor:pointer;line-height:1;padding:0;flex-shrink:0;" title="Skip">✕</button>'
+                  +'</span>';
               }).join(' ');
               var more = item.dates.length > 3 ? '<span style="font-size:10px;color:#555;"> +' + (item.dates.length-3) + '건</span>' : '';
               return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #1e1e1e;">'
