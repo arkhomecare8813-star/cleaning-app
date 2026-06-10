@@ -4335,6 +4335,15 @@ function renderReport(){
   });
 }
 
+function toggleReportCoList(){
+  var el = document.getElementById('report-co-list');
+  var chev = document.getElementById('report-co-chevron');
+  if(!el) return;
+  var isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? '' : 'none';
+  if(chev) chev.style.transform = isHidden ? 'rotate(180deg)' : '';
+}
+
 // ── 거래처담당자 체크 → 해당 현장 자동 선택 + 미리보기 갱신 ──
 function _onClientChkChange(el){
   var clientEmail = el.value;
@@ -4638,18 +4647,6 @@ function _renderReportModal(){
     +'</div>'
     +'</div>'
 
-    // 업체/현장 선택
-    +'<div>'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
-    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;">🏢 업체 / 현장 선택</div>'
-    +'<div style="display:flex;gap:6px;">'
-    +'<button onclick="selectAllReportSites(true)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#1e1e1e;color:#00e5a0;cursor:pointer;">전체선택</button>'
-    +'<button onclick="selectAllReportSites(false)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;cursor:pointer;">전체해제</button>'
-    +'</div></div>'
-    +'<div id="report-co-list">'+coListHtml+'</div>'
-    +'</div>'
-
-
     // 거래처 담당자 선택 (체크박스 다중)
     +(function(){
       var clients = [];
@@ -4666,6 +4663,19 @@ function _renderReportModal(){
       }).join('');
       return '<div style="margin-bottom:12px;">'        +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">👤 거래처 담당자</div>'        +items        +'</div>';
     })()
+
+    // 업체/현장 선택 — 드롭다운
+    +'<div>'
+    +'<div onclick="toggleReportCoList()" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;cursor:pointer;margin-bottom:4px;">'
+    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;">🏢 업체 / 현장 선택</div>'
+    +'<div style="display:flex;align-items:center;gap:6px;">'
+    +'<button onclick="event.stopPropagation();selectAllReportSites(true)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#272727;color:#00e5a0;cursor:pointer;">전체선택</button>'
+    +'<button onclick="event.stopPropagation();selectAllReportSites(false)" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#272727;color:#777;cursor:pointer;">전체해제</button>'
+    +'<span id="report-co-chevron" style="font-size:10px;color:#555;">▼</span>'
+    +'</div></div>'
+    +'<div id="report-co-list" style="display:none;">'+coListHtml+'</div>'
+    +'</div>'
+
 
     // 추가 수신자 (선택사항)
     +'<div>'    +'<div style="font-size:10px;color:#777;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">📧 추가 수신자 <span style="font-size:9px;color:#444;">(선택사항)</span></div>'    +'<input id="email-to" type="email" placeholder="제3자 이메일 (선택)" style="width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;padding:10px 12px;color:#f0f0f0;font-size:13px;outline:none;">'    +'</div>'
