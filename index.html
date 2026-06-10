@@ -378,7 +378,7 @@ main{padding:18px 14px;max-width:1400px;}
   <button class="tab" onclick="switchTab('contacts')">📞 주소록</button>
   <button class="tab" onclick="switchTab('calendar')">&#128197; 월간 캘린더</button>
   <button class="tab" onclick="switchTab('weekly')">&#128198; 요일별 현황</button>
-  <button class="tab" onclick="switchTab('report')">&#128247; 보고</button>
+  <button class="tab" onclick="switchTab('report')">&#128247; 현장보고</button>
   <button class="tab" onclick="switchTab('checklist')">📋 체크리스트</button>
   <button class="tab" onclick="switchTab('supply')">&#128722; 비품</button>
   <button class="tab" onclick="switchTab('settle')">&#128176; 정산</button>
@@ -3759,8 +3759,28 @@ function clUploadFiles(siteId){
         fetch(GAS_URL, {method:'POST', body:body})
           .then(function(r){return r.json();})
           .then(function(d){
-            if(d.ok) done++;
-            else { failed++; console.error('GAS 오류:', d.error||JSON.stringify(d)); }
+            if(d.ok){
+              done++;
+              // GAS 응답에서 folderLink를 받으면 Firebase에 즉시 저장
+              if(d.folderLink && FB_URL && siteId){
+                var fbPath = FB_URL+'/data/checklist/'+siteId+'.json';
+                fetch(fbPath).then(function(r){return r.json();}).then(function(existing){
+                  var fileList = (existing && existing.files) ? existing.files : [];
+                  fetch(fbPath, {
+                    method:'PUT',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                      files: fileList,
+                      folderLink: d.folderLink,
+                      updatedAt: new Date().toISOString()
+                    })
+                  });
+                }).catch(function(){});
+              }
+            } else {
+              failed++;
+              console.error('GAS 오류:', d.error||JSON.stringify(d));
+            }
             resolve();
           })
           .catch(function(err){ failed++; console.error('fetch 오류:', err); resolve(); });
@@ -3803,7 +3823,8 @@ function clUploadFiles(siteId){
 
 // 체크리스트 카카오 공유
 function clShareKakao(siteId){
-  var site = sites.find(function(s){return s.id===siteId;});
+  siteId = isNaN(siteId) ? siteId : parseInt(siteId);
+  var site = sites.find(function(s){return s.id==siteId;});
   if(!site) return;
 
   fetch(FB_URL+'/data/checklist/'+siteId+'.json')
@@ -3843,7 +3864,8 @@ function clShareKakao(siteId){
 
 // 체크리스트 이메일 전송
 function clShareEmail(siteId){
-  var site = sites.find(function(s){return s.id===siteId;});
+  siteId = isNaN(siteId) ? siteId : parseInt(siteId);
+  var site = sites.find(function(s){return s.id==siteId;});
   if(!site) return;
 
   var to = prompt('수신자 이메일을 입력하세요:');
