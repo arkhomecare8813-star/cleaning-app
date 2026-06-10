@@ -51,6 +51,70 @@ function toggleInvoice(key, checked){
   renderSettle();
 }
 
+// ── 이메일 히스토리 자동완성 ──
+var _emailHistory = JSON.parse(localStorage.getItem('cm-email-history')||'[]');
+
+function saveEmailHistory(email){
+  if(!email || !email.includes('@')) return;
+  _emailHistory = [email].concat(_emailHistory.filter(function(e){return e!==email;})).slice(0,10);
+  localStorage.setItem('cm-email-history', JSON.stringify(_emailHistory));
+}
+
+function attachEmailAutocomplete(inputEl){
+  if(!inputEl || inputEl._acBound) return;
+  inputEl._acBound = true;
+
+  var wrap = inputEl.parentNode;
+  var dropdown = document.createElement('div');
+  dropdown.style.cssText = 'position:absolute;left:0;right:0;top:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;z-index:999;overflow:hidden;display:none;box-shadow:0 4px 16px rgba(0,0,0,0.5);';
+
+  // wrap을 relative로
+  var origPos = wrap.style.position;
+  wrap.style.position = 'relative';
+  wrap.appendChild(dropdown);
+
+  function showDropdown(val){
+    var filtered = _emailHistory.filter(function(e){
+      return !val || e.toLowerCase().indexOf(val.toLowerCase()) === 0;
+    });
+    if(!filtered.length){ dropdown.style.display='none'; return; }
+    dropdown.innerHTML = filtered.map(function(e){
+      return '<div data-email="'+e+'" style="padding:9px 12px;font-size:13px;color:#f0f0f0;cursor:pointer;border-bottom:1px solid #2c2c2c;display:flex;align-items:center;justify-content:space-between;">'
+        +'<span>'+e+'</span>'
+        +'<span style="font-size:10px;color:#555;flex-shrink:0;margin-left:8px;">탭 선택</span>'
+        +'</div>';
+    }).join('');
+    dropdown.style.display = '';
+
+    dropdown.querySelectorAll('[data-email]').forEach(function(item){
+      item.onmouseenter = function(){ this.style.background='rgba(0,229,160,0.08)'; };
+      item.onmouseleave = function(){ this.style.background=''; };
+      item.onmousedown  = function(e){
+        e.preventDefault();
+        inputEl.value = this.dataset.email;
+        dropdown.style.display = 'none';
+      };
+    });
+  }
+
+  inputEl.addEventListener('focus', function(){ showDropdown(this.value); });
+  inputEl.addEventListener('input', function(){ showDropdown(this.value); });
+  inputEl.addEventListener('keydown', function(e){
+    if(e.key==='Tab'||e.key==='Enter'){
+      var first = dropdown.querySelector('[data-email]');
+      if(first && dropdown.style.display!=='none'){
+        e.preventDefault();
+        inputEl.value = first.dataset.email;
+        dropdown.style.display='none';
+      }
+    }
+    if(e.key==='Escape') dropdown.style.display='none';
+  });
+  inputEl.addEventListener('blur', function(){
+    setTimeout(function(){ dropdown.style.display='none'; }, 150);
+  });
+}
+
 function isGoogleLoggedIn(){ return googleAccessToken && Date.now() < googleTokenExpiry; }
 function googleLogin(){
   var base = location.href.split('#')[0].split('?')[0];
@@ -654,10 +718,11 @@ main{padding:18px 14px;max-width:1400px;}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-ghost" style="font-size:12px;min-height:34px;" onclick="renderReport()">&#8635; 새로고침</button>
         <button class="btn btn-ghost" style="font-size:12px;min-height:34px;" onclick="openSmsTemplateModal()">⚙️ 문자양식</button>
-        <button class="btn btn-ghost" style="font-size:12px;min-height:34px;border-color:#4ade80;color:#4ade80;" onclick="sendReportEmail()">&#128231; 이메일 보고</button>
+        <button class="btn btn-ghost" style="font-size:12px;min-height:34px;border-color:#4ade80;color:#4ade80;" onclick="sendReportEmail()">&#128228; 공유하기</button>
       </div>
     </div>
     <div id="report-content"></div>
+    <div id="unreported-section" style="margin-top:20px;"></div>
   </div>
   <!-- CHECKLIST -->
   <div class="view" id="view-checklist">
@@ -1320,7 +1385,7 @@ function openExcelPopup(num){
   box.appendChild(cancelBtn);
   w.appendChild(box);
   document.body.appendChild(w);
-  setTimeout(function(){ inp.focus(); }, 150);
+  setTimeout(function(){ inp.focus(); attachEmailAutocomplete(inp); }, 150);
 }
 
 function _shareExcelKakao(num){
@@ -1359,6 +1424,7 @@ function _shareExcelKakao(num){
       var 세=Math.round(충*0.033);
       var 실=충-세;
       lines.push((i+1)+'. '+(s.manager||s.site)+' — 충지급 '+충.toLocaleString('ko-KR')+'원 / 실지급 '+실.toLocaleString('ko-KR')+'원');
+      if(s.bizno) lines.push('   📋 '+s.bizno);
     });
     var total3=t3.reduce(function(a,s){return a+(s.priceSub||0);},0);
     lines.push('');
@@ -1426,6 +1492,7 @@ function _doEmailExcel(num, to){
     body: JSON.stringify({ raw: encoded })
   }).then(function(r){return r.json();}).then(function(d){
     if(d.id){
+      saveEmailHistory(to);
       showToast('✅ 메일 발송 완료!\n→ '+to);
     } else {
       console.error('Gmail 오류:', JSON.stringify(d));
@@ -3777,24 +3844,45 @@ function clLoadFiles(siteId){
     });
 }
 
-// 체크리스트 파일 삭제
+// 체크리스트 파일 삭제 (Drive + Firebase 동시)
 function clDeleteFile(siteId, idx){
-  showConfirm('사진 삭제', '이 사진을 목록에서 삭제할까요?', function(){
+  showConfirm('사진 삭제', 'Drive와 목록에서 모두 삭제됩니다. 계속할까요?', function(){
+    // Firebase에서 파일 정보 읽기
     fetch(FB_URL+'/data/checklist/'+siteId+'.json')
       .then(function(r){return r.json();})
       .then(function(d){
         var files = (d && d.files) ? d.files.slice() : [];
-        files.splice(idx, 1);
-        return fetch(FB_URL+'/data/checklist/'+siteId+'.json', {
-          method:'PUT',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ files:files, folderLink: d&&d.folderLink||null })
-        });
-      })
-      .then(function(){ clLoadFiles(siteId); showToast('🗑 삭제됐습니다.'); })
-      .catch(function(){ showToast('❌ 삭제 실패'); });
+        var target = files[idx];
+        if(!target){ showToast('❌ 파일 정보 없음'); return; }
+
+        // URL에서 fileId 추출
+        var match = target.url && target.url.match(/\/d\/([a-zA-Z0-9_-]+)\//);
+        var fileId = match ? match[1] : null;
+
+        // GAS에 삭제 요청 (Drive + Firebase 동시)
+        fetch(GAS_URL, {
+          method:'POST',
+          body: JSON.stringify({
+            type: 'delete_file',
+            fileId: fileId,
+            siteId: siteId,
+            idx: idx
+          })
+        })
+        .then(function(r){return r.json();})
+        .then(function(res){
+          if(res.ok){
+            showToast('🗑 삭제됐습니다.');
+            clLoadFiles(siteId);
+          } else {
+            showToast('❌ 삭제 실패: '+(res.error||'오류'));
+          }
+        })
+        .catch(function(){ showToast('❌ 네트워크 오류'); });
+      });
   });
 }
+
 
 // 체크리스트 파일 업로드
 function clUploadFiles(siteId){
@@ -4004,7 +4092,7 @@ function clShareEmail(siteId){
         headers:{ Authorization:'Bearer '+googleAccessToken, 'Content-Type':'application/json' },
         body: JSON.stringify({ raw: encoded })
       }).then(function(r){return r.json();}).then(function(d){
-        if(d.id) showToast('✅ 이메일 발송 완료!\n→ '+to);
+        if(d.id){ saveEmailHistory(to); showToast('✅ 이메일 발송 완료!\n→ '+to); }
         else showToast('❌ 발송 실패: '+(d.error&&d.error.message||'오류'));
       }).catch(function(){ showToast('❌ 네트워크 오류'); });
     });
@@ -4168,6 +4256,97 @@ function renderReport(){
       +'</div>';
   });
   document.getElementById('report-content').innerHTML=html;
+  renderUnreported();
+}
+
+// ── 미보고 누적 현황 ──
+function renderUnreported(){
+  var el = document.getElementById('unreported-section');
+  if(!el) return;
+  el.innerHTML = '<div style="font-size:12px;color:#555;text-align:center;padding:16px;">누적 미보고 불러오는 중...</div>';
+
+  var today = todayStr();
+
+  fetch(FB_URL+'/data/reportStart.json')
+    .then(function(r){return r.json();})
+    .then(function(startData){
+      if(!startData){ el.innerHTML=''; return; }
+      return fetch(FB_URL+'/data/reportLog.json')
+        .then(function(r){return r.json();})
+        .then(function(logData){
+          logData = logData || {};
+          var cos = [...new Set(sites.map(function(s){return s.company;}))].sort();
+          var coBlocks = [];
+
+          cos.forEach(function(co){
+            var col = getCompanyColor(co);
+            var coSites = sites.filter(function(s){
+              return s.company===co && !s.noReport && (s.status||'active')==='active';
+            });
+            var coItems = [];
+            coSites.forEach(function(s){
+              var startDate = startData[s.id];
+              if(!startDate) return;
+              var siteLog = logData[s.id] || {};
+              var unreportedDates = [];
+              var cur = new Date(startDate+'T00:00:00');
+              var yesterday = new Date(today+'T00:00:00');
+              yesterday.setDate(yesterday.getDate()-1);
+              while(cur <= yesterday){
+                var ds = cur.toISOString().slice(0,10);
+                var dow = cur.getDay();
+                if(s.days && s.days.includes(dow) && !siteLog[ds]){
+                  if(s.startDate && cur < new Date(s.startDate+'T00:00:00')){ cur.setDate(cur.getDate()+1); continue; }
+                  if(s.endDate   && cur > new Date(s.endDate  +'T00:00:00')){ cur.setDate(cur.getDate()+1); continue; }
+                  unreportedDates.push(ds);
+                }
+                cur.setDate(cur.getDate()+1);
+              }
+              if(unreportedDates.length > 0) coItems.push({ site:s, dates:unreportedDates });
+            });
+            if(coItems.length > 0) coBlocks.push({ co:co, col:col, items:coItems });
+          });
+
+          if(!coBlocks.length){
+            el.innerHTML = '<div style="background:rgba(0,229,160,0.06);border:1px solid #004d36;border-radius:10px;padding:12px 16px;font-size:13px;font-weight:700;color:#00e5a0;text-align:center;">✅ 누적 미보고 없음</div>';
+            return;
+          }
+
+          var html = '<div style="font-size:11px;font-weight:700;color:#ff4d6d;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">⚠️ 누적 미보고</div>';
+
+          coBlocks.forEach(function(block){
+            var rows = block.items.map(function(item){
+              var show = item.dates.slice(-3);
+              var dateList = show.map(function(d){
+                var diff = Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(1000*60*60*24));
+                var label = diff===1?' (어제)':' ('+diff+'일전)';
+                return '<span style="background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.3);border-radius:5px;padding:2px 7px;font-size:10px;font-family:DM Mono,monospace;color:#ff4d6d;">'+d+label+'</span>';
+              }).join(' ');
+              var more = item.dates.length > 3 ? '<span style="font-size:10px;color:#555;"> +' + (item.dates.length-3) + '건</span>' : '';
+              return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #1e1e1e;">'
+                +'<div style="flex:1;min-width:0;">'
+                +'<div style="font-size:12px;font-weight:700;color:#f0f0f0;margin-bottom:4px;">📍 '+item.site.site+'</div>'
+                +'<div style="display:flex;flex-wrap:wrap;gap:4px;">'+dateList+more+'</div>'
+                +'</div>'
+                +'<div style="font-family:DM Mono,monospace;font-size:13px;font-weight:900;color:#ff4d6d;flex-shrink:0;">'+item.dates.length+'건</div>'
+                +'</div>';
+            }).join('');
+
+            var total = block.items.reduce(function(a,i){return a+i.dates.length;},0);
+            html += '<div style="background:#161616;border:1px solid rgba(255,77,109,0.2);border-radius:12px;margin-bottom:10px;overflow:hidden;">'
+              +'<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#1e1e1e;border-bottom:1px solid #2c2c2c;">'
+              +'<div style="width:9px;height:9px;border-radius:50%;background:'+block.col.text+';flex-shrink:0;"></div>'
+              +'<div style="font-size:13px;font-weight:800;flex:1;">'+block.co+'</div>'
+              +'<div style="font-size:11px;font-weight:700;color:#ff4d6d;">총 '+total+'건</div>'
+              +'</div>'
+              +'<div style="padding:4px 14px 8px;">'+rows+'</div>'
+              +'</div>';
+          });
+
+          el.innerHTML = html;
+        });
+    })
+    .catch(function(){ el.innerHTML = ''; });
 }
 
 function sendSmsAllPending(dateStr){
@@ -4488,7 +4667,10 @@ function _renderReportModal(){
 
   // 미리보기 초기 로드 (약간 딜레이)
   _previewCurrentTab = 'email';
-  setTimeout(refreshReportPreview, 300);
+  setTimeout(function(){
+    refreshReportPreview();
+    attachEmailAutocomplete(document.getElementById('email-to'));
+  }, 300);
 }
 
 // ── 미리보기 탭 전환 ──
@@ -4821,17 +5003,11 @@ function _buildHtmlEmail(data){
 // ── 카카오/텍스트용 본문 빌드 ──
 function _buildTextReport(data){
   var lines = ['📋 청소 보고 — '+data.dateLabel, ''];
-  var prevCo = null;
   data.results.forEach(function(r){
-    if(r.task.co !== prevCo){
-      if(prevCo !== null) lines.push('');
-      lines.push('🏢 '+r.task.co);
-      prevCo = r.task.co;
-    }
     var status = r.count > 0 ? '✅ '+r.count+'장' : '❌ 미보고';
-    lines.push('  📍 '+r.task.site.site+' ('+r.task.dateStr+') '+status);
+    lines.push('📍 '+r.task.site.site+' ('+r.task.dateStr+') '+status);
     if(r.folderLink && r.count > 0){
-      lines.push('  📂 사진 보기: '+r.folderLink);
+      lines.push('📂 사진 보기: '+r.folderLink);
     }
   });
   lines.push('');
@@ -4896,6 +5072,7 @@ function doSendEmail(){
       body: JSON.stringify({ raw: encoded })
     }).then(function(r){return r.json();}).then(function(d){
       if(d.id){
+        saveEmailHistory(to);
         closeEmailModal();
         showToast('✅ 이메일 발송 완료!\n→ '+to);
       } else {
