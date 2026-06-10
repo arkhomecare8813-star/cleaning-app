@@ -158,7 +158,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 <script>
 // ── 설정 ──
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbxeiEWGmpPRQt0d97TUsE67brpuohE2gmgESwMqsAqcjeIQnzNeFw1OJN1yfoM3SwCN/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyev2xAqLpO6z9IGZkY3impX1Nzzrvm_0bYeh7Pyvtn70nkjlX2C_Nouudr_fjNAqjg/exec';
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 
 var params = {};
@@ -408,9 +408,30 @@ function onDone(done, failed){
             body: JSON.stringify({ photos: prev + done, lastUpload: new Date().toISOString() })
           });
         })
-        .catch(function(){
-          // Firebase 실패해도 UI는 정상 표시
-        });
+        .catch(function(){});
+
+      // reportLog 기록 — 보고 완료
+      var logPath = FB_URL + '/data/reportLog/' + params.siteId + '/' + params.date + '.json';
+      fetch(logPath, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ count: done, reportedAt: new Date().toISOString() })
+      }).catch(function(){});
+
+      // reportStart 기록 — 첫 보고일 (이미 있으면 덮어쓰지 않음)
+      var startPath = FB_URL + '/data/reportStart/' + params.siteId + '.json';
+      fetch(startPath)
+        .then(function(r){ return r.json(); })
+        .then(function(existing){
+          if(!existing){
+            return fetch(startPath, {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(params.date)
+            });
+          }
+        })
+        .catch(function(){});
     }
 
     // 완료 카드 표시, 업로드 카드 숨김
