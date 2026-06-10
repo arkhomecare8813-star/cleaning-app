@@ -4209,7 +4209,18 @@ function switchTab(name){
   if(name==='dashboard')renderDashboard();
   if(name==='contacts'){initContactsSido();renderContacts();}
   if(name==='settle'){renderSettle();updateSnapshotSel();}
-  if(name==='supply'){ renderSupply(); initReceiptSelects(); renderReceipts(); }
+  if(name==='supply'){
+    // Firebase에서 최신 supplies 로드 후 렌더
+    fetch(FB_URL+'/data/supplies.json')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d) supplies = Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+        localStorage.setItem('cm-supplies', JSON.stringify(supplies));
+        renderSupply();
+      }).catch(function(){ renderSupply(); });
+    initReceiptSelects();
+    renderReceipts();
+  }
   if(name==='report'){renderReport();}
   if(name==='checklist')renderChecklist();
   if(name==='list'){initFormPreviewListeners();updateFormPreview();}
@@ -6066,6 +6077,7 @@ function renderReceipts(){
     }
 
     el.innerHTML = all.map(function(r){
+      var receiptKey = r.uploadedAt ? r.uploadedAt.replace(/[^0-9]/g,'').slice(0,13) : '';
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);">'
         +'<div style="flex:1;min-width:0;">'
         +'<div style="display:flex;align-items:center;gap:8px;">'
@@ -6075,8 +6087,56 @@ function renderReceipts(){
         +'<div style="font-size:11px;color:#555;margin-top:2px;">'+r.company+' · '+(r.date||'')+(r.memo?' · '+r.memo:'')+'</div>'
         +'</div>'
         +(r.url?'<a href="'+r.url+'" target="_blank" style="font-size:11px;color:#ffb547;font-weight:700;text-decoration:none;flex-shrink:0;padding:5px 8px;border:1px solid #3a2800;border-radius:7px;background:rgba(255,181,71,0.08);">🧾 영수증</a>':'')
+        +'<button onclick="deleteReceipt(\''+r.siteId+'\',\''+receiptKey+'\')" style="width:28px;height:28px;border-radius:6px;border:1px solid #3d1a1a;background:rgba(255,77,109,0.1);color:#ff4d6d;font-size:12px;cursor:pointer;flex-shrink:0;">✕</button>'
         +'</div>';
     }).join('');
+  });
+}
+
+function deleteReceipt(siteId, receiptKey){
+  showConfirm('영수증 삭제', '이 영수증을 목록에서 삭제할까요?', function(){
+    // Firebase receipts에서 삭제
+    fetch(FB_URL+'/data/receipts/'+siteId+'.json')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d) return;
+        // receiptKey와 매칭되는 키 찾기
+        var matchKey = Object.keys(d).find(function(k){
+          return k.startsWith(receiptKey) || (d[k].uploadedAt && d[k].uploadedAt.replace(/[^0-9]/g,'').slice(0,13) === receiptKey);
+        });
+        if(!matchKey) { showToast('❌ 항목을 찾을 수 없습니다.'); return; }
+        return fetch(FB_URL+'/data/receipts/'+siteId+'/'+matchKey+'.json', { method:'DELETE' });
+      })
+      .then(function(){
+        // supplies에서도 해당 항목 삭제 (receipt:true 이고 siteId 매칭)
+        fetch(FB_URL+'/data/supplies.json')
+          .then(function(r){return r.json();})
+          .then(function(d){
+            if(!d) return;
+            // 객체 형태면 매칭 키 삭제
+            if(!Array.isArray(d)){
+              var delKey = Object.keys(d).find(function(k){
+                return d[k] && d[k].receipt && String(d[k].siteId)===String(siteId) &&
+                  d[k].uploadedAt && d[k].uploadedAt.replace(/[^0-9]/g,'').slice(0,13)===receiptKey;
+              });
+              if(delKey){
+                fetch(FB_URL+'/data/supplies/'+delKey+'.json', {method:'DELETE'});
+              }
+            }
+          }).catch(function(){});
+        showToast('🗑 영수증이 삭제됐어요.');
+        renderReceipts();
+        // supplies 재로드
+        fetch(FB_URL+'/data/supplies.json')
+          .then(function(r){return r.json();})
+          .then(function(d){
+            if(d){
+              supplies = Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+              localStorage.setItem('cm-supplies', JSON.stringify(supplies));
+            }
+          });
+      })
+      .catch(function(){ showToast('❌ 삭제 실패'); });
   });
 }
 
