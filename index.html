@@ -2206,10 +2206,8 @@ function renderWeekly(){
       var hasP2=dd2[s.id]&&dd2[s.id].photos>0;
       var isToday2 = todayKey2 === todayStr();
       var repBadge='';
-      if(isToday2){
-        if(!s.noReport){var bbg=hasP2?'rgba(0,229,160,0.15)':'rgba(255,77,109,0.15)';var bco=hasP2?'#00e5a0':'#ff4d6d';var btx=hasP2?'✅ 완료':'❌ 미보고';repBadge='<div style="margin-top:4px;display:inline-flex;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:'+bbg+';color:'+bco+';">'+btx+'</div>';}
-        else{repBadge='<div style="margin-top:4px;font-size:9px;color:#555;">보고제외</div>';}
-      }
+      if(!s.noReport){var bbg=hasP2?'rgba(0,229,160,0.15)':'rgba(255,77,109,0.15)';var bco=hasP2?'#00e5a0':'#ff4d6d';var btx=hasP2?'✅ 완료':'❌ 미보고';repBadge='<div style="margin-top:4px;display:inline-flex;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:'+bbg+';color:'+bco+';">'+btx+'</div>';}
+      else{repBadge='<div style="margin-top:4px;font-size:9px;color:#555;">보고제외</div>';}
       ev.innerHTML='<div class="week-event-name" style="color:'+col.text+'">'+s.site+'</div>'
         +'<div class="week-event-co" style="color:'+col.text+'">'+s.company+'</div>'
         +(s.manager?'<div class="week-event-mgr">'+s.manager+'</div>':'')
