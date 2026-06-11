@@ -210,7 +210,14 @@ function init(){
 
 // ── 파일 선택 ──
 function handleFiles(files){
-  for(var i=0;i<files.length;i++) selectedFiles.push(files[i]);
+  for(var i=0;i<files.length;i++){
+    var f = files[i];
+    // 파일명 + 크기 + 마지막수정시각 기준 중복 제거 (change 이벤트 중복 발화 방지)
+    var isDup = selectedFiles.some(function(s){
+      return s.name === f.name && s.size === f.size && s.lastModified === f.lastModified;
+    });
+    if(!isDup) selectedFiles.push(f);
+  }
   renderPreviews();
   updateBtn();
 }
@@ -297,7 +304,7 @@ function startUpload(){
 
   function resizeBlobToBase64(blob, origFile){
     return new Promise(function(resolve){
-      var MAX_PX = 1280, QUALITY = 0.75;
+      var MAX_PX = 1024, QUALITY = 0.65;
       var url = URL.createObjectURL(blob);
       var img = new Image();
       img.onload = function(){
