@@ -36,7 +36,7 @@ var rentPayments  = JSON.parse(localStorage.getItem('cm-rent-payments')||'[]');
 function saveSmsTemplate(t){ SMS_TEMPLATE=t; localStorage.setItem('cm-sms-template',t); saveToFirebase(); }
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
-function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos)reportPhotoData=d.photos;if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});
+function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;var localPhotos=JSON.parse(localStorage.getItem("cm-photos")||"{}");Object.keys(localPhotos).forEach(function(date){Object.keys(localPhotos[date]||{}).forEach(function(sid){if(!reportPhotoData[date])reportPhotoData[date]={};if(!reportPhotoData[date][sid])reportPhotoData[date][sid]={};if(localPhotos[date][sid].smsSent)reportPhotoData[date][sid].smsSent=true;});});}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});
   // rent 데이터 별도 로드
   fetch(FB_URL+'/rent.json').then(function(r){return r.json();}).then(function(d){
     if(d){
@@ -4228,7 +4228,7 @@ function switchTab(name){
 
 // ── REPORT TAB ──
 // ── REPORT TAB ──
-function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); saveToFirebase(); }
+function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function getDayOfWeek(d){ return new Date(d+'T00:00:00').getDay(); }
 function initReportDate(){ var el=document.getElementById('report-date'); if(el&&!el.value)el.value=todayStr(); }
@@ -4400,13 +4400,11 @@ function renderReport(){
         if(isWork&&!isExcluded){
           cards+='<div style="display:flex;flex-direction:column;gap:5px;">';
           if(s.phone){
-            var btnBorder=hasPhoto?'#2c2c2c':'rgba(255,77,109,0.4)';
-            var btnColor=hasPhoto?'#777':'#ff4d6d';
-            var btnLabel=hasPhoto?'📱 재발송':(wasSent?'📱 재발송':'📱 문자 발송');
-            cards+='<button onclick="sendSmsOne(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid '+btnBorder+';background:rgba(0,0,0,0.3);color:'+btnColor+';font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">'+btnLabel+'</button>';
-            if(wasSent&&smsTime){
-              cards+='<div style="text-align:center;font-size:10px;color:#555;margin-top:2px;">🕐 '+smsTime+' 발송됨</div>';
-            }
+            var btnBorder = wasSent ? '#2c2c2c' : (hasPhoto ? '#2c2c2c' : 'rgba(255,77,109,0.4)');
+            var btnColor  = wasSent ? '#00e5a0' : (hasPhoto ? '#777' : '#ff4d6d');
+            var btnBg     = wasSent ? 'rgba(0,229,160,0.08)' : 'rgba(0,0,0,0.3)';
+            var btnLabel  = wasSent ? '✓ 보냈음' : (hasPhoto ? '📱 재발송' : '📱 문자 발송');
+            cards+='<button onclick="sendSmsOne(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid '+btnBorder+';background:'+btnBg+';color:'+btnColor+';font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">'+btnLabel+'</button>';
           }
           cards+='<button onclick="copyUploadLink(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid #2c2c2c;background:rgba(0,0,0,0.2);color:#7ab8ff;font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🔗 링크 복사</button>';
           cards+='</div>';
