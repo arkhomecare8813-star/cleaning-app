@@ -4266,6 +4266,8 @@ function sendSmsOne(siteId, dateStr){
   if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
   if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0};
   reportPhotoData[dateStr][siteId].smsSent=true;
+  var now=new Date();
+  reportPhotoData[dateStr][siteId].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   saveReportData();renderReport();
   showToast('📱 문자앱이 열립니다.');
 }
@@ -4333,6 +4335,7 @@ function renderReport(){
         var info       = dateData[s.id]||{photos:0};
         var hasPhoto   = info.photos>0;
         var wasSent    = info.smsSent||false;
+        var smsTime    = info.smsTime||'';
 
         // 미보고 누적 날짜 계산
         var siteLog   = logData[s.id]||{};
@@ -4354,9 +4357,11 @@ function renderReport(){
           }
         }
 
+        // 오늘 작업 없는 카드는 표시 안 함
+        if(!isWork){ return; }
+
         var bc,bg,badge;
-        if(!isWork){bc='#2c2c2c';bg='transparent';badge='—';}
-        else if(isExcluded){bc='#333';bg='rgba(255,255,255,0.01)';badge='📵';}
+        if(isExcluded){bc='#333';bg='rgba(255,255,255,0.01)';badge='📵';}
         else if(hasPhoto){bc='#00e5a0';bg='rgba(0,229,160,0.05)';badge='✅';}
         else{bc='#ff4d6d';bg='rgba(255,77,109,0.06)';badge='<span style="font-size:11px;font-weight:800;color:#ff4d6d;">미보고</span>';}
 
@@ -4399,6 +4404,9 @@ function renderReport(){
             var btnColor=hasPhoto?'#777':'#ff4d6d';
             var btnLabel=hasPhoto?'📱 재발송':(wasSent?'📱 재발송':'📱 문자 발송');
             cards+='<button onclick="sendSmsOne(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid '+btnBorder+';background:rgba(0,0,0,0.3);color:'+btnColor+';font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">'+btnLabel+'</button>';
+            if(wasSent&&smsTime){
+              cards+='<div style="text-align:center;font-size:10px;color:#555;margin-top:2px;">🕐 '+smsTime+' 발송됨</div>';
+            }
           }
           cards+='<button onclick="copyUploadLink(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid #2c2c2c;background:rgba(0,0,0,0.2);color:#7ab8ff;font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🔗 링크 복사</button>';
           cards+='</div>';
@@ -4495,6 +4503,8 @@ function sendSmsAllPending(dateStr){
     if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
     if(!reportPhotoData[dateStr][s.id])reportPhotoData[dateStr][s.id]={photos:0};
     reportPhotoData[dateStr][s.id].smsSent=true;
+    var now=new Date();
+    reportPhotoData[dateStr][s.id].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   });
   saveReportData();renderReport();
   showToast('📱 '+pending.length+'곳 재발송!');
@@ -4509,6 +4519,8 @@ function sendSmsAll(coName, dateStr){
     if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
     if(!reportPhotoData[dateStr][s.id])reportPhotoData[dateStr][s.id]={photos:0};
     reportPhotoData[dateStr][s.id].smsSent=true;
+    var now=new Date();
+    reportPhotoData[dateStr][s.id].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   });
   saveReportData();renderReport();
   showToast('📱 '+coSites.length+'곳 문자앱이 열립니다.');
