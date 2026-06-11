@@ -4237,7 +4237,7 @@ function switchTab(name){
 
 // ── REPORT TAB ──
 // ── REPORT TAB ──
-function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); }
+function saveReportData(){ localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData)); saveToFirebase(); }
 function todayStr(){ var d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
 function getDayOfWeek(d){ return new Date(d+'T00:00:00').getDay(); }
 function initReportDate(){ var el=document.getElementById('report-date'); if(el&&!el.value)el.value=todayStr(); }
