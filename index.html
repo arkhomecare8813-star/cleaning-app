@@ -36,7 +36,7 @@ var rentPayments  = JSON.parse(localStorage.getItem('cm-rent-payments')||'[]');
 function saveSmsTemplate(t){ SMS_TEMPLATE=t; localStorage.setItem('cm-sms-template',t); saveToFirebase(); }
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
-function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;var localPhotos=JSON.parse(localStorage.getItem("cm-photos")||"{}");Object.keys(localPhotos).forEach(function(date){Object.keys(localPhotos[date]||{}).forEach(function(sid){if(!reportPhotoData[date])reportPhotoData[date]={};if(!reportPhotoData[date][sid])reportPhotoData[date][sid]={};if(localPhotos[date][sid].smsSent)reportPhotoData[date][sid].smsSent=true;});});}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});
+function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});
   // rent 데이터 별도 로드
   fetch(FB_URL+'/rent.json').then(function(r){return r.json();}).then(function(d){
     if(d){
@@ -2201,12 +2201,15 @@ function renderWeekly(){
       const cnt=totalCountInMonth(s,baseYear,baseMonth);
       const ev=document.createElement('div');ev.className='week-event';
       ev.style.background=col.bg;ev.style.borderColor=col.bg;
-      var todayKey2=now.toISOString().slice(0,10);
+      var todayKey2 = weekDates[idx].getFullYear()+'-'+String(weekDates[idx].getMonth()+1).padStart(2,'0')+'-'+String(weekDates[idx].getDate()).padStart(2,'0');
       var dd2=reportPhotoData[todayKey2]||{};
       var hasP2=dd2[s.id]&&dd2[s.id].photos>0;
+      var isToday2 = todayKey2 === todayStr();
       var repBadge='';
-      if(!s.noReport){var bbg=hasP2?'rgba(0,229,160,0.15)':'rgba(255,77,109,0.15)';var bco=hasP2?'#00e5a0':'#ff4d6d';var btx=hasP2?'✅ 완료':'❌ 미보고';repBadge='<div style="margin-top:4px;display:inline-flex;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:'+bbg+';color:'+bco+';">'+btx+'</div>';}
-      else{repBadge='<div style="margin-top:4px;font-size:9px;color:#555;">보고제외</div>';}
+      if(isToday2){
+        if(!s.noReport){var bbg=hasP2?'rgba(0,229,160,0.15)':'rgba(255,77,109,0.15)';var bco=hasP2?'#00e5a0':'#ff4d6d';var btx=hasP2?'✅ 완료':'❌ 미보고';repBadge='<div style="margin-top:4px;display:inline-flex;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:'+bbg+';color:'+bco+';">'+btx+'</div>';}
+        else{repBadge='<div style="margin-top:4px;font-size:9px;color:#555;">보고제외</div>';}
+      }
       ev.innerHTML='<div class="week-event-name" style="color:'+col.text+'">'+s.site+'</div>'
         +'<div class="week-event-co" style="color:'+col.text+'">'+s.company+'</div>'
         +(s.manager?'<div class="week-event-mgr">'+s.manager+'</div>':'')
