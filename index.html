@@ -516,48 +516,61 @@ main{padding:18px 14px;max-width:1400px;}
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
         <div style="font-size:14px;font-weight:800;">📈 월간 매출 추이</div>
-        <div style="font-family:DM Mono,monospace;font-size:12px;color:#ffb547;" id="db-annual"></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="display:flex;gap:10px;font-size:10px;">
+            <span style="color:#00e5a0;">— 원청</span>
+            <span style="color:#ffb547;opacity:0.8;">-- 이익</span>
+          </div>
+          <div style="font-family:DM Mono,monospace;font-size:12px;color:#ffb547;" id="db-annual"></div>
+        </div>
       </div>
-      <div id="db-chart" style="display:flex;align-items:flex-end;gap:4px;height:120px;"></div>
-      <div id="db-chart-labels" style="display:flex;gap:4px;margin-top:5px;"></div>
+      <svg id="db-chart-svg" viewBox="0 0 600 130" style="width:100%;height:130px;"></svg>
     </div>
+    <!-- Row2: 업체별 매출 + 파이차트 2개 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-      <!-- 업체별 매출 -->
+      <!-- 업체별 매출 TOP10 -->
       <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <div style="font-size:13px;font-weight:800;">🏢 업체별 매출</div>
+          <div style="font-size:13px;font-weight:800;">🏢 업체별 매출 <span style="font-size:10px;color:var(--muted);font-weight:400;">TOP 10</span></div>
           <button onclick="dbSortCo()" id="db-co-sort-btn" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;">↓ 내림차순</button>
         </div>
-        <div id="db-co-list"></div>
+        <div id="db-co-list" style="max-height:280px;overflow-y:auto;"></div>
       </div>
-      <!-- 지역별 매출 -->
-      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
-        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">📍 지역별 매출</div>
-        <div id="db-region-list"></div>
+      <!-- 업체별 + 지역별 파이차트 -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;flex:1;">
+          <div style="font-size:13px;font-weight:800;margin-bottom:10px;">🏢 업체별 매출 비중</div>
+          <div id="db-pie-wrap" style="display:flex;align-items:center;gap:12px;">
+            <svg id="db-pie-svg" viewBox="0 0 100 100" style="width:80px;height:80px;flex-shrink:0;"></svg>
+            <div id="db-pie-legend" style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;overflow:hidden;"></div>
+          </div>
+        </div>
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;flex:1;">
+          <div style="font-size:13px;font-weight:800;margin-bottom:10px;">📍 지역별 매출 비중</div>
+          <div id="db-region-pie-wrap" style="display:flex;align-items:center;gap:12px;">
+            <svg id="db-region-pie-svg" viewBox="0 0 100 100" style="width:80px;height:80px;flex-shrink:0;"></svg>
+            <div id="db-region-pie-legend" style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;overflow:hidden;"></div>
+          </div>
+        </div>
       </div>
     </div>
-    <!-- 사진보고 실행률 -->
+    <!-- Row3: 지역 커버리지 -->
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:13px;font-weight:800;">📷 사진보고 실행률 <span style="font-size:11px;color:var(--muted);font-weight:400;">(최근 30일)</span></div>
-        <button onclick="dbSortReport()" id="db-rep-sort-btn" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;">↓ 내림차순</button>
-      </div>
-      <div id="db-report-list"></div>
-    </div>
-    <!-- 지역 커버리지 -->
-    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
-      <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🗺️ 지역 커버리지 <span style="font-size:11px;color:var(--muted);font-weight:400;">— 문의 온 지역 빠른 확인</span></div>
+      <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🗺️ 지역 커버리지 <span style="font-size:11px;color:var(--muted);font-weight:400;">— 문의 온 지역</span></div>
       <div id="db-coverage"></div>
     </div>
-    <!-- 문의중 현장 + 저이익률 경고 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <!-- Row4: 사진보고 실행률 + 문의중 현장 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
       <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
-        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🟡 문의중 현장</div>
-        <div id="db-inquiry"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:13px;font-weight:800;">📷 사진보고 실행률 <span style="font-size:11px;color:var(--muted);font-weight:400;">(최근 30일)</span></div>
+          <button onclick="dbSortReport()" id="db-rep-sort-btn" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;">↓ 내림차순</button>
+        </div>
+        <div id="db-report-list" style="max-height:220px;overflow-y:auto;"></div>
       </div>
       <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
-        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">⚠️ 저이익률 현장 <span style="font-size:10px;color:var(--muted);">(&lt;20%)</span></div>
-        <div id="db-lowprofit"></div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🟡 문의중 현장</div>
+        <div id="db-inquiry" style="max-height:220px;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
@@ -2535,16 +2548,24 @@ function renderDashboard(){
 
   // ── KPI ──
   var totalMain=0, totalMainNet=0, totalSubPayout=0, totalSubPayoutNet=0, totalSites=activeSites.length;
+  var totalMainVat=0, totalSubVat=0, totalSub33=0;
   activeSites.forEach(function(s){
     var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
     var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
+    var mt=calcMainTax(s.priceMain||0);
+    var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
     totalMain+=s.priceMain||0;
     totalMainNet+=em;
-    totalSubPayout+=calcSubTax(s.priceSub||0,s.subtaxtype||'none').payout;  // 계약 정액
-    totalSubPayoutNet+=calcSubTax(es,s.subtaxtype||'none').payout;           // 실발생
+    totalSubPayout+=st.payout;
+    totalSubPayoutNet+=calcSubTax(es,s.subtaxtype||'none').payout;
+    totalMainVat+=mt.vat;                                          // 원청 VAT
+    if(s.subtaxtype==='vat') totalSubVat+=st.vat;                  // 하청 VAT (매입세액)
+    if(s.subtaxtype==='t33') totalSub33+=st.deduct;                // 하청 3.3% 보관액
   });
   var totalProfit=totalMain-totalSubPayout;
   var totalProfitNet=totalMainNet-totalSubPayoutNet;
+  var vatPayable=totalMainVat-totalSubVat;                         // 납부 VAT = 매출세액 - 매입세액
+  var netProfit=totalProfit-vatPayable-totalSub33;                 // 순이익 = 이익 - 납부VAT - 3.3%보관액
   var profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
   var profitRateNet=totalMainNet?Math.round(totalProfitNet/totalMainNet*100):0;
   var coCount=[...new Set(activeSites.map(function(s){return s.company;}))].length;
@@ -2569,11 +2590,10 @@ function renderDashboard(){
     {label:'이번달 원청',val:fmtN(totalMain)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalMainNet)+'원':null,color:'#00e5a0',key:'main'},
     {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalSubPayoutNet)+'원':null,color:'#7ab8ff',key:'sub'},
     {label:'이번달 이익',val:fmtN(totalProfit)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalProfitNet)+'원('+profitRateNet+'%)':null,color:'#ffb547',key:'profit'},
-    {label:'이익률',val:profitRate+'%',color:profitRate>=30?'#00e5a0':profitRate>=15?'#ffb547':'#ff4d6d',key:'rate'},
+    {label:'Net Profit',val:fmtN(netProfit)+'원',sub:'VAT '+fmtN(vatPayable)+'원 · 3.3% '+fmtN(totalSub33)+'원 차감',color:'#c084fc',key:'net'},
     {label:'운영 현장',val:totalSites+'곳',color:'#00e5a0',key:'sites'},
     {label:'업체 수',val:coCount+'개',color:'#7ab8ff',key:'companies'},
     {label:'문의중',val:inquirySites.length+'곳',color:'#ffb547',key:'inquiry'},
-    {label:'오늘 미보고',val:todayPending+'곳',color:todayPending>0?'#ff4d6d':'#00e5a0',key:'pending'},
   ];
   kpiEl.innerHTML=kpiItems.map(function(k){
     return '<div onclick="openKpiPopup(\''+k.key+'\')" style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color 0.15s;" '
@@ -2678,39 +2698,90 @@ function renderDashboard(){
   var annualEst=activeSites.reduce(function(sum,s){return sum+(s.priceMain||0);},0)*12;
   document.getElementById('db-annual').textContent='예상 연매출 '+fmtN(annualEst)+'원';
 
-  var chartEl=document.getElementById('db-chart');
-  var labelEl=document.getElementById('db-chart-labels');
-  chartEl.innerHTML=''; labelEl.innerHTML='';
-  chartData.forEach(function(m){
-    var pct=chartMax>0?Math.max(4,Math.round(m.val/chartMax*100)):4;
-    var col=m.isCur?'#00e5a0':m.isFuture?'rgba(0,229,160,0.3)':'#004d36';
-    var bar=document.createElement('div');
-    bar.style.cssText='flex:1;background:'+col+';border-radius:4px 4px 0 0;height:'+pct+'%;min-height:4px;position:relative;cursor:default;transition:filter 0.15s;';
-    bar.title=m.label+' '+fmtN(m.val)+'원'+(m.isFuture?' (예상)':'');
-    bar.onmouseenter=function(){this.style.filter='brightness(1.3)';};
-    bar.onmouseleave=function(){this.style.filter='';};
-    chartEl.appendChild(bar);
-    var lbl=document.createElement('div');
-    lbl.style.cssText='flex:1;text-align:center;font-size:9px;color:'+(m.isCur?'#00e5a0':'var(--muted)')+';font-weight:'+(m.isCur?'800':'400')+';';
-    lbl.textContent=m.label;
-    labelEl.appendChild(lbl);
-  });
+  // ── 꺾은선 차트 (SVG) ──
+  var annualEst=activeSites.reduce(function(sum,s){return sum+(s.priceMain||0);},0)*12;
+  document.getElementById('db-annual').textContent='예상 연매출 '+fmtN(annualEst)+'원';
 
-  // ── 업체별 매출 ──
-  var companies=[...new Set(activeSites.map(function(s){return s.company;}))];
-  var coData=companies.map(function(co){
+  var svgEl=document.getElementById('db-chart-svg');
+  if(svgEl && chartData.length){
+    var W=600, H=110, padL=8, padR=8, padT=10, padB=22;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var profitData=chartData.map(function(m){
+      var snap=null;
+      Object.values(settleSnapshots).forEach(function(sn){if(sn.yr===m.yr&&sn.mo===m.mo+1)snap=sn;});
+      var subVal=0;
+      if(snap){
+        snap.sites.filter(function(s){return (s.status||'active')==='active';}).forEach(function(s){
+          var es=effectivePrice(s,m.yr,m.mo,s.priceSub||0);
+          subVal+=calcSubTax(es,s.subtaxtype||'none').payout;
+        });
+      } else {
+        activeSites.forEach(function(s){
+          var es=effectivePrice(s,m.yr,m.mo,s.priceSub||0);
+          subVal+=calcSubTax(es,s.subtaxtype||'none').payout;
+        });
+      }
+      return m.val-subVal;
+    });
+    var allVals=chartData.map(function(m){return m.val;}).concat(profitData);
+    var vMax=Math.max.apply(null,allVals)||1;
+    var n=chartData.length;
+    var xOf=function(i){return padL+i*(plotW/(n-1));};
+    var yOf=function(v){return padT+plotH-(v/vMax*plotH);};
+
+    // 그리드
+    var grid='';
+    [0,0.25,0.5,0.75,1].forEach(function(t){
+      var y=padT+plotH*t;
+      grid+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#1e1e1e" stroke-width="1"/>';
+    });
+
+    // 현재월 세로선
+    var curIdx=chartData.findIndex(function(m){return m.isCur;});
+    var curX=xOf(curIdx);
+    var curLine='<line x1="'+curX+'" y1="'+padT+'" x2="'+curX+'" y2="'+(padT+plotH)+'" stroke="#00e5a0" stroke-width="1" stroke-dasharray="3,2" opacity="0.4"/>';
+
+    // 원청 면적
+    var areaPoints=chartData.map(function(m,i){return xOf(i)+','+yOf(m.val);}).join(' ');
+    var areaFill='<polygon points="'+padL+','+(padT+plotH)+' '+areaPoints+' '+(W-padR)+','+(padT+plotH)+'" fill="rgba(0,229,160,0.06)"/>';
+
+    // 원청 선
+    var mainLine='<polyline points="'+areaPoints+'" fill="none" stroke="#00e5a0" stroke-width="2" stroke-linejoin="round"/>';
+
+    // 이익 선 (점선)
+    var profitPoints=profitData.map(function(v,i){return xOf(i)+','+yOf(v);}).join(' ');
+    var profitLine='<polyline points="'+profitPoints+'" fill="none" stroke="#ffb547" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2" opacity="0.8"/>';
+
+    // 현재월 점
+    var dots='<circle cx="'+curX+'" cy="'+yOf(chartData[curIdx].val)+'" r="3.5" fill="#00e5a0"/>';
+    dots+='<circle cx="'+curX+'" cy="'+yOf(profitData[curIdx])+'" r="3" fill="#ffb547"/>';
+
+    // 라벨
+    var labels=chartData.map(function(m,i){
+      var x=xOf(i);
+      var col=m.isCur?'#00e5a0':'#444';
+      var fw=m.isCur?'bold':'normal';
+      return '<text x="'+x+'" y="'+(H-4)+'" text-anchor="middle" fill="'+col+'" font-size="9" font-weight="'+fw+'">'+m.label+'</text>';
+    }).join('');
+
+    svgEl.innerHTML=grid+curLine+areaFill+mainLine+profitLine+dots+labels;
+  }
+
+  // ── 업체별 매출 TOP10 ──
+  var coDataBar=[...new Set(activeSites.map(function(s){return s.company;}))].map(function(co){
     var coSites=activeSites.filter(function(s){return s.company===co;});
-    var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+    var main=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
     var subPay=coSites.reduce(function(a,s){
       var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
       return a+calcSubTax(es,s.subtaxtype||'none').payout;
     },0);
     return{co:co,main:main,profit:main-subPay,count:coSites.length};
   });
-  coData.sort(function(a,b){return dbCoSortAsc?a.main-b.main:b.main-a.main;});
-  var coMax=coData.length?coData[0].main:1;
+  coDataBar.sort(function(a,b){return dbCoSortAsc?a.main-b.main:b.main-a.main;});
+  var coTop=coDataBar.slice(0,10);
+  var coMax=coTop.length?coTop[0].main:1;
   var coEl=document.getElementById('db-co-list');
-  coEl.innerHTML=coData.length?coData.map(function(d){
+  if(coEl) coEl.innerHTML=coTop.length?coTop.map(function(d){
     var col=getCompanyColor(d.co);
     var pct=coMax>0?Math.max(6,Math.round(d.main/coMax*100)):6;
     return '<div style="margin-bottom:10px;">'
@@ -2722,27 +2793,70 @@ function renderDashboard(){
       +'</div>';
   }).join(''):'<div style="color:var(--dim);font-size:12px;">운영중 업체 없음</div>';
 
-  // ── 지역별 매출 ──
+  function renderPieChart(svgId, legendId, data, keyFn, totalMain, colors){
+    var pieSvg=document.getElementById(svgId);
+    var pieLegend=document.getElementById(legendId);
+    if(!pieSvg||!pieLegend) return;
+    var cx=50,cy=50,r=38;
+    var offset=0;
+    var slices=data.map(function(d,i){
+      var pct=d.main/totalMain;
+      var slice={pct:pct,col:colors[i%colors.length],offset:offset,label:keyFn(d)};
+      offset+=pct;
+      return slice;
+    });
+    var svgHtml=slices.map(function(s){
+      var circ=2*Math.PI*r;
+      var dash=s.pct*circ;
+      var gap=circ-dash;
+      var rot=(s.offset*360)-90;
+      return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.col+'" stroke-width="24"'
+        +' stroke-dasharray="'+dash.toFixed(2)+' '+gap.toFixed(2)+'"'
+        +' transform="rotate('+rot.toFixed(1)+' '+cx+' '+cy+')" opacity="0.9"/>';
+    }).join('');
+    svgHtml+='<circle cx="'+cx+'" cy="'+cy+'" r="24" fill="var(--sf)"/>';
+    pieSvg.innerHTML=svgHtml;
+    pieLegend.innerHTML=data.slice(0,5).map(function(d,i){
+      var pct=Math.round(d.main/totalMain*100);
+      return '<div style="display:flex;align-items:center;gap:5px;font-size:10px;min-width:0;">'
+        +'<div style="width:7px;height:7px;border-radius:50%;background:'+colors[i%colors.length]+';flex-shrink:0;"></div>'
+        +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">'+keyFn(d)+'</span>'
+        +'<span style="color:'+colors[i%colors.length]+';font-weight:700;flex-shrink:0;">'+pct+'%</span>'
+        +'</div>';
+    }).join('');
+    if(data.length>5){
+      var etc=data.slice(5).reduce(function(a,d){return a+d.main;},0);
+      var etcPct=Math.round(etc/totalMain*100);
+      pieLegend.innerHTML+='<div style="display:flex;align-items:center;gap:5px;font-size:10px;">'
+        +'<div style="width:7px;height:7px;border-radius:50%;background:#333;flex-shrink:0;"></div>'
+        +'<span style="flex:1;color:#555;">기타</span>'
+        +'<span style="color:#555;font-weight:700;">'+etcPct+'%</span></div>';
+    }
+  }
+
+  // ── 업체별 매출 비중 파이차트 ──
+  var coDataPie=[...new Set(activeSites.map(function(s){return s.company;}))].map(function(co){
+    var coSites=activeSites.filter(function(s){return s.company===co;});
+    var main=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+    return{co:co,main:main,col:getCompanyColor(co).text};
+  }).filter(function(d){return d.main>0;});
+  coDataPie.sort(function(a,b){return b.main-a.main;});
+  var totalCoMain=coDataPie.reduce(function(a,d){return a+d.main;},0)||1;
+  renderPieChart('db-pie-svg','db-pie-legend',coDataPie,function(d){return d.co;},totalCoMain,coDataPie.map(function(d){return d.col;}));
+
+  // ── 지역별 매출 비중 ──
   var regionMap={};
   activeSites.forEach(function(s){
     var region=s.sido||'미분류';
     if(!regionMap[region])regionMap[region]={main:0,count:0};
-    regionMap[region].main+=effectivePrice(s,curYr,curMo,s.priceMain||0);
+    regionMap[region].main+=s.priceMain||0;
     regionMap[region].count++;
   });
   var regionArr=Object.keys(regionMap).map(function(r){return{region:r,main:regionMap[r].main,count:regionMap[r].count};});
   regionArr.sort(function(a,b){return b.main-a.main;});
-  var rMax=regionArr.length?regionArr[0].main:1;
-  var regEl=document.getElementById('db-region-list');
-  regEl.innerHTML=regionArr.length?regionArr.map(function(d){
-    var pct=rMax>0?Math.max(6,Math.round(d.main/rMax*100)):6;
-    return '<div style="margin-bottom:10px;">'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px;">'
-      +'<div style="font-size:12px;font-weight:700;">📍 '+d.region+' <span style="font-size:10px;color:var(--muted);font-weight:400;">'+d.count+'곳</span></div>'
-      +'<div style="font-family:DM Mono,monospace;font-size:11px;color:#00e5a0;">'+fmtN(d.main)+'</div></div>'
-      +'<div style="background:var(--sf3);border-radius:3px;height:6px;"><div style="background:#00b37a;height:100%;border-radius:3px;width:'+pct+'%;"></div></div>'
-      +'</div>';
-  }).join(''):'<div style="color:var(--dim);font-size:12px;">데이터 없음</div>';
+  var totalRegionMain=regionArr.reduce(function(a,d){return a+d.main;},0)||1;
+  var regionColors=['#7ab8ff','#00e5a0','#ffb547','#c084fc','#ff4d6d','#4ade80','#f472b6'];
+  renderPieChart('db-region-pie-svg','db-region-pie-legend',regionArr,function(d){return d.region;},totalRegionMain,regionColors);
 
   // ── 사진보고 실행률 (최근 30일) ──
   var repData=activeSites.filter(function(s){return !s.noReport;}).map(function(s){
@@ -2790,7 +2904,6 @@ function renderDashboard(){
       +'</div>';
   }).join('')+'</div>':'<div style="color:var(--dim);font-size:12px;">시/도 정보가 있는 현장을 추가하면 표시됩니다</div>';
 
-  // ── 문의중 현장 ──
   var inqEl=document.getElementById('db-inquiry');
   inqEl.innerHTML=inquirySites.length?inquirySites.map(function(s){
     var col=getCompanyColor(s.company);
@@ -2802,26 +2915,6 @@ function renderDashboard(){
       +'</div>';
   }).join(''):'<div style="color:var(--dim);font-size:12px;padding:10px 0;">문의중 현장 없음</div>';
 
-  // ── 저이익률 경고 (<20%) ──
-  var lowProfit=activeSites.filter(function(s){
-    if(!s.priceMain)return false;
-    var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
-    var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
-    var pay=calcSubTax(es,s.subtaxtype||'none').payout;
-    var rate=em?Math.round((em-pay)/em*100):0;
-    s._rate=rate;
-    return rate<20;
-  });
-  lowProfit.sort(function(a,b){return a._rate-b._rate;});
-  var lpEl=document.getElementById('db-lowprofit');
-  lpEl.innerHTML=lowProfit.length?lowProfit.map(function(s){
-    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);">'
-      +'<div style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:'+(s._rate<10?'#ff4d6d':'#ffb547')+';min-width:36px;">'+s._rate+'%</div>'
-      +'<div><div style="font-size:12px;font-weight:700;">'+s.site+'</div>'
-      +'<div style="font-size:10px;color:var(--muted);">'+s.company+'</div></div>'
-      +'<button onclick="openEdit('+s.id+')" style="margin-left:auto;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:transparent;color:var(--muted);font-size:10px;cursor:pointer;">수정</button>'
-      +'</div>';
-  }).join(''):'<div style="color:#00e5a0;font-size:12px;padding:10px 0;">⚠️ 해당 현장 없음 👍</div>';
 }
 
 function dbSortCo(){
