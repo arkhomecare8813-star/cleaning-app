@@ -1841,8 +1841,6 @@ function openEdit(id){
   var addrParts = (function(){
     if(s.sido){
       var parsed = parseAddrParts(s.addr||'');
-      // addr이 이미 sido+gungu+detail 합쳐진 형태면 parseAddrParts로 detail 추출
-      // addr이 순수 detail만 있으면 그대로 사용
       var detail = parsed.sido ? parsed.detail : (s.addr||'');
       return {sido:s.sido, gungu:s.gungu||'', detail:detail};
     }
@@ -2204,7 +2202,6 @@ function renderWeekly(){
       var todayKey2 = weekDates[idx].getFullYear()+'-'+String(weekDates[idx].getMonth()+1).padStart(2,'0')+'-'+String(weekDates[idx].getDate()).padStart(2,'0');
       var dd2=reportPhotoData[todayKey2]||{};
       var hasP2=dd2[s.id]&&dd2[s.id].photos>0;
-      var isToday2 = todayKey2 === todayStr();
       var repBadge='';
       if(!s.noReport){var bbg=hasP2?'rgba(0,229,160,0.15)':'rgba(255,77,109,0.15)';var bco=hasP2?'#00e5a0':'#ff4d6d';var btx=hasP2?'✅ 완료':'❌ 미보고';repBadge='<div style="margin-top:4px;display:inline-flex;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;background:'+bbg+';color:'+bco+';">'+btx+'</div>';}
       else{repBadge='<div style="margin-top:4px;font-size:9px;color:#555;">보고제외</div>';}
