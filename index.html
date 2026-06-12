@@ -5476,7 +5476,7 @@ function renderContacts(){
   var filtered=sites.filter(function(s){
     if(sidoFilter&&s.sido!==sidoFilter)return false;
     if(query){
-      var hay=(s.site+s.company+(s.manager||'')+(s.phone||'')).toLowerCase();
+      var hay=(s.site+s.company+(s.manager||'')+(s.phone||'')+(s.clientMgr||'')+(s.clientPhone||'')).toLowerCase();
       if(hay.indexOf(query)<0)return false;
     }
     return true;
@@ -5542,19 +5542,44 @@ function renderContactCard(s,col){
     ?'<span style="background:#3a1a1a;color:#ff4d6d;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;">종료</span>'
     :'<span style="background:rgba(0,229,160,0.12);color:#00e5a0;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;">운영중</span>';
   var tel=s.phone?s.phone.replace(/[^0-9+]/g,''):'';
-  return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--sf3);border-radius:9px;border-left:3px solid '+col.text+';gap:10px;">'
+  var clientTel=s.clientPhone?s.clientPhone.replace(/[^0-9+]/g,''):'';
+
+  // 담당자 행
+  var mgrRow = (s.manager||s.phone) ? (
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;">'
     +'<div style="min-width:0;flex:1;">'
-    +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px;">'
-    +'<span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+s.site+'</span>'
-    +statusBadge+'</div>'
     +(s.manager?'<div style="font-size:11px;color:var(--text);margin-bottom:1px;">👤 '+s.manager+'</div>':'')
     +(s.phone?'<div style="font-size:11px;color:var(--muted);">📞 '+s.phone+'</div>':'<div style="font-size:11px;color:#ff4d6d;">📞 연락처 없음</div>')
-    +((s.sido||s.gungu)?'<div style="font-size:10px;color:var(--muted);margin-top:1px;">📍 '+(s.sido||'')+' '+(s.gungu||'')+'</div>':'')
     +'</div>'
-    +(s.phone?'<div style="display:flex;gap:5px;flex-shrink:0;">'
-      +'<a href="tel:'+tel+'" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:#00e5a0;color:#000;font-size:16px;text-decoration:none;">📞</a>'
-      +'<a href="sms:'+tel+'" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:16px;text-decoration:none;">💬</a>'
+    +(tel?'<div style="display:flex;gap:5px;flex-shrink:0;">'
+      +'<a href="tel:'+tel+'" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#00e5a0;color:#000;font-size:15px;text-decoration:none;">📞</a>'
+      +'<a href="sms:'+tel+'" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:15px;text-decoration:none;">💬</a>'
       +'</div>':'')
+    +'</div>'
+  ) : '';
+
+  // 거래처 담당자 행
+  var clientRow = (s.clientMgr||s.clientPhone) ? (
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px;padding-top:5px;border-top:1px solid var(--bd);">'
+    +'<div style="min-width:0;flex:1;">'
+    +'<div style="font-size:9px;color:var(--muted);margin-bottom:2px;">거래처</div>'
+    +(s.clientMgr?'<div style="font-size:11px;color:var(--text);margin-bottom:1px;">👤 '+s.clientMgr+'</div>':'')
+    +(s.clientPhone?'<div style="font-size:11px;color:var(--muted);">📞 '+s.clientPhone+'</div>':'')
+    +'</div>'
+    +(clientTel?'<div style="display:flex;gap:5px;flex-shrink:0;">'
+      +'<a href="tel:'+clientTel+'" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:#5b8dee;color:#fff;font-size:15px;text-decoration:none;">📞</a>'
+      +'<a href="sms:'+clientTel+'" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;border:1px solid #5b8dee;background:rgba(91,141,238,0.1);color:#5b8dee;font-size:15px;text-decoration:none;">💬</a>'
+      +'</div>':'')
+    +'</div>'
+  ) : '';
+
+  return '<div style="padding:10px 12px;background:var(--sf3);border-radius:9px;border-left:3px solid '+col.text+';margin-bottom:2px;">'
+    +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px;">'
+    +'<span style="font-size:13px;font-weight:700;">'+s.site+'</span>'
+    +statusBadge+'</div>'
+    +((s.sido||s.gungu)?'<div style="font-size:10px;color:var(--muted);">📍 '+(s.sido||'')+' '+(s.gungu||'')+'</div>':'')
+    +mgrRow
+    +clientRow
     +'</div>';
 }
 
