@@ -499,10 +499,8 @@ main{padding:18px 14px;max-width:1400px;}
   <button class="tab active" onclick="switchTab('dashboard')">📊 대시보드</button>
   <button class="tab" onclick="switchTab('list')">&#128203; 업체/현장</button>
   <button class="tab" onclick="switchTab('contacts')">📞 주소록</button>
-  <button class="tab" onclick="switchTab('calendar')">&#128197; 월간 캘린더</button>
-  <button class="tab" onclick="switchTab('weekly')">&#128198; 요일별 현황</button>
+  <button class="tab" onclick="switchTab('calendar')">&#128197; 캘린더</button>
   <button class="tab" onclick="switchTab('report')">&#128247; 현장보고</button>
-  <button class="tab" onclick="switchTab('checklist')">📋 체크리스트</button>
   <button class="tab" onclick="switchTab('supply')">&#128722; 비품</button>
   <button class="tab" onclick="switchTab('settle')">&#128176; 정산</button>
 </div>
@@ -680,6 +678,10 @@ main{padding:18px 14px;max-width:1400px;}
         <label style="font-size:13px;cursor:pointer;user-select:none;">📵 사진 보고 제외 (문자 발송 안 함)</label>
       </div>
       <div class="form-actions">
+        <button class="btn" onclick="openNewSiteChecklist()" id="f-cl-btn"
+          style="margin-right:auto;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px;">
+          📋 체크리스트
+        </button>
         <button class="btn btn-ghost" onclick="resetForm()">초기화</button>
         <button class="btn btn-primary" onclick="addSite()">저장하기</button>
       </div>
@@ -764,23 +766,39 @@ main{padding:18px 14px;max-width:1400px;}
   </div>
   <!-- CALENDAR -->
   <div class="view" id="view-calendar">
-    <div class="calendar-wrapper">
-      <div class="cal-nav">
-        <button class="cal-nav-btn" onclick="changeMonth(-1)">&#9664;</button>
-        <div class="cal-title" id="cal-title"></div>
-        <button class="cal-nav-btn" onclick="changeMonth(1)">&#9654;</button>
+    <!-- 서브탭 -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <button id="cal-sub-monthly" onclick="switchCalSub('monthly')"
+        style="padding:7px 18px;border-radius:8px;border:1px solid #00e5a0;background:rgba(0,229,160,0.12);color:#00e5a0;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        📅 월간 캘린더
+      </button>
+      <button id="cal-sub-weekly" onclick="switchCalSub('weekly')"
+        style="padding:7px 18px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        📆 요일별 현황
+      </button>
+    </div>
+    <!-- 월간 캘린더 -->
+    <div id="cal-body-monthly">
+      <div class="calendar-wrapper">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">&#9664;</button>
+          <div class="cal-title" id="cal-title"></div>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">&#9654;</button>
+        </div>
+        <div class="cal-scroll"><div class="cal-grid" id="cal-grid"></div></div>
       </div>
-      <div class="cal-scroll"><div class="cal-grid" id="cal-grid"></div></div>
+    </div>
+    <!-- 요일별 현황 -->
+    <div id="cal-body-weekly" style="display:none;">
+      <div class="weekly-wrapper">
+        <div class="weekly-scroll">
+          <div class="weekly-grid" id="weekly-grid"></div>
+        </div>
+      </div>
     </div>
   </div>
-  <!-- WEEKLY -->
-  <div class="view" id="view-weekly">
-    <div class="weekly-wrapper">
-      <div class="weekly-scroll">
-        <div class="weekly-grid" id="weekly-grid"></div>
-      </div>
-    </div>
-  </div>
+  <!-- WEEKLY (하위호환 — view 숨김) -->
+  <div class="view" id="view-weekly" style="display:none!important;"></div>
   <!-- REPORT -->
   <div class="view" id="view-report">
     <div style="display:none;">
@@ -798,11 +816,6 @@ main{padding:18px 14px;max-width:1400px;}
     </div>
     <div id="report-content"></div>
   </div>
-  <!-- CHECKLIST -->
-  <div class="view" id="view-checklist">
-    <div id="checklist-content"></div>
-  </div>
-
   <!-- RENT OVERLAY (전체화면) -->
   <div id="rent-overlay" style="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:200;overflow-y:auto;flex-direction:column;">
     <header style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);position:sticky;top:0;background:rgba(10,10,10,0.97);backdrop-filter:blur(16px);z-index:100;gap:10px;">
@@ -2006,6 +2019,33 @@ function saveEdit(){
 }
 
 // RENDER LIST
+function openNewSiteChecklist(){
+  // 등록 폼에서 현장명 + 업체명으로 이미 저장된 현장 찾기
+  var co   = (document.getElementById('f-co')  ?document.getElementById('f-co').value.trim()  :'');
+  var site = (document.getElementById('f-site')?document.getElementById('f-site').value.trim():'');
+  if(!co||!site){ showToast('❗ 먼저 업체명과 현장명을 입력 후 저장하세요.'); return; }
+  var found = sites.find(function(s){ return s.company===co && s.site===site; });
+  if(!found){ showToast('❗ 저장된 현장이 없습니다. 먼저 저장하기를 눌러주세요.'); return; }
+  openChecklistSite(found.id);
+}
+
+function updateChecklistBtns(siteList){
+  if(!siteList||!siteList.length) return;
+  siteList.forEach(function(s){
+    fetch(FB_URL+'/data/checklist/'+s.id+'.json')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var btn = document.getElementById('cl-btn-'+s.id);
+        if(!btn) return;
+        var hasFiles = d && d.files && d.files.length > 0;
+        btn.style.cssText = hasFiles
+          ? 'color:#00e5a0;border-color:#00e5a0;background:rgba(0,229,160,0.08);'
+          : 'color:var(--muted);';
+        btn.title = hasFiles ? '체크리스트 '+d.files.length+'개' : '체크리스트 없음';
+      }).catch(function(){});
+  });
+}
+
 function toggleSiteForm(){
   var body = document.getElementById('site-form-body');
   var icon = document.getElementById('site-form-toggle-icon');
@@ -2018,7 +2058,7 @@ function renderList(){
   const el=document.getElementById('company-list');
   const q=(document.getElementById('site-search')?document.getElementById('site-search').value.trim().toLowerCase():'');
   const filteredSites = q ? sites.filter(function(s){
-    return (s.company||'').toLowerCase().includes(q)||(s.site||'').toLowerCase().includes(q)||(s.manager||'').toLowerCase().includes(q);
+    return (s.company||'').toLowerCase().includes(q)||(s.site||'').toLowerCase().includes(q)||(s.manager||'').toLowerCase().includes(q)||(s.clientMgr||'').toLowerCase().includes(q);
   }) : sites;
   if(!filteredSites.length){
     el.innerHTML='<div class="empty"><div class="empty-icon">'+(q?'🔍':'&#127970;')+'</div><div class="empty-text">'+(q?'"'+q+'" 검색 결과가 없어요.':'등록된 업체가 없어요.<br>위 양식에서 추가해보세요.')+'</div></div>';return;
@@ -2055,6 +2095,7 @@ function renderList(){
       +'<button class="add-site-btn" data-co="'+encodeURIComponent(co)+'" onclick="prefillCompany(decodeURIComponent(this.dataset.co))">+ 현장 추가</button>'
       +'</div></div>';
   }).join('');
+  updateChecklistBtns(filteredSites);
 }
 function renderSiteCard(s,col){
   const tel=s.phone?s.phone.replace(/[^0-9+]/g,''):'';
@@ -2077,6 +2118,7 @@ function renderSiteCard(s,col){
     +(s.bizno?'<div style="font-size:11px;color:var(--muted)">&#128196; '+s.bizno+'</div>':'')
     +((s.bank||s.account)?'<div style="font-size:11px;color:var(--muted)">&#127984; '+(s.bank||'')+' '+(s.account||'')+'</div>':'')+'</div>'
     +'<div class="site-actions">'
+    +'<button class="icon-btn" title="체크리스트" id="cl-btn-'+s.id+'" onclick="openChecklistSite('+s.id+')">📋</button>'
     +'<button class="icon-btn" onclick="openEdit('+s.id+')">&#9999;&#65039;</button>'
     +'<button class="icon-btn del" onclick="deleteSite('+s.id+')">&#128465;</button>'
     +'</div></div>'
@@ -2556,7 +2598,7 @@ function renderDashboard(){
     var todayRoutines    = routines.filter(function(r){ return matchesToday(r, today2); });
     var tomorrowRoutines = routines.filter(function(r){ return matchesToday(r, tomorrowStr2); });
 
-    var TAB_NAMES = {dashboard:'대시보드',list:'업체/현장',contacts:'주소록',calendar:'월간 캘린더',weekly:'요일별 현황',report:'현장보고',checklist:'체크리스트',supply:'비품',settle:'정산'};
+    var TAB_NAMES = {dashboard:'대시보드',list:'업체/현장',contacts:'주소록',calendar:'캘린더',weekly:'요일별 현황',report:'현장보고',supply:'비품',settle:'정산'};
 
     function makeRoutineBlock(list, bg, border, headerColor, headerText){
       var wrap = document.createElement('div');
@@ -3850,121 +3892,6 @@ function _gunguCity(gungu){
   return m ? m[1] : null;
 }
 
-function renderChecklist(){
-  var el = document.getElementById('checklist-content');
-  if(!el) return;
-
-  if(!sites.length){
-    el.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:14px;">등록된 현장이 없습니다.</div>';
-    return;
-  }
-
-  // 도단위 탭 목록 (기타 맨 뒤)
-  var doList = [...new Set(sites.map(function(s){ return _sidoShort(s.sido); }))].sort();
-  var hasEtc = doList.indexOf('기타') > -1;
-  if(hasEtc){ doList = doList.filter(function(d){return d!=='기타';}); doList.push('기타'); }
-  var allDoTabs = ['전체'].concat(doList);
-
-  var activeDo  = el.dataset.activeDo  !== undefined ? el.dataset.activeDo  : '전체';
-  var activeCity= el.dataset.activeCity !== undefined ? el.dataset.activeCity : '전체';
-  el.dataset.activeDo   = activeDo;
-  el.dataset.activeCity = activeCity;
-
-  // 도단위 탭 HTML
-  var doTabsHtml = allDoTabs.map(function(d){
-    var isActive = d === activeDo;
-    return '<button onclick="clSelectDo(\''+d+'\')" style="padding:7px 16px;border-radius:20px;border:'+(isActive?'1px solid #00e5a0':'1px solid var(--bd)')+';background:'+(isActive?'rgba(0,229,160,0.12)':'transparent')+';color:'+(isActive?'#00e5a0':'var(--muted)')+';font-size:12px;font-weight:'+(isActive?'800':'500')+';cursor:pointer;white-space:nowrap;font-family:\'Noto Sans KR\',sans-serif;">'+d+'</button>';
-  }).join('');
-
-  // 도 선택 시 해당 현장 필터
-  var doFilteredSites = activeDo === '전체'
-    ? sites.slice()
-    : sites.filter(function(s){ return _sidoShort(s.sido) === activeDo; });
-
-  // 시단위 탭 목록
-  var cityList = [...new Set(doFilteredSites.map(function(s){ return _gunguCity(s.gungu)||'기타'; }))].sort();
-  var cityHasEtc = cityList.indexOf('기타') > -1;
-  if(cityHasEtc){ cityList = cityList.filter(function(c){return c!=='기타';}); cityList.push('기타'); }
-
-  var showCityTabs = activeDo !== '전체' && cityList.length > 1;
-  var allCityTabs = showCityTabs ? ['전체'].concat(cityList) : [];
-
-  var cityTabsHtml = '';
-  if(showCityTabs){
-    cityTabsHtml = '<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none;">'
-      + allCityTabs.map(function(c){
-          var isActive = c === activeCity;
-          return '<button onclick="clSelectCity(\''+c+'\')" style="padding:5px 13px;border-radius:16px;border:'+(isActive?'1px solid #7ab8ff':'1px solid var(--bd)')+';background:'+(isActive?'rgba(122,184,255,0.12)':'transparent')+';color:'+(isActive?'#7ab8ff':'var(--muted)')+';font-size:11px;font-weight:'+(isActive?'800':'500')+';cursor:pointer;white-space:nowrap;font-family:\'Noto Sans KR\',sans-serif;">'+c+'</button>';
-        }).join('')
-      + '</div>';
-  }
-
-  // 최종 현장 필터 (도 + 시)
-  var finalSites = doFilteredSites.filter(function(s){
-    if(!showCityTabs || activeCity === '전체') return true;
-    return (_gunguCity(s.gungu)||'기타') === activeCity;
-  });
-
-  var bannersHtml = finalSites.length
-    ? finalSites.map(function(s){
-        var col = getCompanyColor(s.company);
-        var addrStr = [s.sido, s.gungu, s.addr].filter(Boolean).join(' ');
-        return '<div onclick="openChecklistSite('+s.id+')" style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px;cursor:pointer;transition:border-color 0.15s;" onmouseenter="this.style.borderColor=\'#00e5a0\'" onmouseleave="this.style.borderColor=\'var(--bd)\'">'
-          +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
-          +'<div style="width:10px;height:10px;border-radius:50%;background:'+col.text+';flex-shrink:0;"></div>'
-          +'<div style="font-size:15px;font-weight:800;">'+s.site+'</div>'
-          +'</div>'
-          +'<div style="font-size:12px;color:var(--muted);">'+s.company+(s.manager?' · 👤 '+s.manager:'')+'</div>'
-          +(addrStr?'<div style="font-size:11px;color:#555;margin-top:4px;">📍 '+addrStr+'</div>':'')
-          +'<div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">'
-          +'<div id="cl-badge-'+s.id+'" style="font-size:11px;color:#555;">로딩중...</div>'
-          +'<div style="font-size:11px;color:#00e5a0;font-weight:700;">체크리스트 보기 →</div>'
-          +'</div></div>';
-      }).join('')
-    : '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;">해당 지역 현장이 없습니다.</div>';
-
-  el.innerHTML = ''
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
-    +'<div style="font-size:15px;font-weight:800;">📋 체크리스트</div>'
-    +'</div>'
-    // 도단위 탭
-    +'<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none;">'+doTabsHtml+'</div>'
-    // 시단위 서브탭
-    +cityTabsHtml
-    // 현장 배너
-    +'<div style="display:flex;flex-direction:column;gap:10px;">'+bannersHtml+'</div>';
-
-  // 파일 수 비동기 로드
-  finalSites.forEach(function(s){
-    fetch(FB_URL+'/data/checklist/'+s.id+'.json')
-      .then(function(r){return r.json();})
-      .then(function(d){
-        var badge = document.getElementById('cl-badge-'+s.id);
-        if(!badge) return;
-        var cnt = (d && d.files) ? d.files.length : 0;
-        badge.textContent = cnt > 0 ? '📄 '+cnt+'장 등록됨' : '등록된 파일 없음';
-        badge.style.color = cnt > 0 ? '#00e5a0' : '#555';
-      }).catch(function(){
-        var badge = document.getElementById('cl-badge-'+s.id);
-        if(badge){ badge.textContent='등록된 파일 없음'; badge.style.color='#555'; }
-      });
-  });
-}
-
-function clSelectDo(doName){
-  var el = document.getElementById('checklist-content');
-  if(el){ el.dataset.activeDo = doName; el.dataset.activeCity = '전체'; }
-  renderChecklist();
-}
-function clSelectCity(city){
-  var el = document.getElementById('checklist-content');
-  if(el) el.dataset.activeCity = city;
-  renderChecklist();
-}
-function clSelectSido(sido){
-  clSelectDo(sido);
-}
-
 // 현장 체크리스트 상세 팝업
 function openChecklistSite(siteId){
   var site = sites.find(function(s){return s.id===siteId;});
@@ -4176,7 +4103,7 @@ function clUploadFiles(siteId){
       showToast('✅ '+done+'장 업로드 완료!');
     }
     clLoadFiles(siteId);
-    renderChecklist();
+    updateChecklistBtns(sites);
   });
 }
 
@@ -4304,15 +4231,26 @@ function clShareEmail(siteId){
 }
 
 
+function switchCalSub(sub){
+  var isMonthly = sub === 'monthly';
+  document.getElementById('cal-body-monthly').style.display = isMonthly ? '' : 'none';
+  document.getElementById('cal-body-weekly').style.display  = isMonthly ? 'none' : '';
+  document.getElementById('cal-sub-monthly').style.cssText = 'padding:7px 18px;border-radius:8px;border:1px solid '+(isMonthly?'#00e5a0':'var(--bd)')+';background:'+(isMonthly?'rgba(0,229,160,0.12)':'transparent')+';color:'+(isMonthly?'#00e5a0':'var(--muted)')+';font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+  document.getElementById('cal-sub-weekly').style.cssText  = 'padding:7px 18px;border-radius:8px;border:1px solid '+(!isMonthly?'#00e5a0':'var(--bd)')+';background:'+(!isMonthly?'rgba(0,229,160,0.12)':'transparent')+';color:'+(!isMonthly?'#00e5a0':'var(--muted)')+';font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+  if(!isMonthly) renderWeekly();
+  else renderCalendar();
+}
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',['dashboard','list','contacts','calendar','weekly','report','checklist','supply','settle'][i]===name);});
+  // weekly → calendar 서브탭으로 리다이렉트
+  if(name === 'weekly'){ switchTab('calendar'); setTimeout(function(){ switchCalSub('weekly'); }, 50); return; }
+  var tabOrder = ['dashboard','list','contacts','calendar','report','supply','settle'];
+  document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active', tabOrder[i]===name); });
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.getElementById('view-'+name).classList.add('active');
   if(name==='dashboard')renderDashboard();
   if(name==='contacts'){initContactsSido();renderContacts();}
   if(name==='settle'){renderSettle();updateSnapshotSel();}
   if(name==='supply'){
-    // Firebase에서 최신 supplies 로드 후 렌더
     fetch(FB_URL+'/data/supplies.json')
       .then(function(r){return r.json();})
       .then(function(d){
@@ -4324,8 +4262,8 @@ function switchTab(name){
     renderReceipts();
   }
   if(name==='report'){renderReport();}
-  if(name==='checklist')renderChecklist();
   if(name==='list'){initFormPreviewListeners();updateFormPreview();}
+  if(name==='calendar'){switchCalSub('monthly');}
 }
 
 // ── REPORT TAB ──
@@ -5658,7 +5596,7 @@ function renderRoutineList(){
     el.innerHTML = '<div style="font-size:12px;color:#555;padding:8px 0;">등록된 루틴이 없어요.</div>';
     return;
   }
-  var TAB_NAMES = {'dashboard':'대시보드','list':'업체/현장','contacts':'주소록','calendar':'월간 캘린더','weekly':'요일별 현황','report':'현장보고','checklist':'체크리스트','supply':'비품','settle':'정산'};
+  var TAB_NAMES = {'dashboard':'대시보드','list':'업체/현장','contacts':'주소록','calendar':'캘린더','weekly':'요일별 현황','report':'현장보고','supply':'비품','settle':'정산'};
   el.innerHTML = '';
   routines.forEach(function(r, i){
     var row = document.createElement('div');
@@ -5872,7 +5810,7 @@ function openAddRoutineForm(){
   var tabEl = document.createElement('select');
   tabEl.id = 'rt-tab';
   tabEl.style.cssText = 'width:100%;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:7px;padding:8px 10px;color:#f0f0f0;font-size:13px;outline:none;';
-  [['','없음'],['dashboard','대시보드'],['list','업체/현장'],['contacts','주소록'],['calendar','월간 캘린더'],['weekly','요일별 현황'],['report','현장보고'],['checklist','체크리스트'],['supply','비품'],['settle','정산']].forEach(function(o){
+  [['','없음'],['dashboard','대시보드'],['list','업체/현장'],['contacts','주소록'],['calendar','월간 캘린더'],['weekly','요일별 현황'],['report','현장보고'],['supply','비품'],['settle','정산']].forEach(function(o){
     var opt = document.createElement('option'); opt.value=o[0]; opt.textContent=o[1]; tabEl.appendChild(opt);
   });
   tabWrap.appendChild(tabLbl); tabWrap.appendChild(tabEl);
