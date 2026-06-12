@@ -2534,18 +2534,21 @@ function renderDashboard(){
   var inquirySites = sites.filter(function(s){return (s.status||'active')==='inquiry';});
 
   // ── KPI ──
-  var totalMain=0, totalMainNet=0, totalSubPayout=0, totalSites=activeSites.length;
+  var totalMain=0, totalMainNet=0, totalSubPayout=0, totalSubPayoutNet=0, totalSites=activeSites.length;
   activeSites.forEach(function(s){
     var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
     var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
-    totalMain+=s.priceMain||0;      // 계약 정액
-    totalMainNet+=em;               // 실발생 (일할 적용)
-    totalSubPayout+=calcSubTax(es,s.subtaxtype||'none').payout;
+    totalMain+=s.priceMain||0;
+    totalMainNet+=em;
+    totalSubPayout+=calcSubTax(s.priceSub||0,s.subtaxtype||'none').payout;  // 계약 정액
+    totalSubPayoutNet+=calcSubTax(es,s.subtaxtype||'none').payout;           // 실발생
   });
-  var totalProfit=totalMainNet-totalSubPayout;
-  var profitRate=totalMainNet?Math.round(totalProfit/totalMainNet*100):0;
+  var totalProfit=totalMain-totalSubPayout;
+  var totalProfitNet=totalMainNet-totalSubPayoutNet;
+  var profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
+  var profitRateNet=totalMainNet?Math.round(totalProfitNet/totalMainNet*100):0;
   var coCount=[...new Set(activeSites.map(function(s){return s.company;}))].length;
-  var hasNetDiff = totalMain !== totalMainNet; // 일할 적용 현장 있을 때만 표시
+  var hasNetDiff = totalMain !== totalMainNet;
 
   // 오늘 미보고
   var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
@@ -2564,8 +2567,8 @@ function renderDashboard(){
   // KPI 데이터 — 클릭 시 팝업 키 포함
   var kpiItems=[
     {label:'이번달 원청',val:fmtN(totalMain)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalMainNet)+'원':null,color:'#00e5a0',key:'main'},
-    {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',color:'#7ab8ff',key:'sub'},
-    {label:'이번달 이익',val:fmtN(totalProfit)+'원',color:'#ffb547',key:'profit'},
+    {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalSubPayoutNet)+'원':null,color:'#7ab8ff',key:'sub'},
+    {label:'이번달 이익',val:fmtN(totalProfit)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalProfitNet)+'원('+profitRateNet+'%)':null,color:'#ffb547',key:'profit'},
     {label:'이익률',val:profitRate+'%',color:profitRate>=30?'#00e5a0':profitRate>=15?'#ffb547':'#ff4d6d',key:'rate'},
     {label:'운영 현장',val:totalSites+'곳',color:'#00e5a0',key:'sites'},
     {label:'업체 수',val:coCount+'개',color:'#7ab8ff',key:'companies'},
