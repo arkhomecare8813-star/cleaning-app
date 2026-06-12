@@ -2571,12 +2571,15 @@ function renderDashboard(){
   });
   var totalProfit=totalMain-totalSubPayout;
   var totalProfitNet=totalMainNet-totalSubPayoutNet;
-  var vatPayable=totalMainVat-totalSubVat;                         // 납부 VAT = 매출세액 - 매입세액
-  var netProfit=totalProfit-vatPayable-totalSub33;                 // 순이익 = 이익 - 납부VAT - 3.3%보관액
+  var vatPayable=totalMainVat-totalSubVat;
+  var netProfit=totalProfit-vatPayable-totalSub33;
   var profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
   var profitRateNet=totalMainNet?Math.round(totalProfitNet/totalMainNet*100):0;
   var coCount=[...new Set(activeSites.map(function(s){return s.company;}))].length;
   var hasNetDiff = totalMain !== totalMainNet;
+
+  // KPI 팝업에서 참조할 수 있도록 전역 저장
+  window._kpi = {totalMain,totalMainNet,totalSubPayout,totalSubPayoutNet,totalProfit,totalProfitNet,vatPayable,totalMainVat,totalSubVat,totalSub33,netProfit};
 
   // 오늘 미보고
   var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
@@ -2982,7 +2985,7 @@ function openKpiPopup(key){
     var companies=[...new Set(activeSites.map(function(s){return s.company;}))];
     var rows=companies.map(function(co){
       var coSites=activeSites.filter(function(s){return s.company===co;});
-      var total=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+      var total=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
       return {co:co,total:total,count:coSites.length};
     }).sort(function(a,b){return b.total-a.total;});
     var grand=rows.reduce(function(a,r){return a+r.total;},0);
@@ -3004,11 +3007,10 @@ function openKpiPopup(key){
   else if(key==='sub'){
     title='📋 이번달 하청 — 현장별 실지급';
     var rows2=activeSites.map(function(s){
-      var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
-      var pay=calcSubTax(es,s.subtaxtype||'none').payout;
+      var pay=calcSubTax(s.priceSub||0,s.subtaxtype||'none').payout;
       return{site:s.site,co:s.company,pay:pay,taxtype:s.subtaxtype||'none'};
     }).filter(function(r){return r.pay>0;}).sort(function(a,b){return b.pay-a.pay;});
-    var grand2=rows2.reduce(function(a,r){return a+r.pay;},0);
+    var grand2=(window._kpi&&window._kpi.totalSubPayout)||rows2.reduce(function(a,r){return a+r.pay;},0);
     html=rows2.map(function(r){
       var col=getCompanyColor(r.co);
       var lbl=r.taxtype==='vat'?'VAT':r.taxtype==='t33'?'3.3%':'—';
@@ -3026,13 +3028,14 @@ function openKpiPopup(key){
     var companies3=[...new Set(activeSites.map(function(s){return s.company;}))];
     var rows3=companies3.map(function(co){
       var coSites=activeSites.filter(function(s){return s.company===co;});
-      var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+      var main=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
       var pay=coSites.reduce(function(a,s){
         var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
         return a+calcSubTax(es,s.subtaxtype||'none').payout;
       },0);
       return{co:co,main:main,profit:main-pay,rate:main?Math.round((main-pay)/main*100):0};
     }).sort(function(a,b){return b.profit-a.profit;});
+    var grandProfit=(window._kpi&&window._kpi.totalProfit)||rows3.reduce(function(a,r){return a+r.profit;},0);
     html=rows3.map(function(r){
       var col=getCompanyColor(r.co);
       var rc=r.rate>=30?'#00e5a0':r.rate>=15?'#ffb547':'#ff4d6d';
@@ -3044,38 +3047,34 @@ function openKpiPopup(key){
         +'<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:800;color:#ffb547;">'+fmtN(r.profit)+'원</div>'
         +'<div style="font-size:10px;font-weight:700;color:'+rc+';">이익률 '+r.rate+'%</div>'
         +'</div></div>';
-    }).join('');
+    }).join('')
+    +'<div style="padding:12px 0;display:flex;justify-content:space-between;"><span style="font-size:13px;font-weight:800;">합계</span><span style="font-family:DM Mono,monospace;font-size:14px;font-weight:900;color:#ffb547;">'+fmtN(grandProfit)+'원</span></div>';
   }
 
   else if(key==='net'){
     title='💜 Net Profit 상세';
-    var totalMainVat2=0,totalSubVat2=0,totalSub332=0,totalProfit2=0;
-    activeSites.forEach(function(s){
-      var mt=calcMainTax(s.priceMain||0);
-      var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
-      var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
-      totalMainVat2+=mt.vat;
-      if(s.subtaxtype==='vat') totalSubVat2+=calcSubTax(s.priceSub||0,'vat').vat;
-      if(s.subtaxtype==='t33') totalSub332+=calcSubTax(s.priceSub||0,'t33').deduct;
-      totalProfit2+=(s.priceMain||0)-calcSubTax(es,s.subtaxtype||'none').payout;
-    });
-    var vatPayable2=totalMainVat2-totalSubVat2;
-    var netProfit2=totalProfit2-vatPayable2-totalSub332;
-    html='<div style="display:flex;flex-direction:column;gap:12px;padding:8px 0;">'
-      +'<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);">'
+    var k=window._kpi||{};
+    var _profit=k.totalProfit||0;
+    var _vat=k.vatPayable||0;
+    var _mainVat=k.totalMainVat||0;
+    var _subVat=k.totalSubVat||0;
+    var _t33=k.totalSub33||0;
+    var _net=k.netProfit||0;
+    html='<div style="display:flex;flex-direction:column;gap:0;">'
+      +'<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bd);">'
       +'<span style="font-size:13px;">이번달 이익</span>'
-      +'<span style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#ffb547;">'+fmtN(totalProfit2)+'원</span></div>'
-      +'<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);">'
+      +'<span style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#ffb547;">'+fmtN(_profit)+'원</span></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bd);">'
       +'<div><div style="font-size:13px;">납부 VAT</div>'
-      +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">매출세액 '+fmtN(totalMainVat2)+'원 − 매입세액 '+fmtN(totalSubVat2)+'원</div></div>'
-      +'<span style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#ff4d6d;">−'+fmtN(vatPayable2)+'원</span></div>'
-      +'<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);">'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">매출세액 '+fmtN(_mainVat)+'원 − 매입세액 '+fmtN(_subVat)+'원</div></div>'
+      +'<span style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#ff4d6d;">−'+fmtN(_vat)+'원</span></div>'
+      +'<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bd);">'
       +'<div><div style="font-size:13px;">3.3% 원천징수 보관액</div>'
       +'<div style="font-size:10px;color:var(--muted);margin-top:2px;">하청 지급 시 공제한 세금</div></div>'
-      +'<span style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#ff4d6d;">−'+fmtN(totalSub332)+'원</span></div>'
-      +'<div style="display:flex;justify-content:space-between;padding:12px 0;background:rgba(192,132,252,0.08);border-radius:8px;padding:12px;">'
+      +'<span style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#ff4d6d;">−'+fmtN(_t33)+'원</span></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;background:rgba(192,132,252,0.08);border-radius:8px;padding:14px;">'
       +'<span style="font-size:14px;font-weight:800;color:#c084fc;">Net Profit</span>'
-      +'<span style="font-family:DM Mono,monospace;font-size:16px;font-weight:900;color:#c084fc;">'+fmtN(netProfit2)+'원</span></div>'
+      +'<span style="font-family:DM Mono,monospace;font-size:18px;font-weight:900;color:#c084fc;">'+fmtN(_net)+'원</span></div>'
       +'</div>';
   }
 
