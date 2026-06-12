@@ -33,7 +33,51 @@ var rentBuildings = JSON.parse(localStorage.getItem('cm-rent-buildings')||'[]');
 var routines = JSON.parse(localStorage.getItem('cm-routines')||'[]');
 var rentTenants   = JSON.parse(localStorage.getItem('cm-rent-tenants')||'[]');
 var rentPayments  = JSON.parse(localStorage.getItem('cm-rent-payments')||'[]');
-function saveSmsTemplate(t){ SMS_TEMPLATE=t; localStorage.setItem('cm-sms-template',t); saveToFirebase(); }
+var clientContacts = JSON.parse(localStorage.getItem('cm-client-contacts')||'[]'); // 거래처 담당자 자동완성
+// 거래처 담당자 자동완성
+function saveClientContacts(){ localStorage.setItem('cm-client-contacts', JSON.stringify(clientContacts)); }
+function upsertClientContact(name, phone, email){
+  if(!name) return;
+  var idx = clientContacts.findIndex(function(c){ return c.name === name; });
+  if(idx >= 0){
+    if(phone) clientContacts[idx].phone = phone;
+    if(email) clientContacts[idx].email = email;
+  } else {
+    clientContacts.push({ name: name, phone: phone||'', email: email||'' });
+  }
+  saveClientContacts();
+}
+function showClientMgrDropdown(inputId, phoneId, emailId){
+  var input = document.getElementById(inputId);
+  var dd    = document.getElementById(inputId+'-dd');
+  if(!input || !dd) return;
+  var val = input.value.trim().toLowerCase();
+  var filtered = clientContacts.filter(function(c){ return !val || c.name.toLowerCase().includes(val); });
+  if(!filtered.length){ dd.style.display='none'; return; }
+  dd.innerHTML = filtered.map(function(c){
+    return '<div onmousedown="selectClientMgr(\''+inputId+'\',\''+phoneId+'\',\''+emailId+'\',\''+c.name.replace(/'/g,"\\'")+'\')" '
+      +'style="padding:10px 14px;cursor:pointer;font-size:13px;color:#e0e0e0;border-bottom:1px solid #2a2a2a;" '
+      +'onmouseover="this.style.background=\'#2a2a2a\'" onmouseout="this.style.background=\'\'"> '
+      +'<span style="font-weight:700;">'+c.name+'</span>'
+      +(c.phone?'<span style="color:#777;font-size:11px;margin-left:8px;">'+c.phone+'</span>':'')
+      +(c.email?'<span style="color:#555;font-size:10px;margin-left:6px;">'+c.email+'</span>':'')
+      +'</div>';
+  }).join('');
+  dd.style.display='block';
+}
+function selectClientMgr(inputId, phoneId, emailId, name){
+  var c = clientContacts.find(function(c){ return c.name===name; });
+  if(!c) return;
+  var input = document.getElementById(inputId); if(input) input.value = c.name;
+  var phone = document.getElementById(phoneId); if(phone) phone.value = c.phone||'';
+  var email = document.getElementById(emailId); if(email) email.value = c.email||'';
+  hideClientMgrDropdown(inputId+'-dd');
+}
+function hideClientMgrDropdown(ddId){
+  var dd = document.getElementById(ddId); if(dd) dd.style.display='none';
+}
+
+
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
 function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});
@@ -560,7 +604,15 @@ main{padding:18px 14px;max-width:1400px;}
         <div class="form-group"><label>연락처</label><input type="tel" id="f-phone" placeholder="010-0000-0000"></div>
         <div class="form-group"><label>사업자번호 / 주민번호</label><input type="text" id="f-bizno" placeholder="예: 123-45-67890 또는 000000-0000000"></div>
         <div class="form-group"><label>이메일</label><input type="text" id="f-email" placeholder="예: abc@company.com 또는 000000-0000000"></div>
-        <div class="form-group"><label>거래처 담당자</label><input type="text" id="f-client-mgr" placeholder="예: 이담당"></div>
+        <div class="form-group"><label>거래처 담당자</label>
+          <div style="position:relative;">
+            <input type="text" id="f-client-mgr" placeholder="예: 이담당" autocomplete="off"
+              oninput="showClientMgrDropdown('f-client-mgr','f-client-phone','f-client-email')"
+              onfocus="showClientMgrDropdown('f-client-mgr','f-client-phone','f-client-email')"
+              onblur="setTimeout(function(){hideClientMgrDropdown('f-client-mgr-dd')},200)">
+            <div id="f-client-mgr-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e1e1e;border:1px solid #333;border-radius:8px;z-index:999;max-height:180px;overflow-y:auto;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,0.5);"></div>
+          </div>
+        </div>
         <div class="form-group"><label>거래처 연락처</label><input type="tel" id="f-client-phone" placeholder="010-0000-0000"></div>
         <div class="form-group"><label>거래처 이메일</label><input type="email" id="f-client-email" placeholder="client@company.com"></div>
         <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="f-startdate" style="color-scheme:dark;"></div>
@@ -882,7 +934,15 @@ main{padding:18px 14px;max-width:1400px;}
       <div class="form-group"><label>연락처</label><input type="tel" id="e-phone"></div>
       <div class="form-group"><label>사업자번호 / 주민번호</label><input type="text" id="e-bizno"></div>
       <div class="form-group"><label>이메일</label><input type="text" id="e-email"></div>
-      <div class="form-group"><label>거래처 담당자</label><input type="text" id="e-client-mgr"></div>
+      <div class="form-group"><label>거래처 담당자</label>
+        <div style="position:relative;">
+          <input type="text" id="e-client-mgr" autocomplete="off"
+            oninput="showClientMgrDropdown('e-client-mgr','e-client-phone','e-client-email')"
+            onfocus="showClientMgrDropdown('e-client-mgr','e-client-phone','e-client-email')"
+            onblur="setTimeout(function(){hideClientMgrDropdown('e-client-mgr-dd')},200)">
+          <div id="e-client-mgr-dd" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e1e1e;border:1px solid #333;border-radius:8px;z-index:999;max-height:180px;overflow-y:auto;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,0.5);"></div>
+        </div>
+      </div>
       <div class="form-group"><label>거래처 연락처</label><input type="tel" id="e-client-phone"></div>
       <div class="form-group"><label>거래처 이메일</label><input type="email" id="e-client-email"></div>
       <div class="form-group"><label>서비스 시작일 📅</label><input type="date" id="e-startdate" style="color-scheme:dark;"></div>
@@ -1780,6 +1840,12 @@ function addSite(){
     noReport:(function(){var el=document.getElementById('f-noreport');return el?el.checked:false;})()
   });
   save();resetForm();renderAll();
+  // 거래처 담당자 자동저장
+  upsertClientContact(
+    document.getElementById('f-client-mgr') ? document.getElementById('f-client-mgr').value.trim() : '',
+    document.getElementById('f-client-phone') ? document.getElementById('f-client-phone').value.trim() : '',
+    document.getElementById('f-client-email') ? document.getElementById('f-client-email').value.trim() : ''
+  );
 }
 
 // DELETE
@@ -1922,6 +1988,8 @@ function saveEdit(){
   s.status=document.getElementById('e-status').value||'active';
   var enr2=document.getElementById('e-noreport');s.noReport=enr2?enr2.checked:false;
   save();closeModal();renderAll();
+  // 거래처 담당자 자동저장
+  upsertClientContact(s.clientMgr, s.clientPhone, s.clientEmail);
 }
 
 // RENDER LIST
