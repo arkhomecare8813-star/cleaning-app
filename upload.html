@@ -266,7 +266,7 @@ function updateBtn(){
 
 // ── 업로드 ──
 var isUploading = false;
-var CONCURRENCY = 3; // 동시 업로드 최대 장수
+var CONCURRENCY = 1; // 순차 업로드 (폴더 중복 생성 방지)
 
 function startUpload(){
   if(!selectedFiles.length || isUploading) return;
@@ -304,7 +304,7 @@ function startUpload(){
 
   function resizeBlobToBase64(blob, origFile){
     return new Promise(function(resolve){
-      var MAX_PX = 1024, QUALITY = 0.65;
+      var MAX_PX = 1024, QUALITY = 0.55;
       var url = URL.createObjectURL(blob);
       var img = new Image();
       img.onload = function(){
