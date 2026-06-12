@@ -4446,15 +4446,31 @@ function makeUploadLink(site, dateStr){
   if(site.manager)    url += '&mgr=' + encodeURIComponent(site.manager);
   return url;
 }
-function makeSmsBody(site, dateStr){
+function makeSmsBody(site, dateStr, isUnreported){
   var link = makeUploadLink(site, dateStr);
-  var body = SMS_TEMPLATE
+  var tpl = isUnreported
+    ? '[미취합] {link}\n[청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!'
+    : SMS_TEMPLATE;
+  var body = tpl
     .replace('{link}', link)
     .replace('{date}', dateStr)
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
     .replace('{company}', site.company||'');
   return encodeURIComponent(body);
+}
+function sendSmsUnreported(siteId, dateStr){
+  var site=sites.find(function(s){return s.id==siteId;});
+  if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
+  var tel=site.phone.replace(/[^0-9+]/g,'');
+  window.open('sms:'+tel+'?body='+makeSmsBody(site,dateStr,true));
+  if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
+  if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0};
+  reportPhotoData[dateStr][siteId].smsSent=true;
+  var now=new Date();
+  reportPhotoData[dateStr][siteId].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  saveReportData();renderReport();
+  showToast('📱 [미취합] 문자앱이 열립니다.');
 }
 
 // SMS 문자 발송 (문자앱 열기)
@@ -4522,6 +4538,67 @@ function renderReport(){
     var cos = [...new Set(sites.map(function(s){return s.company;}))].sort();
     if(!sites.length) html+='<div style="text-align:center;padding:50px;color:#444;">등록된 현장이 없습니다.</div>';
 
+    // ── 밀린 보고 섹션 (맨 위) ──
+    var accCards = '';
+    sites.forEach(function(s){
+      if(s.noReport||(s.status||'active')==='inquiry') return;
+      var siteLog   = logData[s.id]||{};
+      var startDate = startData[s.id]||null;
+      if(!startDate) return;
+      var unreported = [];
+      var cur = new Date(startDate+'T00:00:00');
+      var todayDt = new Date(today+'T00:00:00');
+      while(cur < todayDt){
+        var ds  = cur.toISOString().slice(0,10);
+        var ddow = cur.getDay();
+        var log  = siteLog[ds];
+        if(s.days&&s.days.includes(ddow) && !(log&&log.count>0) && !(log&&log.skipped)){
+          var sdt = s.startDate ? new Date(s.startDate+'T00:00:00') : null;
+          var edt = s.endDate   ? new Date(s.endDate  +'T00:00:00') : null;
+          if((!sdt||cur>=sdt)&&(!edt||cur<=edt)) unreported.push(ds);
+        }
+        cur.setDate(cur.getDate()+1);
+      }
+      if(!unreported.length) return;
+      var dateBtns = unreported.map(function(d){
+        var diff = Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(1000*60*60*24));
+        var lbl  = diff===1?'어제':diff+'일전';
+        var alreadySent = reportPhotoData[d]&&reportPhotoData[d][s.id]&&reportPhotoData[d][s.id].smsSent;
+        var btnBg    = alreadySent ? 'rgba(0,229,160,0.08)' : 'rgba(255,77,109,0.1)';
+        var btnBorder= alreadySent ? '#004d36' : 'rgba(255,77,109,0.35)';
+        var btnColor = alreadySent ? '#00e5a0' : '#ff4d6d';
+        var btnIcon  = alreadySent ? '✓' : '📱';
+        return '<button onclick="sendSmsUnreported(\''+s.id+'\',\''+d+'\')" '
+          +'style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;border:1px solid '+btnBorder+';background:'+btnBg+';color:'+btnColor+';font-size:10px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">'
+          +btnIcon+' '+d.slice(5)+' ('+lbl+')'
+          +'<span onclick="event.stopPropagation();skipUnreported(\''+s.id+'\',\''+d+'\')" '
+          +'style="margin-left:3px;width:13px;height:13px;border-radius:2px;background:rgba(255,77,109,0.2);color:#ff4d6d;font-size:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">✕</span>'
+          +'</button>';
+      }).join('');
+      accCards += '<div style="border-radius:10px;padding:13px 14px;border:1px solid rgba(255,77,109,0.4);background:rgba(255,77,109,0.04);display:flex;flex-direction:column;gap:7px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+        +'<div>'
+        +'<div style="font-size:13px;font-weight:800;">'+s.site+'</div>'
+        +(s.company?'<div style="font-size:10px;color:#777;margin-top:1px;">'+s.company+'</div>':'')
+        +(s.manager?'<div style="font-size:11px;color:#777;margin-top:2px;">👤 '+s.manager+'</div>':'')
+        +(s.phone?'<div style="font-size:11px;color:#777;">📞 '+s.phone+'</div>':'')
+        +'</div>'
+        +'<span style="font-size:11px;font-weight:800;color:#ff4d6d;">미취합</span>'
+        +'</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:5px;">'+dateBtns+'</div>'
+        +'</div>';
+    });
+    if(accCards){
+      html += '<div style="background:#1a0a0d;border:1px solid rgba(255,77,109,0.3);border-radius:12px;margin-bottom:14px;overflow:hidden;">'
+        +'<div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:rgba(255,77,109,0.07);border-bottom:1px solid rgba(255,77,109,0.2);">'
+        +'<div style="font-size:13px;font-weight:800;color:#ff4d6d;">⚠️ 밀린 보고</div>'
+        +'<div style="font-size:11px;color:#777;">날짜별 📱 버튼으로 재전송 · ✕로 skip</div>'
+        +'</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:12px;">'+accCards+'</div>'
+        +'</div>';
+    }
+    // ── 밀린 보고 섹션 끝 ──
+
     cos.forEach(function(co){
       var col     = getCompanyColor(co);
       var coSites = sites.filter(function(s){return s.company===co;});
@@ -4557,7 +4634,7 @@ function renderReport(){
           }
         }
 
-        // 오늘 작업 없는 카드는 표시 안 함
+        // 오늘 작업 없는 카드는 표시 안 함 (밀린보고 섹션에서 별도 표시)
         if(!isWork){ return; }
 
         var bc,bg,badge;
@@ -4580,23 +4657,6 @@ function renderReport(){
           cards+='<div style="background:rgba(0,229,160,0.12);border-radius:7px;padding:6px 10px;font-size:12px;color:#00e5a0;font-weight:700;">📷 오늘 '+info.photos+'장 완료</div>';
         }
 
-        // 미보고 누적 날짜 배지
-        if(unreportedDates.length>0){
-          var show = unreportedDates.slice(-3);
-          var badges = show.map(function(d){
-            var diff = Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(1000*60*60*24));
-            var lbl = diff===1?' (어제)':' ('+diff+'일전)';
-            return '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.3);border-radius:5px;padding:2px 4px 2px 7px;font-size:9px;font-family:DM Mono,monospace;color:#ff4d6d;">'+d+lbl
-              +'<button onclick="skipUnreported(\''+s.id+'\',\''+d+'\')" style="width:13px;height:13px;border-radius:2px;border:none;background:rgba(255,77,109,0.25);color:#ff4d6d;font-size:8px;cursor:pointer;padding:0;flex-shrink:0;">✕</button>'
-              +'</span>';
-          }).join(' ');
-          var more = unreportedDates.length>3?'<span style="font-size:9px;color:#555;">+' + (unreportedDates.length-3) + '건</span>':'';
-          cards+='<div style="background:rgba(255,77,109,0.05);border-radius:7px;padding:6px 8px;">'
-            +'<div style="font-size:9px;color:#ff4d6d;font-weight:700;margin-bottom:4px;">⚠️ 누적 미보고</div>'
-            +'<div style="display:flex;flex-wrap:wrap;gap:3px;">'+badges+more+'</div>'
-            +'</div>';
-        }
-
         if(isWork&&!isExcluded){
           cards+='<div style="display:flex;flex-direction:column;gap:5px;">';
           if(s.phone){
@@ -4610,8 +4670,6 @@ function renderReport(){
           cards+='</div>';
         } else if(isWork&&isExcluded){
           cards+='<div style="font-size:10px;color:#555;text-align:center;">사진 보고 제외 현장</div>';
-        } else {
-          cards+='<div style="font-size:10px;color:#444;text-align:center;">오늘 작업 없음</div>';
         }
         cards+='</div>';
       });
