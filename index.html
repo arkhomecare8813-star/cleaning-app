@@ -513,9 +513,9 @@ main{padding:18px 14px;max-width:1400px;}
     <div id="db-alert" style="margin-bottom:14px;"></div>
     <div id="db-routine" style="margin-bottom:14px;"></div>
     <!-- 메인 2열 레이아웃 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;align-items:stretch;">
       <!-- 왼쪽: 월간 매출 추이 + 업체별 매출 TOP10 -->
-      <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;flex-direction:column;gap:12px;height:100%;">
         <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
             <div style="font-size:14px;font-weight:800;">📈 월간 매출 추이</div>
@@ -534,7 +534,7 @@ main{padding:18px 14px;max-width:1400px;}
             <div style="font-size:13px;font-weight:800;">🏢 업체별 매출 <span style="font-size:10px;color:var(--muted);font-weight:400;">TOP 10</span></div>
             <button onclick="dbSortCo()" id="db-co-sort-btn" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;">↓ 내림차순</button>
           </div>
-          <div id="db-co-list" style="overflow-y:auto;flex:1;"></div>
+          <div id="db-co-list" style="overflow-y:auto;max-height:220px;"></div>
         </div>
       </div>
       <!-- 오른쪽: 파이차트 3개 + 문의중 현장 -->
@@ -560,23 +560,25 @@ main{padding:18px 14px;max-width:1400px;}
             <div id="db-client-pie-legend" style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;overflow:hidden;"></div>
           </div>
         </div>
-        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;">
-          <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🟡 문의중 현장</div>
-          <div id="db-inquiry" style="max-height:180px;overflow-y:auto;"></div>
-        </div>
       </div>
     </div>
+    <!-- 지역 커버리지 -->
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
       <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🗺️ 지역 커버리지 <span style="font-size:11px;color:var(--muted);font-weight:400;">— 문의 온 지역</span></div>
       <div id="db-coverage"></div>
     </div>
-    <!-- Row4: 사진보고 실행률 -->
+    <!-- 사진보고 실행률 -->
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div style="font-size:13px;font-weight:800;">📷 사진보고 실행률 <span style="font-size:11px;color:var(--muted);font-weight:400;">(최근 30일)</span></div>
         <button onclick="dbSortReport()" id="db-rep-sort-btn" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;">↓ 내림차순</button>
       </div>
       <div id="db-report-list" style="max-height:220px;overflow-y:auto;"></div>
+    </div>
+    <!-- 문의중 현장 -->
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:800;margin-bottom:12px;">🟡 문의중 현장</div>
+      <div id="db-inquiry" style="max-height:200px;overflow-y:auto;"></div>
     </div>
   </div>
 
