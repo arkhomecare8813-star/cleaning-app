@@ -593,7 +593,14 @@ main{padding:18px 14px;max-width:1400px;}
   <!-- 좌: 폼 -->
   <div style="flex:1;min-width:0;">
     <div class="form-card">
-      <div class="form-title">&#127970; 업체 / 현장 추가</div>
+      <!-- 접기/펼치기 헤더 -->
+      <div onclick="toggleSiteForm()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;">
+        <div class="form-title" style="margin-bottom:0;">&#127970; 업체 / 현장 추가</div>
+        <div id="site-form-toggle-icon" style="font-size:18px;color:var(--muted);transition:transform 0.2s;">▲</div>
+      </div>
+      <!-- 접히는 영역 -->
+      <div id="site-form-body">
+      <div style="height:14px;"></div>
       <div class="form-grid">
         <div class="form-group"><label>업체명 *</label>
           <input type="text" id="f-co" placeholder="예: 강남빌딩관리" list="f-co-list" oninput="autoFillCompanyInfo(this.value)" onchange="autoFillCompanyInfo(this.value)">
@@ -676,6 +683,12 @@ main{padding:18px 14px;max-width:1400px;}
         <button class="btn btn-ghost" onclick="resetForm()">초기화</button>
         <button class="btn btn-primary" onclick="addSite()">저장하기</button>
       </div>
+      </div><!-- /site-form-body -->
+    </div>
+    <!-- 검색창 -->
+    <div style="margin-bottom:12px;">
+      <input type="text" id="site-search" placeholder="🔍 업체명 / 현장명 / 담당자 검색" oninput="renderList()"
+        style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;box-sizing:border-box;">
     </div>
     <div class="section-label">등록된 업체 및 현장</div>
     <div id="company-list"></div>
@@ -1993,13 +2006,27 @@ function saveEdit(){
 }
 
 // RENDER LIST
+function toggleSiteForm(){
+  var body = document.getElementById('site-form-body');
+  var icon = document.getElementById('site-form-toggle-icon');
+  if(!body) return;
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  icon.textContent = isOpen ? '▼' : '▲';
+}
 function renderList(){
   const el=document.getElementById('company-list');
-  if(!sites.length){el.innerHTML='<div class="empty"><div class="empty-icon">&#127970;</div><div class="empty-text">등록된 업체가 없어요.<br>위 양식에서 추가해보세요.</div></div>';return;}
-  const companies=[...new Set(sites.map(function(s){return s.company;}))].sort();
+  const q=(document.getElementById('site-search')?document.getElementById('site-search').value.trim().toLowerCase():'');
+  const filteredSites = q ? sites.filter(function(s){
+    return (s.company||'').toLowerCase().includes(q)||(s.site||'').toLowerCase().includes(q)||(s.manager||'').toLowerCase().includes(q);
+  }) : sites;
+  if(!filteredSites.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">'+(q?'🔍':'&#127970;')+'</div><div class="empty-text">'+(q?'"'+q+'" 검색 결과가 없어요.':'등록된 업체가 없어요.<br>위 양식에서 추가해보세요.')+'</div></div>';return;
+  }
+  const companies=[...new Set(filteredSites.map(function(s){return s.company;}))].sort();
   el.innerHTML=companies.map(function(co){
     const col=getCompanyColor(co);
-    const coSites=sites.filter(function(s){return s.company===co;});
+    const coSites=filteredSites.filter(function(s){return s.company===co;});
     const inquiryCount=coSites.filter(function(s){return (s.status||'active')==='inquiry';}).length;
     // 운영중 현장만 금액 합산
     const activeSites=coSites.filter(function(s){return (s.status||'active')==='active';});
