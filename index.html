@@ -920,6 +920,7 @@ main{padding:18px 14px;max-width:1400px;}
         <button class="excel-btn" onclick="openExcelPopup(1)" style="min-height:42px;touch-action:manipulation;">&#128202; 총정산</button>
         <button class="excel-btn" onclick="openExcelPopup(2)" style="min-height:42px;touch-action:manipulation;background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 이체용</button>
         <button class="excel-btn" onclick="openExcelPopup(3)" style="min-height:42px;touch-action:manipulation;background:#2a1a3a;border-color:#6a2d9a;color:#c084fc;">&#128202; 3.3%신고</button>
+        <button class="excel-btn" onclick="openDetailSheetPopup()" style="min-height:42px;touch-action:manipulation;background:#1a1a2a;border-color:#f59e0b;color:#f59e0b;">&#128203; 세부내역서</button>
       </div>
     </div>
     <div id="settle-content"></div>
@@ -1443,6 +1444,177 @@ function buildExcel3(){
   exportExcel3();
   XLSX.writeFile=_orig;
   return dummy;
+}
+
+// ── 세부내역서 내보내기 ──
+function openDetailSheetPopup(){
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다.');return;}
+  initSettlePeriod();
+  var yrEl=document.getElementById('settle-year');
+  var moEl=document.getElementById('settle-month');
+  var yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
+  var mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+
+  // 거래처 담당자 목록 추출
+  var mgrs=[...new Set(sites.map(function(s){return (s.clientMgr||'').trim();}).filter(Boolean))].sort();
+
+  var w=document.createElement('div');
+  w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:800;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
+  w.onclick=function(e){if(e.target===w)w.remove();};
+
+  var box=document.createElement('div');
+  box.style.cssText='background:#161616;border:1px solid #f59e0b;border-radius:16px;padding:22px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px;';
+
+  box.innerHTML='<div style="font-size:15px;font-weight:800;color:#f59e0b;">📋 세부내역서 내보내기</div>'
+    +'<div style="font-size:12px;color:#aaa;">'+yr+'년 '+mo+'월 · 거래처 담당자를 선택하세요</div>'
+    +'<div id="ds-mgr-list" style="display:flex;flex-direction:column;gap:6px;">'
+    +mgrs.map(function(mgr){
+      var cnt=sites.filter(function(s){return (s.clientMgr||'').trim()===mgr;}).length;
+      return '<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:8px;cursor:pointer;">'
+        +'<input type="checkbox" value="'+mgr+'" style="width:15px;height:15px;accent-color:#f59e0b;">'
+        +'<span style="font-size:13px;font-weight:700;flex:1;">'+mgr+'</span>'
+        +'<span style="font-size:11px;color:#777;">현장 '+cnt+'곳</span>'
+        +'</label>';
+    }).join('')
+    +'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:4px;">'
+    +'<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #2c2c2c;background:transparent;color:#777;font-size:13px;cursor:pointer;">취소</button>'
+    +'<button onclick="exportDetailSheet('+yr+','+mo+',this)" style="flex:2;padding:10px;border-radius:8px;border:none;background:#f59e0b;color:#000;font-size:13px;font-weight:800;cursor:pointer;">📥 엑셀 다운로드</button>'
+    +'</div>';
+
+  w.appendChild(box);
+  document.body.appendChild(w);
+}
+
+function exportDetailSheet(yr, mo, btn){
+  var overlay=btn.closest('div[style*="fixed"]');
+  var checked=[...overlay.querySelectorAll('#ds-mgr-list input:checked')].map(function(i){return i.value;});
+  if(!checked.length){showToast('담당자를 한 명 이상 선택해주세요.');return;}
+
+  // 선택된 담당자에 속한 현장
+  var selSites=sites.filter(function(s){
+    return checked.indexOf((s.clientMgr||'').trim())>-1 && !s.noReport && (s.status||'active')!=='inquiry';
+  });
+
+  if(typeof XLSX==='undefined'){alert('XLSX 라이브러리 없음');return;}
+  var wb=XLSX.utils.book_new();
+
+  // ── 시트 1: 정기 ──
+  var moStart=new Date(yr,mo-1,1);
+  var moEnd  =new Date(yr,mo,0);
+  var moEndDate=moEnd.getDate();
+
+  function countDaysInMonth(dowArr){
+    var cnt=0;
+    for(var d=1;d<=moEndDate;d++){
+      var dow=new Date(yr,mo-1,d).getDay();
+      if(dowArr&&dowArr.indexOf(dow)>-1) cnt++;
+    }
+    return cnt;
+  }
+  function countActualDays(dowArr, startDate, endDate){
+    var sdt=startDate?new Date(startDate+'T00:00:00'):moStart;
+    var edt=endDate  ?new Date(endDate  +'T00:00:00'):moEnd;
+    var from=sdt<moStart?moStart:sdt;
+    var to  =edt>moEnd  ?moEnd  :edt;
+    if(from>to) return 0;
+    var cnt=0;
+    var cur=new Date(from);
+    while(cur<=to){
+      if(dowArr&&dowArr.indexOf(cur.getDay())>-1) cnt++;
+      cur.setDate(cur.getDate()+1);
+    }
+    return cnt;
+  }
+  function dowLabel(dowArr){
+    var names=['일','월','화','수','목','금','토'];
+    if(!dowArr||!dowArr.length) return '';
+    var sorted=[...dowArr].sort(function(a,b){return a-b;});
+    return sorted.map(function(d){return names[d];}).join(',');
+  }
+
+  var regularRows=[
+    ['구분','면세 구분','고객사명','서비스 비용\n(월/1회/비품)','총 횟수','실제 서비스 횟수','정산 공급가액','부가세','총합계','서비스시작일/결제일','작업 내용 기재','한국공간데이터 확인란']
+  ];
+
+  selSites.forEach(function(s){
+    var monthlyVat=Math.round((s.priceMain||0)/1.1); // 월 공급가액
+    var totalCnt  =countDaysInMonth(s.days);
+    var actualCnt =countActualDays(s.days, s.startDate, s.endDate);
+    var supplyAmt =totalCnt>0?Math.round(monthlyVat/totalCnt*actualCnt):monthlyVat;
+    var vatAmt    =Math.round(supplyAmt*0.1);
+    var totalAmt  =supplyAmt+vatAmt;
+    var startSerial=s.startDate?dateToSerial(s.startDate):'';
+    regularRows.push([
+      '정기','',s.site,
+      monthlyVat,
+      totalCnt,actualCnt,
+      supplyAmt,vatAmt,totalAmt,
+      startSerial,
+      dowLabel(s.days),''
+    ]);
+  });
+  // Total행
+  regularRows.push(['Total','','','','','',
+    {f:'SUM(G2:G'+(regularRows.length)+')'},
+    {f:'SUM(H2:H'+(regularRows.length)+')'},
+    {f:'SUM(I2:I'+(regularRows.length)+')'},
+    '','','']);
+
+  var wsR=XLSX.utils.aoa_to_sheet(regularRows);
+  wsR['!cols']=[{wch:8},{wch:10},{wch:22},{wch:14},{wch:8},{wch:10},{wch:14},{wch:12},{wch:12},{wch:14},{wch:16},{wch:12}];
+  // 헤더 행 높이
+  wsR['!rows']=[{hpt:30}];
+  XLSX.utils.book_append_sheet(wb,wsR,'정기');
+
+  // ── 시트 2: 비품 ──
+  // 해당 월 + 선택 담당자 현장에 속한 비품
+  var selSiteIds=selSites.map(function(s){return s.id;});
+  var moSupplies=supplies.filter(function(sp){
+    if(!sp.date) return false;
+    var d=new Date(sp.date+'T00:00:00');
+    if(d.getFullYear()!==yr||d.getMonth()+1!==mo) return false;
+    if(selSiteIds.indexOf(sp.siteId)>-1) return true;
+    // siteId 없는 경우 co(업체명) 기준으로 선택 현장 업체와 매칭
+    var matchedSite=sites.find(function(s){return s.id==sp.siteId;});
+    if(matchedSite) return checked.indexOf((matchedSite.clientMgr||'').trim())>-1;
+    return false;
+  });
+
+  var supplyRows=[
+    ['구분','면세 구분','고객사명','서비스 비용\n(월/1회/비품)','정산 공급가액','부가세','총합계','서비스시작일/결제일','작업 내용 기재']
+  ];
+  moSupplies.forEach(function(sp){
+    var supplyAmt=Math.round(sp.amount/1.1);
+    var vatAmt   =sp.amount-supplyAmt;
+    var dateSerial=sp.date?dateToSerial(sp.date):'';
+    supplyRows.push([
+      '비품구매','',sp.siteName||'',
+      sp.amount,supplyAmt,vatAmt,sp.amount,
+      dateSerial,sp.item||''
+    ]);
+  });
+  supplyRows.push(['Total','','','',
+    {f:'SUM(E2:E'+(supplyRows.length)+')'},
+    {f:'SUM(F2:F'+(supplyRows.length)+')'},
+    {f:'SUM(G2:G'+(supplyRows.length)+')'},
+    '','']);
+
+  var wsS=XLSX.utils.aoa_to_sheet(supplyRows);
+  wsS['!cols']=[{wch:10},{wch:10},{wch:22},{wch:14},{wch:14},{wch:12},{wch:12},{wch:14},{wch:20}];
+  wsS['!rows']=[{hpt:30}];
+  XLSX.utils.book_append_sheet(wb,wsS,'비품');
+
+  XLSX.writeFile(wb, yr+'년'+mo+'월_세부내역서_'+(checked.join('·'))+'.xlsx');
+  overlay.remove();
+  showToast('📥 세부내역서 다운로드 완료!');
+}
+
+function dateToSerial(dateStr){
+  // Excel 날짜 시리얼 (1900년 기준)
+  var d=new Date(dateStr+'T00:00:00');
+  var epoch=new Date(1899,11,30);
+  return Math.round((d-epoch)/(1000*60*60*24));
 }
 
 function openExcelPopup(num){
