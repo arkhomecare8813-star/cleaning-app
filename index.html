@@ -2534,15 +2534,18 @@ function renderDashboard(){
   var inquirySites = sites.filter(function(s){return (s.status||'active')==='inquiry';});
 
   // ── KPI ──
-  var totalMain=0, totalSubPayout=0, totalSites=activeSites.length;
+  var totalMain=0, totalMainNet=0, totalSubPayout=0, totalSites=activeSites.length;
   activeSites.forEach(function(s){
-    var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
     var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
-    totalMain+=em; totalSubPayout+=calcSubTax(es,s.subtaxtype||'none').payout;
+    var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
+    totalMain+=s.priceMain||0;      // 계약 정액
+    totalMainNet+=em;               // 실발생 (일할 적용)
+    totalSubPayout+=calcSubTax(es,s.subtaxtype||'none').payout;
   });
-  var totalProfit=totalMain-totalSubPayout;
-  var profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
+  var totalProfit=totalMainNet-totalSubPayout;
+  var profitRate=totalMainNet?Math.round(totalProfit/totalMainNet*100):0;
   var coCount=[...new Set(activeSites.map(function(s){return s.company;}))].length;
+  var hasNetDiff = totalMain !== totalMainNet; // 일할 적용 현장 있을 때만 표시
 
   // 오늘 미보고
   var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
@@ -2560,7 +2563,7 @@ function renderDashboard(){
   var kpiEl=document.getElementById('db-kpi');
   // KPI 데이터 — 클릭 시 팝업 키 포함
   var kpiItems=[
-    {label:'이번달 원청',val:fmtN(totalMain)+'원',color:'#00e5a0',key:'main'},
+    {label:'이번달 원청',val:fmtN(totalMain)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalMainNet)+'원':null,color:'#00e5a0',key:'main'},
     {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',color:'#7ab8ff',key:'sub'},
     {label:'이번달 이익',val:fmtN(totalProfit)+'원',color:'#ffb547',key:'profit'},
     {label:'이익률',val:profitRate+'%',color:profitRate>=30?'#00e5a0':profitRate>=15?'#ffb547':'#ff4d6d',key:'rate'},
@@ -2574,6 +2577,7 @@ function renderDashboard(){
       +'onmouseenter="this.style.borderColor=\''+k.color+'\'" onmouseleave="this.style.borderColor=\'var(--bd)\'">'
       +'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">'+k.label+'</div>'
       +'<div style="font-family:DM Mono,monospace;font-size:15px;font-weight:800;color:'+k.color+';">'+k.val+'</div>'
+      +(k.sub?'<div style="font-size:10px;color:var(--muted);margin-top:3px;">↳ '+k.sub+'</div>':'')
       +'</div>';
   }).join('');
 
@@ -2798,7 +2802,7 @@ function renderDashboard(){
   // ── 저이익률 경고 (<20%) ──
   var lowProfit=activeSites.filter(function(s){
     if(!s.priceMain)return false;
-    var em=effectivePrice(s,curYr,curMo,s.priceMain);
+    var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
     var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
     var pay=calcSubTax(es,s.subtaxtype||'none').payout;
     var rate=em?Math.round((em-pay)/em*100):0;
