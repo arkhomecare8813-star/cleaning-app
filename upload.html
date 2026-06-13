@@ -210,15 +210,13 @@ var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatab
 var TG_TOKEN = '';
 var TG_CHAT_ID = '';
 
-// Firebase에서 텔레그램 설정 로드
-if(FB_URL){
-  fetch(FB_URL+'/data/tgConfig.json')
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d && d.token)  TG_TOKEN   = d.token;
-      if(d && d.chatId) TG_CHAT_ID = d.chatId;
-    }).catch(function(){});
-}
+// Firebase에서 텔레그램 설정 — Promise로 관리해서 타이밍 보장
+var _tgReady = fetch(FB_URL+'/data/tgConfig.json')
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d && d.token)  TG_TOKEN   = d.token;
+    if(d && d.chatId) TG_CHAT_ID = d.chatId;
+  }).catch(function(){});
 
 var params = {};
 var selectedFiles = [];
@@ -506,31 +504,34 @@ function onDone(done, failed){
         .catch(function(){});
     }
 
+    // 값 먼저 읽기 (카드 숨기기 전)
+    var memo        = ((document.getElementById('memo-input')||{}).value||'').trim();
+    var spItem      = ((document.getElementById('supply-item')||{}).value||'').trim();
+    var spAmount    = ((document.getElementById('supply-amount')||{}).value||'').trim();
+    var spDate      = params.date || new Date().toISOString().slice(0,10);
+    var receiptSnap = receiptFiles.slice();
+    var hasSupply   = supplyOpen && (spItem || spAmount || receiptSnap.length > 0);
+
     // 완료 카드 표시, 업로드 카드 숨김
     document.getElementById('upload-card').style.display = 'none';
     var sc = document.getElementById('success-card');
     sc.style.display = '';
     document.getElementById('success-count').textContent = done + '장';
-    var receiptCount = supplyOpen ? receiptFiles.length : 0;
+    var receiptCount = supplyOpen ? receiptSnap.length : 0;
     var pathHtml = '<strong>' + (params.site || '') + '</strong> 현장 사진 ' + done + '장이<br>성공적으로 저장되었습니다.';
     if(receiptCount > 0) pathHtml += '<br><span style="color:#ffb547;">🧾 영수증 ' + receiptCount + '장도 함께 등록됩니다.</span>';
     document.getElementById('success-path').innerHTML = pathHtml;
 
-    // 텔레그램 알림 발송 (메모 있을 때만)
-    var memo = (document.getElementById('memo-input')||{}).value||'';
-    memo = memo.trim();
-    if(memo) sendTelegramNotification(done, memo);
+    // tgConfig 로드 완료 후 텔레그램 발송
+    _tgReady.then(function(){
+      if(memo) sendTelegramNotification(done, memo);
+    });
 
-    // 비품 처리 (토글 열렸을 때만) — 현장사진 GAS Lock 해소 후 전송
-    if(supplyOpen){
-      var spItem   = ((document.getElementById('supply-item')||{}).value||'').trim();
-      var spAmount = ((document.getElementById('supply-amount')||{}).value||'').trim();
-      var spDate   = params.date || new Date().toISOString().slice(0,10);
-      if(spItem || spAmount || receiptFiles.length){
-        setTimeout(function(){
-          uploadReceiptsAndSave(spItem, spAmount, spDate);
-        }, 2000); // 2초 딜레이: 현장사진 GAS Lock 완전 해소 후
-      }
+    // 비품 처리 — 2초 딜레이로 GAS Lock 해소 후 전송
+    if(hasSupply){
+      setTimeout(function(){
+        uploadReceiptsAndSave(spItem, spAmount, spDate, receiptSnap);
+      }, 2000);
     }
   } else {
     var eb = document.getElementById('err-box');
@@ -619,6 +620,7 @@ function toggleSupply(){
   supplyOpen = !supplyOpen;
   document.getElementById('supply-toggle').classList.toggle('on', supplyOpen);
   document.getElementById('supply-panel').classList.toggle('open', supplyOpen);
+  updateBtn();
 }
 
 function handleReceiptFiles(files){
@@ -668,8 +670,8 @@ function saveSupplyToFirebase(item, amount, date, url){
 }
 
 // ── 영수증 GAS 업로드 ──
-function uploadReceiptsAndSave(item, amount, date){
-  var files=receiptFiles.slice();
+function uploadReceiptsAndSave(item, amount, date, snap){
+  var files = snap || receiptFiles.slice();
   if(!files.length){
     saveSupplyToFirebase(item, amount, date, null);
     return;
