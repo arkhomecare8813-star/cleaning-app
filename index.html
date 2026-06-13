@@ -6479,12 +6479,36 @@ function sendSupplySms(id){
   var body = encodeURIComponent(lines.join('\n'));
   window.open('sms:'+tel+'?body='+body);
 
-  // smsSent 기록
+  // smsSent 기록 — Firebase에 해당 키만 PATCH (배열 덮어쓰기 방지)
   var now = new Date();
   var timeStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   sp.smsSent = true;
   sp.smsTime = timeStr;
-  saveSupplies();
+
+  // Firebase supplies가 객체 구조일 경우 해당 키만 업데이트
+  fetch(FB_URL+'/data/supplies.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d && !Array.isArray(d)){
+        // 객체 구조: id가 일치하는 키 찾아서 PATCH
+        var matchKey = Object.keys(d).find(function(k){
+          return d[k] && String(d[k].id) === String(id);
+        });
+        if(matchKey){
+          fetch(FB_URL+'/data/supplies/'+matchKey+'.json',{
+            method:'PATCH',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ smsSent: true, smsTime: timeStr })
+          }).catch(function(){});
+        }
+      } else {
+        // 배열 구조면 기존 방식대로
+        saveSupplies();
+      }
+    }).catch(function(){ saveSupplies(); });
+
+  // 로컬 반영
+  localStorage.setItem('cm-supplies', JSON.stringify(supplies));
   renderSupply();
   showToast('📱 거래처 담당자에게 문자앱이 열립니다.');
 }
