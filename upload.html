@@ -235,16 +235,24 @@ var RECEIPT_GAS_URL = GAS_URL; // 메인 GAS에 handleReceipt 포함되어 있�
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var TG_TOKEN = '';
 var TG_CHAT_ID = '';
+var tgConfigLoaded = false;
+var tgConfigPromise = null;
 
-// Firebase에서 텔레그램 설정 로드
-if(FB_URL){
-  fetch(FB_URL+'/data/tgConfig.json')
+// Firebase에서 텔레그램 설정 로드 (Promise로 관리)
+function ensureTgConfig(){
+  if(tgConfigLoaded) return Promise.resolve();
+  if(tgConfigPromise) return tgConfigPromise;
+  tgConfigPromise = fetch(FB_URL+'/data/tgConfig.json')
     .then(function(r){return r.json();})
     .then(function(d){
       if(d && d.token)  TG_TOKEN   = d.token;
       if(d && d.chatId) TG_CHAT_ID = d.chatId;
-    }).catch(function(){});
+      tgConfigLoaded = true;
+    }).catch(function(){ tgConfigLoaded = true; });
+  return tgConfigPromise;
 }
+// 페이지 로드 시 미리 fetch 시작
+ensureTgConfig();
 
 var params = {};
 var selectedFiles = [];    // 현장 사진
@@ -537,22 +545,31 @@ function onDone(done, failed){
     var item   = ((document.getElementById('supply-item')||{}).value||'').trim();
     var amount = parseInt((document.getElementById('supply-amount')||{}).value||'0')||0;
 
-    // clientMgr 조회 후 알림 발송
-    function proceed(clientMgr){
-      if(memo) sendTelegramMemo(done, memo, clientMgr);
-      if(supplyOpen && (item || amount || receiptFiles.length)){
-        processSupply(item, amount, clientMgr);
+    // tgConfig 로드 보장 후 clientMgr 조회 → 알림 발송
+    ensureTgConfig().then(function(){
+      if(FB_URL && params.siteId){
+        fetch(FB_URL+'/data/sites.json')
+          .then(function(r){return r.json();})
+          .then(function(sitesData){
+            var found=Array.isArray(sitesData)?sitesData.find(function(s){return String(s.id)===String(params.siteId);}):null;
+            var clientMgr = found&&found.clientMgr?found.clientMgr:'';
+            if(memo) sendTelegramMemo(done, memo, clientMgr);
+            if(supplyOpen && (item || amount || receiptFiles.length)){
+              processSupply(item, amount, clientMgr);
+            }
+          }).catch(function(){
+            if(memo) sendTelegramMemo(done, memo, '');
+            if(supplyOpen && (item || amount || receiptFiles.length)){
+              processSupply(item, amount, '');
+            }
+          });
+      } else {
+        if(memo) sendTelegramMemo(done, memo, '');
+        if(supplyOpen && (item || amount || receiptFiles.length)){
+          processSupply(item, amount, '');
+        }
       }
-    }
-
-    if(FB_URL && params.siteId){
-      fetch(FB_URL+'/data/sites.json')
-        .then(function(r){return r.json();})
-        .then(function(sitesData){
-          var found=Array.isArray(sitesData)?sitesData.find(function(s){return String(s.id)===String(params.siteId);}):null;
-          proceed(found&&found.clientMgr?found.clientMgr:'');
-        }).catch(function(){proceed('');});
-    } else { proceed(''); }
+    });
 
   } else {
     var eb = document.getElementById('err-box');
