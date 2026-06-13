@@ -16,7 +16,7 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var SMS_TPL_VERSION = '2';
-var SMS_TPL_DEFAULT = '{link}\n[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n사진을 업로드해주세요!';
+var SMS_TPL_DEFAULT = '📸 사진업로드: {link}\n[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n사진을 업로드해주세요!\n비품구매시 영수증도 등록해주세요 👆';
 if(localStorage.getItem('cm-sms-tpl-ver') !== SMS_TPL_VERSION){
   localStorage.setItem('cm-sms-template', SMS_TPL_DEFAULT);
   localStorage.setItem('cm-sms-tpl-ver', SMS_TPL_VERSION);
@@ -4618,13 +4618,26 @@ function makeUploadLink(site, dateStr){
   if(site.manager)    url += '&mgr=' + encodeURIComponent(site.manager);
   return url;
 }
+// 영수증 링크 생성 (receipt.html?siteId=...&date=...&mgr=...&title=...)
+function makeReceiptLink(site, dateStr){
+  var base = location.href.split('/index.html')[0].split('#')[0].split('?')[0];
+  if(base.slice(-1)==='/') base=base.slice(0,-1);
+  var url = base + '/receipt.html'
+    + '?siteId=' + encodeURIComponent(site.id)
+    + '&date='   + encodeURIComponent(dateStr)
+    + '&title='  + encodeURIComponent(appTitle);
+  if(site.manager) url += '&mgr=' + encodeURIComponent(site.manager);
+  return url;
+}
 function makeSmsBody(site, dateStr, isUnreported){
-  var link = makeUploadLink(site, dateStr);
+  var uploadLink  = makeUploadLink(site, dateStr);
+  var receiptLink = makeReceiptLink(site, dateStr);
   var tpl = isUnreported
-    ? '[미취합] {link}\n[청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!'
-    : SMS_TEMPLATE;
+    ? '[미취합] 📸 사진업로드: {link}\n🧾 비품영수증: {receiptLink}\n[청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!'
+    : SMS_TEMPLATE.replace('{link}', '{link}\n🧾 비품영수증: {receiptLink}');
   var body = tpl
-    .replace('{link}', link)
+    .replace('{link}', uploadLink)
+    .replace('{receiptLink}', receiptLink)
     .replace('{date}', dateStr)
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
@@ -6443,6 +6456,41 @@ function deleteSupply(id){
   });
 }
 
+// ── 비품 문자 발송 (거래처 담당자에게) ──
+function sendSupplySms(id){
+  var sp = supplies.find(function(s){ return s.id===id; });
+  if(!sp){ showToast('❌ 항목을 찾을 수 없습니다.'); return; }
+
+  var site = sites.find(function(x){ return String(x.id)===String(sp.siteId); });
+  if(!site || !site.clientPhone){ showToast('❌ 거래처 연락처가 없습니다.'); return; }
+
+  var tel = site.clientPhone.replace(/[^0-9+]/g,'');
+  var clientMgr = site.clientMgr || '담당자';
+  var amountStr = sp.amount ? Number(sp.amount).toLocaleString('ko-KR')+'원' : '';
+
+  var lines = [
+    '['+appTitle+'] '+sp.siteName+' 비품 구매 보고',
+    '📅 '+sp.date,
+    '📦 '+sp.item,
+  ];
+  if(amountStr) lines.push('💰 '+amountStr);
+  if(sp.url)    lines.push('🧾 영수증: '+sp.url);
+  lines.push('');
+  lines.push('* '+clientMgr+'님께 발송된 자동 메시지입니다.');
+
+  var body = encodeURIComponent(lines.join('\n'));
+  window.open('sms:'+tel+'?body='+body);
+
+  // smsSent 기록
+  var now = new Date();
+  var timeStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  sp.smsSent = true;
+  sp.smsTime = timeStr;
+  saveSupplies();
+  renderSupply();
+  showToast('📱 거래처 담당자에게 문자앱이 열립니다.');
+}
+
 // ── 영수증 링크 발송 ──
 function initReceiptSelects(){
   var linkSel   = document.getElementById('receipt-link-site');
@@ -6622,12 +6670,31 @@ function renderSupply(){
     var coItems=supplies.filter(function(s){return s.co===co;});
     var total=coItems.reduce(function(sum,s){return sum+s.amount;},0);
     var rows=coItems.map(function(s){
-      return '<tr><td>'+s.date+'</td><td style="font-weight:700;">'+s.siteName+'</td><td>'+s.item+'</td>'
+      // 현장 정보에서 거래처 연락처 조회
+      var site = sites.find(function(x){ return String(x.id)===String(s.siteId); });
+      var clientPhone = site && site.clientPhone ? site.clientPhone : '';
+      var clientMgr   = site && site.clientMgr   ? site.clientMgr   : '';
+      var smsSentBadge = s.smsSent
+        ? '<span style="font-size:10px;color:#00e5a0;font-weight:700;margin-left:4px;">✓전송 '+(s.smsTime||'')+'</span>'
+        : '';
+      var smsBtn = clientPhone
+        ? '<button onclick="sendSupplySms('+s.id+')" style="padding:3px 8px;border-radius:5px;border:1px solid #1a3a2a;background:rgba(0,229,160,0.1);color:#00e5a0;font-size:11px;cursor:pointer;white-space:nowrap;">📱 문자</button>'
+        : '';
+      var receiptBtn = s.url
+        ? '<a href="'+s.url+'" target="_blank" style="padding:3px 8px;border-radius:5px;border:1px solid #3a2800;background:rgba(255,181,71,0.08);color:#ffb547;font-size:11px;text-decoration:none;white-space:nowrap;">🧾</a>'
+        : '';
+      return '<tr>'
+        +'<td>'+s.date+smsSentBadge+'</td>'
+        +'<td style="font-weight:700;">'+s.siteName+'</td>'
+        +'<td>'+s.item+'</td>'
         +'<td style="font-family:DM Mono,monospace;text-align:right;color:#fb923c;font-weight:700;">'+s.amount.toLocaleString('ko-KR')+'</td>'
-        +'<td style="text-align:center;display:flex;gap:4px;justify-content:center;">'
+        +'<td style="text-align:center;">'
+        +'<div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
+        +smsBtn
+        +receiptBtn
         +'<button onclick="editSupply('+s.id+')" style="padding:3px 8px;border-radius:5px;border:1px solid #2c2c2c;background:#1e1e1e;color:#7ab8ff;font-size:11px;cursor:pointer;">수정</button>'
         +'<button onclick="deleteSupply('+s.id+')" style="padding:3px 8px;border-radius:5px;border:1px solid #3d1a1a;background:rgba(255,77,109,0.1);color:#ff4d6d;font-size:11px;cursor:pointer;">삭제</button>'
-        +'</td></tr>';
+        +'</div></td></tr>';
     }).join('');
     return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;margin-bottom:14px;overflow:hidden;">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--sf2);border-bottom:1px solid var(--bd);">'
