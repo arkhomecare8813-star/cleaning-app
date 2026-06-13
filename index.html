@@ -4588,8 +4588,9 @@ function switchTab(name){
       .then(function(d){
         if(d) supplies = Array.isArray(d) ? d : Object.values(d).filter(Boolean);
         localStorage.setItem('cm-supplies', JSON.stringify(supplies));
-        renderSupply();
-      }).catch(function(){ renderSupply(); });
+        // 전송 이력 로드 후 렌더
+        loadSupplySmsLog(function(){ renderSupply(); });
+      }).catch(function(){ loadSupplySmsLog(function(){ renderSupply(); }); });
     initReceiptSelects();
     renderReceipts();
   }
@@ -6455,6 +6456,16 @@ function deleteSupply(id){
 }
 
 // ── 비품 문자 발송 (거래처 담당자에게) ──
+// ── 비품 문자발송 이력 (별도 Firebase 경로) ──
+var supplySmsLog = {}; // { supplyId: { sent: true, time: 'HH:MM' } }
+
+function loadSupplySmsLog(cb){
+  fetch(FB_URL+'/data/supplySms.json')
+    .then(function(r){return r.json();})
+    .then(function(d){ supplySmsLog = d||{}; if(cb)cb(); })
+    .catch(function(){ supplySmsLog={}; if(cb)cb(); });
+}
+
 function sendSupplySms(id){
   var sp = supplies.find(function(s){ return s.id===id; });
   if(!sp){ showToast('❌ 항목을 찾을 수 없습니다.'); return; }
@@ -6479,36 +6490,17 @@ function sendSupplySms(id){
   var body = encodeURIComponent(lines.join('\n'));
   window.open('sms:'+tel+'?body='+body);
 
-  // smsSent 기록 — Firebase에 해당 키만 PATCH (배열 덮어쓰기 방지)
+  // 전송 이력을 별도 경로 /data/supplySms/{id} 에 저장
   var now = new Date();
   var timeStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-  sp.smsSent = true;
-  sp.smsTime = timeStr;
+  supplySmsLog[String(id)] = { sent: true, time: timeStr };
 
-  // Firebase supplies가 객체 구조일 경우 해당 키만 업데이트
-  fetch(FB_URL+'/data/supplies.json')
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(d && !Array.isArray(d)){
-        // 객체 구조: id가 일치하는 키 찾아서 PATCH
-        var matchKey = Object.keys(d).find(function(k){
-          return d[k] && String(d[k].id) === String(id);
-        });
-        if(matchKey){
-          fetch(FB_URL+'/data/supplies/'+matchKey+'.json',{
-            method:'PATCH',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({ smsSent: true, smsTime: timeStr })
-          }).catch(function(){});
-        }
-      } else {
-        // 배열 구조면 기존 방식대로
-        saveSupplies();
-      }
-    }).catch(function(){ saveSupplies(); });
+  fetch(FB_URL+'/data/supplySms/'+String(id)+'.json', {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ sent: true, time: timeStr })
+  }).catch(function(){});
 
-  // 로컬 반영
-  localStorage.setItem('cm-supplies', JSON.stringify(supplies));
   renderSupply();
   showToast('📱 거래처 담당자에게 문자앱이 열립니다.');
 }
@@ -6696,8 +6688,9 @@ function renderSupply(){
       var site = sites.find(function(x){ return String(x.id)===String(s.siteId); });
       var clientPhone = site && site.clientPhone ? site.clientPhone : '';
       var clientMgr   = site && site.clientMgr   ? site.clientMgr   : '';
-      var smsSentBadge = s.smsSent
-        ? '<span style="font-size:10px;color:#00e5a0;font-weight:700;margin-left:4px;">✓전송 '+(s.smsTime||'')+'</span>'
+      var smsLog = supplySmsLog[String(s.id)];
+      var smsSentBadge = smsLog && smsLog.sent
+        ? '<span style="font-size:10px;color:#00e5a0;font-weight:700;margin-left:4px;">✓전송 '+(smsLog.time||'')+'</span>'
         : '';
       var smsBtn = clientPhone
         ? '<button onclick="sendSupplySms('+s.id+')" style="padding:3px 8px;border-radius:5px;border:1px solid #1a3a2a;background:rgba(0,229,160,0.1);color:#00e5a0;font-size:11px;cursor:pointer;white-space:nowrap;">📱 문자</button>'
