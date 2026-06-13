@@ -512,13 +512,15 @@ function onDone(done, failed){
     memo = memo.trim();
     if(memo) sendTelegramNotification(done, memo);
 
-    // 비품 처리 (토글 열렸을 때만)
+    // 비품 처리 (토글 열렸을 때만) — 현장사진 GAS Lock 해소 후 전송
     if(supplyOpen){
       var spItem   = ((document.getElementById('supply-item')||{}).value||'').trim();
       var spAmount = ((document.getElementById('supply-amount')||{}).value||'').trim();
       var spDate   = params.date || new Date().toISOString().slice(0,10);
       if(spItem || spAmount || receiptFiles.length){
-        uploadReceiptsAndSave(spItem, spAmount, spDate);
+        setTimeout(function(){
+          uploadReceiptsAndSave(spItem, spAmount, spDate);
+        }, 2000); // 2초 딜레이: 현장사진 GAS Lock 완전 해소 후
       }
     }
   } else {
