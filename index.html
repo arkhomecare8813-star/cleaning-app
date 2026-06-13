@@ -16,7 +16,7 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var SMS_TPL_VERSION = '2';
-var SMS_TPL_DEFAULT = '📸 사진업로드: {link}\n[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n사진을 업로드해주세요!\n비품구매시 영수증도 등록해주세요 👆';
+var SMS_TPL_DEFAULT = '{link}\n[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n사진을 업로드해주세요!';
 if(localStorage.getItem('cm-sms-tpl-ver') !== SMS_TPL_VERSION){
   localStorage.setItem('cm-sms-template', SMS_TPL_DEFAULT);
   localStorage.setItem('cm-sms-tpl-ver', SMS_TPL_VERSION);
@@ -4631,13 +4631,11 @@ function makeReceiptLink(site, dateStr){
 }
 function makeSmsBody(site, dateStr, isUnreported){
   var uploadLink  = makeUploadLink(site, dateStr);
-  var receiptLink = makeReceiptLink(site, dateStr);
   var tpl = isUnreported
-    ? '[미취합] 📸 사진업로드: {link}\n🧾 비품영수증: {receiptLink}\n[청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!'
-    : SMS_TEMPLATE.replace('{link}', '{link}\n🧾 비품영수증: {receiptLink}');
+    ? '[미취합] {link}\n[청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!'
+    : SMS_TEMPLATE;
   var body = tpl
     .replace('{link}', uploadLink)
-    .replace('{receiptLink}', receiptLink)
     .replace('{date}', dateStr)
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
