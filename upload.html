@@ -231,7 +231,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <script>
 // ── 설정 ──
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxOVap39LwyxR1bS58myL8kt-L9djapQp_lsuwRWBImvE0iFfXypSXK36PWv3wiGMLs/exec';
-var RECEIPT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyRjGUMeVZ0uz766xdL2_iiHS8QP97AaK8Oi6bRYiwcWhF2lLONgixjAp79duqBgYPF/exec';
+var RECEIPT_GAS_URL = GAS_URL; // 메인 GAS에 handleReceipt 포함되어 있음
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var TG_TOKEN = '';
 var TG_CHAT_ID = '';
@@ -640,7 +640,7 @@ function uploadReceiptFiles(item, amount, date, clientMgr){
               }
               resolve();
             })
-            .catch(function(){done++;if(done===total)resolve();resolve();});
+            .catch(function(){ done++; if(done===total){ saveSupplyToFirebase(item, amount, date, null); sendTelegramSupplyText(item, amount, date, clientMgr, null); } resolve(); });
         };
         fr.readAsDataURL(converted instanceof Blob?converted:file);
       });
