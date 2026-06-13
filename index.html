@@ -923,6 +923,16 @@ main{padding:18px 14px;max-width:1400px;}
         <button class="excel-btn" onclick="openDetailSheetPopup()" style="min-height:42px;touch-action:manipulation;background:#1a1a2a;border-color:#f59e0b;color:#f59e0b;">&#128203; 세부내역서</button>
       </div>
     </div>
+    <!-- 정산 컨트롤 바: 접기/펼치기 + 필터 -->
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 0 4px;flex-wrap:wrap;">
+      <button id="settle-toggle-btn" onclick="toggleAllSettle()" style="padding:6px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">▼ 전체 펼치기</button>
+      <div style="display:flex;gap:4px;">
+        <button class="settle-filter-btn active" data-filter="all"   onclick="setSettleFilter('all')"  style="padding:5px 12px;border-radius:7px;border:1px solid var(--accent);background:rgba(0,229,160,0.12);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전체</button>
+        <button class="settle-filter-btn"        data-filter="vat"   onclick="setSettleFilter('vat')"  style="padding:5px 12px;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">VAT</button>
+        <button class="settle-filter-btn"        data-filter="t33"   onclick="setSettleFilter('t33')"  style="padding:5px 12px;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">3.3%</button>
+        <button class="settle-filter-btn"        data-filter="none"  onclick="setSettleFilter('none')" style="padding:5px 12px;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">없음</button>
+      </div>
+    </div>
     <div id="settle-content"></div>
   </div>
 </main>
@@ -1335,7 +1345,9 @@ function exportExcel2(){
   companies.forEach((co)=>{
     const coSites=sites.filter(s=>s.company===co&&s.bank&&s.account&&s.priceSub);
     coSites.forEach((s)=>{
-      const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
+      // 정산탭과 동일하게 effectivePrice 적용 (시작일/종료일 반영)
+      const effectiveSub = effectivePrice(s, yr, mo-1, s.priceSub||0);
+      const st=calcSubTax(effectiveSub, s.subtaxtype||'none');
       // 해당 월 비품 합계
       const supplyTotal=supplies.filter(function(sp){
         return String(sp.siteId)===String(s.id) && sp.date && sp.date.startsWith(prefix);
@@ -1403,7 +1415,7 @@ function exportExcel3(){
   var total충=0, total소득세=0, total지방=0, total지급=0, total비품=0, total실수령=0;
 
   t33sites.forEach(function(s, idx){
-    const 하청금액  = s.priceSub || 0;
+    const 하청금액  = effectivePrice(s, yr, mo-1, s.priceSub||0);
     const 비품합계  = supplies.filter(function(sp){
       return String(sp.siteId)===String(s.id) && sp.date && sp.date.startsWith(prefix);
     }).reduce(function(sum,sp){return sum+(parseInt(sp.amount)||0);},0);
@@ -2348,12 +2360,77 @@ function toggleCompany(hdr){
   body.style.display=isHidden?'':'none';
   chev.classList.toggle('open',isHidden);
 }
-function toggleSettleCo(hdr){
+function toggleSettleCo(hdr, event){
+  // 체크박스나 label 클릭이면 무시
+  if(event && (event.target.tagName==='INPUT' || event.target.tagName==='LABEL' || event.target.closest('label'))) return;
   const body=hdr.nextElementSibling;
   const chev=hdr.querySelector('.settle-co-chevron');
   const isHidden=body.style.display==='none';
   body.style.display=isHidden?'':'none';
   if(chev) chev.style.transform=isHidden?'':'rotate(-90deg)';
+}
+
+var _settleAllOpen = false;
+function toggleAllSettle(){
+  _settleAllOpen = !_settleAllOpen;
+  var btn = document.getElementById('settle-toggle-btn');
+  document.querySelectorAll('#settle-content .settle-co-body').forEach(function(body){
+    body.style.display = _settleAllOpen ? '' : 'none';
+  });
+  document.querySelectorAll('#settle-content .settle-co-chevron').forEach(function(chev){
+    chev.style.transform = _settleAllOpen ? '' : 'rotate(-90deg)';
+  });
+  if(btn) btn.textContent = _settleAllOpen ? '▲ 전체 접기' : '▼ 전체 펼치기';
+}
+
+// ── VAT/3.3%/없음 필터 ──
+var _settleFilter = 'all';
+function setSettleFilter(filter){
+  _settleFilter = filter;
+  document.querySelectorAll('.settle-filter-btn').forEach(function(btn){
+    var isActive = btn.dataset.filter === filter;
+    btn.style.borderColor = isActive ? 'var(--accent)' : 'var(--bd)';
+    btn.style.background  = isActive ? 'rgba(0,229,160,0.12)' : 'var(--sf2)';
+    btn.style.color       = isActive ? 'var(--accent)' : 'var(--muted)';
+  });
+
+  var tot = {main:0, supply:0, vat:0, subinput:0, subsupply:0, subadj:0, payout:0};
+
+  document.querySelectorAll('#settle-content .settle-company-block').forEach(function(block){
+    if(block.id === 'settle-grand-total') return;
+    var show = filter==='all' || (block.dataset.taxtype||'none')===filter;
+    block.style.display = show ? '' : 'none';
+    if(show){
+      tot.main      += parseInt(block.dataset.main||0)||0;
+      tot.supply    += parseInt(block.dataset.supply||0)||0;
+      tot.vat       += parseInt(block.dataset.vat||0)||0;
+      tot.subinput  += parseInt(block.dataset.subinput||0)||0;
+      tot.subsupply += parseInt(block.dataset.subsupply||0)||0;
+      tot.subadj    += parseInt(block.dataset.subadj||0)||0;
+      tot.payout    += parseInt(block.dataset.payout||0)||0;
+    }
+  });
+
+  // 전체 합계 헤더 금액
+  var grandEl = document.getElementById('settle-grand-payout');
+  if(grandEl) grandEl.textContent = '지급 ' + tot.payout.toLocaleString('ko-KR') + '원';
+
+  // 전체 합계 테이블 숫자 갱신
+  var tbl = document.getElementById('settle-grand-table');
+  if(tbl){
+    var adjStr = tot.subadj>0 ? '+'+tot.subadj.toLocaleString('ko-KR') : tot.subadj<0 ? '-'+Math.abs(tot.subadj).toLocaleString('ko-KR') : '—';
+    tbl.innerHTML =
+      '<tr class="settle-sum-row"><td>합계</td>'
+      +'<td class="settle-num main">'+tot.main.toLocaleString('ko-KR')+'</td>'
+      +'<td class="settle-num vat">'+tot.supply.toLocaleString('ko-KR')+'</td>'
+      +'<td class="settle-num vat">'+tot.vat.toLocaleString('ko-KR')+'</td>'
+      +'<td>—</td>'
+      +'<td class="settle-num sub">'+tot.subinput.toLocaleString('ko-KR')+'</td>'
+      +'<td class="settle-num sub">'+tot.subsupply.toLocaleString('ko-KR')+'</td>'
+      +'<td class="'+(tot.subadj<0?'settle-num deduct':'settle-num sub')+'">'+adjStr+'</td>'
+      +'<td class="settle-num sub" style="font-weight:800">'+tot.payout.toLocaleString('ko-KR')+'</td>'
+      +'</tr>';
+  }
 }
 function prefillCompany(name){
   document.getElementById('f-co').value=name;
@@ -2581,7 +2658,11 @@ function renderSettle(){
     const col=getCompanyColor(co);
     const coSites=sites.filter(function(s){return s.company===co&&(s.status||'active')!=='inquiry';});
     let cMain=0,cSupply=0,cVat=0,cSubInput=0,cSubAdj=0,cSubPayout=0,cProfit=0,cSubSupply=0,cSubVat=0;
-    const coSupplyTotal=supplies.filter(function(s){return s.co===co;}).reduce(function(sum,s){return sum+s.amount;},0);
+    var _yrS=document.getElementById('settle-year');var _moS=document.getElementById('settle-month');
+    var _sYrS=_yrS?parseInt(_yrS.value):today.getFullYear();
+    var _sMoS=_moS?parseInt(_moS.value):today.getMonth()+1;
+    var _prefixS=_sYrS+'-'+String(_sMoS).padStart(2,'0');
+    const coSupplyTotal=supplies.filter(function(s){return s.co===co&&s.date&&s.date.startsWith(_prefixS);}).reduce(function(sum,s){return sum+(parseInt(s.amount)||0);},0);
     const coSupplySupply=Math.round(coSupplyTotal/1.1);
     const coSupplyVat=coSupplyTotal-coSupplySupply;
 
@@ -2670,23 +2751,25 @@ function renderSettle(){
           var acc = chked ? '#4ade80'               : '#ff4d6d';
           var chk = chked ? 'checked'               : '';
           return '<label onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:5px;cursor:pointer;background:'+bg+';border:1px solid '+bd+';border-radius:6px;padding:3px 9px;">'
-            +'<input type="checkbox" '+chk+' onchange="toggleInvoice(\''+invoiceKey+'\',this.checked)" style="accent-color:'+acc+';width:14px;height:14px;cursor:pointer;">'
+            +'<input type="checkbox" '+chk+' onclick="event.stopPropagation();" onchange="toggleInvoice(\''+invoiceKey+'\',this.checked)" style="accent-color:'+acc+';width:14px;height:14px;cursor:pointer;">'
             +'<span style="font-size:11px;font-weight:700;color:'+col+';">계산서발급</span>'
             +'</label>';
         })()
       : '';
     var has33 = coSites.some(function(s){ return (s.subtaxtype||'none')==='t33' && (s.priceSub||0)>0; });
     var badge33 = has33 ? '<span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;background:rgba(122,184,255,0.1);border:1px solid rgba(122,184,255,0.4);font-size:11px;font-weight:700;color:#7ab8ff;">3.3% 대상</span>' : '';
-    return '<div class="settle-company-block">'
-      +'<div class="settle-company-hdr" style="cursor:pointer;" onclick="toggleSettleCo(this)">'
-      +'<div class="settle-co-left"><div class="company-dot" style="background:'+col.text+'"></div><div class="settle-co-name">'+co+'</div><div style="font-size:11px;color:var(--muted);margin-left:4px">(현장 '+coSites.length+'곳)</div></div>'
-      +'<div style="display:flex;align-items:center;gap:8px;">'
+    return '<div class="settle-company-block" data-taxtype="'+(coSites.some(function(s){return s.subtaxtype==='vat';})?'vat':coSites.some(function(s){return s.subtaxtype==='t33';})?'t33':'none')+'" data-payout="'+(cSubPayout+coSupplyTotal)+'" data-main="'+cMain+'" data-supply="'+cSupply+'" data-vat="'+cVat+'" data-subinput="'+(cSubInput+coSupplyTotal)+'" data-subsupply="'+(cSubSupply+coSupplySupply)+'" data-subadj="'+(cSubAdj+coSupplyVat)+'">'
+      +'<div class="settle-company-hdr">'
+      +'<div class="settle-co-toggle" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;padding:12px 0 12px 16px;" onclick="(function(hdr){var body=hdr.closest(\'.settle-company-block\').querySelector(\'.settle-co-body\');var chev=hdr.querySelector(\'.settle-co-chevron\');var isHidden=body.style.display===\'none\';body.style.display=isHidden?\'\':\'none\';if(chev)chev.style.transform=isHidden?\'\':\'rotate(-90deg)\';})(this)">'
+      +'<div class="settle-co-left" style="display:flex;align-items:center;gap:8px;"><div class="company-dot" style="background:'+col.text+'"></div><div class="settle-co-name">'+co+'</div><div style="font-size:11px;color:var(--muted);margin-left:4px">(현장 '+coSites.length+'곳)</div></div>'
+      +'<div class="settle-co-chevron" style="color:var(--muted);font-size:11px;transition:transform 0.2s;'+(_settleAllOpen?'':' transform:rotate(-90deg)')+'">&#9660;</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;padding:12px 16px 12px 0;">'
       +invoiceChk
       +badge33
       +'<div class="settle-co-total" style="color:#7ab8ff;">지급 '+fmtN(cSubPayout+coSupplyTotal)+'원</div>'
-      +'<div class="settle-co-chevron" style="color:var(--muted);font-size:11px;transition:transform 0.2s;">&#9660;</div>'
       +'</div></div>'
-      +'<div class="settle-co-body" style="overflow-x:auto;">'
+      +'<div class="settle-co-body" style="overflow-x:auto;'+(_settleAllOpen?'':'display:none;')+'">'
       +'<table class="settle-table"><thead><tr>'
       +'<th>현장명</th><th>주소</th><th>사업자번호/주민번호</th><th>이메일</th><th>은행명</th><th>계좌번호</th><th style="text-align:center">횟수</th>'
       +'<th style="text-align:right">원청금액</th><th style="text-align:right">원청공급가</th><th style="text-align:right">부가세</th>'
@@ -2708,15 +2791,15 @@ function renderSettle(){
       +'<td class="settle-num sub" style="font-weight:800">'+fmtN(cSubPayout+coSupplyTotal)+'</td>'
       +'</tr></tbody></table></div></div>';
   }).join('')
-  +'<div class="settle-company-block" style="border-color:var(--accent)">'
+  +'<div class="settle-company-block" id="settle-grand-total" style="border-color:var(--accent)">'
   +'<div class="settle-company-hdr" style="background:var(--a2)">'
   +'<div class="settle-co-name" style="color:var(--accent)">&#9654; 전체 합계</div>'
-  +'<div class="settle-co-total" style="color:#7ab8ff;">지급 '+fmtN(gSubPayout)+'원</div></div>'
+  +'<div class="settle-co-total" id="settle-grand-payout" style="color:#7ab8ff;">지급 '+fmtN(gSubPayout)+'원</div></div>'
   +'<div style="overflow-x:auto;"><table class="settle-table"><thead><tr>'
   +'<th>구분</th><th style="text-align:right">원청금액</th><th style="text-align:right">원청공급가</th><th style="text-align:right">부가세</th>'
   +'<th>—</th><th style="text-align:right">하청금액</th><th style="text-align:right">하청공급가</th><th style="text-align:right">부가세(+)/3.3%(-)</th>'
   +'<th style="text-align:right">하청실지급액</th>'
-  +'</tr></thead><tbody>'
+  +'</tr></thead><tbody id="settle-grand-table">'
   +'<tr class="settle-sum-row"><td>합계</td>'
   +'<td class="settle-num main">'+fmtN(gMain)+'</td><td class="settle-num vat">'+fmtN(gSupply)+'</td><td class="settle-num vat">'+fmtN(gVat)+'</td><td>—</td>'
   +'<td class="settle-num sub">'+fmtN(gSubInput)+'</td>'
@@ -2748,10 +2831,17 @@ function renderDashboard(){
     totalMainNet+=em;
     totalSubPayout+=st.payout;
     totalSubPayoutNet+=calcSubTax(es,s.subtaxtype||'none').payout;
-    totalMainVat+=mt.vat;                                          // 원청 VAT
-    if(s.subtaxtype==='vat') totalSubVat+=st.vat;                  // 하청 VAT (매입세액)
-    if(s.subtaxtype==='t33') totalSub33+=st.deduct;                // 하청 3.3% 보관액
+    totalMainVat+=mt.vat;
+    if(s.subtaxtype==='vat') totalSubVat+=st.vat;
+    if(s.subtaxtype==='t33') totalSub33+=st.deduct;
   });
+  // 이번 달 비품 합산
+  var curPrefix=curYr+'-'+String(curMo+1).padStart(2,'0');
+  var curSupplyTotal=supplies.filter(function(sp){
+    return sp.date && sp.date.startsWith(curPrefix);
+  }).reduce(function(sum,sp){return sum+(parseInt(sp.amount)||0);},0);
+  totalSubPayout    += curSupplyTotal;
+  totalSubPayoutNet += curSupplyTotal;
   var totalProfit=totalMain-totalSubPayout;
   var totalProfitNet=totalMainNet-totalSubPayoutNet;
   var vatPayable=totalMainVat-totalSubVat;
@@ -4592,7 +4682,11 @@ function switchTab(name){
   document.getElementById('view-'+name).classList.add('active');
   if(name==='dashboard')renderDashboard();
   if(name==='contacts'){initContactsSido();renderContacts();}
-  if(name==='settle'){renderSettle();updateSnapshotSel();}
+  if(name==='settle'){
+    _settleAllOpen = false;
+    renderSettle();
+    updateSnapshotSel();
+  }
   if(name==='supply'){
     fetch(FB_URL+'/data/supplies.json')
       .then(function(r){return r.json();})
