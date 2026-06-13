@@ -10,6 +10,7 @@
 :root{
   --bg:#0a0a0a;--sf:#161616;--sf2:#1e1e1e;--sf3:#272727;
   --bd:#2c2c2c;--accent:#00e5a0;--a2:#004d36;
+  --yellow:#ffb547;--ya2:#3a2800;
   --text:#f0f0f0;--muted:#777;--danger:#ff4d6d;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -31,13 +32,14 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .date-pill{display:inline-flex;align-items:center;gap:5px;background:var(--a2);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;font-family:'DM Mono',monospace;}
 
 /* 업로드 존 */
-.upload-zone{border:2px dashed var(--bd);border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--sf2);position:relative;}
+.upload-zone{border:2px dashed var(--bd);border-radius:14px;padding:30px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--sf2);position:relative;}
 .upload-zone.drag{border-color:var(--accent);background:rgba(0,229,160,0.06);}
 .upload-zone.has-files{border-color:var(--accent);border-style:solid;}
-.upload-big-icon{font-size:52px;margin-bottom:12px;line-height:1;}
-.upload-text{font-size:16px;font-weight:800;margin-bottom:5px;}
+.upload-zone.receipt-zone{border-color:var(--ya2);}
+.upload-zone.receipt-zone.has-files{border-color:var(--yellow);}
+.upload-big-icon{font-size:44px;margin-bottom:10px;line-height:1;}
+.upload-text{font-size:15px;font-weight:800;margin-bottom:4px;}
 .upload-sub{font-size:12px;color:var(--muted);line-height:1.6;}
-#file-input{display:none;}
 
 /* 미리보기 */
 .preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;}
@@ -48,7 +50,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 /* 업로드 버튼 */
 .upload-btn{width:100%;padding:16px;border-radius:13px;background:var(--accent);border:none;color:#000;font-size:16px;font-weight:900;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;}
-.upload-btn:hover{background:#00ffb3;}
+.upload-btn:hover{filter:brightness(1.1);}
 .upload-btn:active{transform:scale(0.98);}
 .upload-btn:disabled{background:var(--sf3);color:var(--muted);cursor:not-allowed;transform:none;}
 
@@ -76,6 +78,31 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .invalid-icon{font-size:48px;margin-bottom:14px;}
 .invalid-title{font-size:18px;font-weight:800;margin-bottom:6px;}
 .invalid-sub{font-size:13px;color:var(--muted);}
+
+/* 메모 */
+.memo-input{width:100%;margin-top:12px;background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:12px;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;resize:vertical;min-height:80px;outline:none;line-height:1.6;}
+.memo-input:focus{border-color:#444;}
+
+/* 비품 토글 */
+.supply-toggle{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--sf2);border:1px solid var(--bd);border-radius:12px;cursor:pointer;margin-top:14px;transition:all 0.2s;user-select:none;}
+.supply-toggle:active{transform:scale(0.98);}
+.supply-toggle.on{background:var(--ya2);border-color:var(--yellow);}
+.supply-toggle-left{display:flex;align-items:center;gap:10px;}
+.supply-toggle-icon{font-size:22px;}
+.supply-toggle-title{font-size:14px;font-weight:800;}
+.supply-toggle-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.supply-toggle.on .supply-toggle-title{color:var(--yellow);}
+.supply-toggle-arrow{font-size:18px;color:var(--muted);transition:transform 0.25s;}
+.supply-toggle.on .supply-toggle-arrow{transform:rotate(180deg);color:var(--yellow);}
+
+/* 비품 패널 */
+.supply-panel{display:none;background:var(--sf);border:1px solid var(--ya2);border-radius:12px;padding:16px;margin-top:8px;}
+.supply-panel.open{display:block;}
+.supply-label{font-size:11px;color:var(--muted);margin-bottom:5px;letter-spacing:0.3px;}
+.supply-input{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:11px 13px;color:var(--text);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:12px;}
+.supply-input:focus{border-color:var(--yellow);}
+.supply-input::placeholder{color:#444;}
+.supply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 </style>
 </head>
 <body>
@@ -122,17 +149,61 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
   <!-- 업로드 카드 -->
   <div class="card" id="upload-card">
+
+    <!-- 현장 사진 업로드 존 -->
     <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
       <div class="upload-big-icon">📸</div>
-      <div class="upload-text">사진을 탭해서 선택하세요</div>
-      <div class="upload-sub">여러 장 동시 선택 가능<br>JPG · PNG · HEIC 모두 가능</div>
+      <div class="upload-text">현장 사진을 탭해서 선택하세요</div>
+      <div class="upload-sub">여러 장 동시 선택 가능 · JPG · PNG · HEIC</div>
     </div>
-    <input type="file" id="file-input" accept="image/*" multiple onchange="handleFiles(this.files)">
+    <input type="file" id="file-input" accept="image/*" multiple onchange="handleFiles(this.files, 'photo')">
     <div class="preview-grid" id="preview-grid"></div>
+
+    <!-- 에로사항 메모 -->
+    <textarea id="memo-input" class="memo-input" placeholder="📝 에로사항 메모 (선택사항)&#10;특이사항, 요청사항 등을 입력하세요"></textarea>
+
+    <!-- 비품 구매 토글 -->
+    <div class="supply-toggle" id="supply-toggle" onclick="toggleSupply()">
+      <div class="supply-toggle-left">
+        <div class="supply-toggle-icon">🛒</div>
+        <div>
+          <div class="supply-toggle-title">비품 구매했어요</div>
+          <div class="supply-toggle-sub">탭하면 영수증 등록란이 열립니다</div>
+        </div>
+      </div>
+      <div class="supply-toggle-arrow">▼</div>
+    </div>
+
+    <!-- 비품 패널 -->
+    <div class="supply-panel" id="supply-panel">
+      <div class="supply-row">
+        <div>
+          <div class="supply-label">품목명</div>
+          <input type="text" id="supply-item" class="supply-input" placeholder="예: 세제, 걸레, 장갑" style="margin-bottom:0;">
+        </div>
+        <div>
+          <div class="supply-label">금액 (원)</div>
+          <input type="number" id="supply-amount" class="supply-input" placeholder="예: 15000" inputmode="numeric" style="margin-bottom:0;">
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="supply-label">영수증 사진</div>
+        <div class="upload-zone receipt-zone" id="receipt-zone" onclick="document.getElementById('receipt-input').click()">
+          <div class="upload-big-icon" style="font-size:36px;">🧾</div>
+          <div class="upload-text" style="font-size:14px;">영수증 사진 선택</div>
+          <div class="upload-sub">선택 안 해도 등록 가능</div>
+        </div>
+        <input type="file" id="receipt-input" accept="image/*" multiple onchange="handleFiles(this.files, 'receipt')" style="display:none;">
+        <div class="preview-grid" id="receipt-preview-grid"></div>
+      </div>
+    </div>
+
+    <!-- 업로드 버튼 -->
     <button class="upload-btn" id="upload-btn" onclick="startUpload()" disabled>
       <span id="upload-btn-text">사진을 먼저 선택해주세요</span>
     </button>
-    <textarea id="memo-input" placeholder="📝 에로사항 메모 (선택사항)&#10;특이사항, 요청사항 등을 입력하세요" style="width:100%;margin-top:12px;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:10px;padding:12px;color:#f0f0f0;font-size:14px;font-family:'Noto Sans KR',sans-serif;resize:vertical;min-height:80px;outline:none;line-height:1.6;"></textarea>
+
+    <!-- 진행바 -->
     <div class="prog-wrap" id="prog-wrap">
       <div class="prog-top">
         <span id="prog-text">업로드 중...</span>
@@ -160,6 +231,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <script>
 // ── 설정 ──
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxOVap39LwyxR1bS58myL8kt-L9djapQp_lsuwRWBImvE0iFfXypSXK36PWv3wiGMLs/exec';
+var RECEIPT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyRjGUMeVZ0uz766xdL2_iiHS8QP97AaK8Oi6bRYiwcWhF2lLONgixjAp79duqBgYPF/exec';
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var TG_TOKEN = '';
 var TG_CHAT_ID = '';
@@ -175,7 +247,9 @@ if(FB_URL){
 }
 
 var params = {};
-var selectedFiles = [];
+var selectedFiles = [];    // 현장 사진
+var receiptFiles  = [];    // 영수증 사진
+var supplyOpen    = false;
 
 // ── URL 파라미터 파싱 ──
 function parseParams(){
@@ -188,18 +262,14 @@ function parseParams(){
 // ── 초기화 ──
 function init(){
   parseParams();
-
-  // 파라미터 검증
   if(!params.co || !params.site || !params.date){
     document.getElementById('info-card').style.display = 'none';
     document.getElementById('upload-card').style.display = 'none';
     document.getElementById('invalid-card').style.display = '';
     return;
   }
-
-  // 현장 정보 표시
   if(params.title) document.getElementById('app-title').textContent = params.title;
-  document.getElementById('info-co').textContent = params.co;
+  document.getElementById('info-co').textContent   = params.co;
   document.getElementById('info-site').textContent = params.site;
   document.getElementById('info-date').textContent = params.date;
   if(params.mgr){
@@ -208,24 +278,43 @@ function init(){
   }
 }
 
+// ── 비품 토글 ──
+function toggleSupply(){
+  supplyOpen = !supplyOpen;
+  var toggle = document.getElementById('supply-toggle');
+  var panel  = document.getElementById('supply-panel');
+  toggle.classList.toggle('on', supplyOpen);
+  panel.classList.toggle('open', supplyOpen);
+  updateBtn();
+}
+
 // ── 파일 선택 ──
-function handleFiles(files){
+function handleFiles(files, type){
+  var arr = (type === 'receipt') ? receiptFiles : selectedFiles;
   for(var i=0;i<files.length;i++){
     var f = files[i];
-    // 파일명 + 크기 + 마지막수정시각 기준 중복 제거 (change 이벤트 중복 발화 방지)
-    var isDup = selectedFiles.some(function(s){
-      return s.name === f.name && s.size === f.size && s.lastModified === f.lastModified;
+    var isDup = arr.some(function(s){
+      return s.name===f.name && s.size===f.size && s.lastModified===f.lastModified;
     });
-    if(!isDup) selectedFiles.push(f);
+    if(!isDup) arr.push(f);
   }
-  renderPreviews();
+  if(type === 'receipt') renderReceiptPreviews();
+  else renderPreviews();
   updateBtn();
 }
 
 function renderPreviews(){
-  var grid = document.getElementById('preview-grid');
+  renderGrid(selectedFiles, 'preview-grid', 'photo', 'upload-zone');
+}
+
+function renderReceiptPreviews(){
+  renderGrid(receiptFiles, 'receipt-preview-grid', 'receipt', 'receipt-zone');
+}
+
+function renderGrid(arr, gridId, type, zoneId){
+  var grid = document.getElementById(gridId);
   grid.innerHTML = '';
-  var show = Math.min(selectedFiles.length, 8);
+  var show = Math.min(arr.length, 8);
   for(var i=0;i<show;i++){
     (function(idx){
       var div = document.createElement('div');
@@ -233,163 +322,160 @@ function renderPreviews(){
       var img = document.createElement('img');
       var reader = new FileReader();
       reader.onload = function(e){ img.src = e.target.result; };
-      reader.readAsDataURL(selectedFiles[idx]);
+      reader.readAsDataURL(arr[idx]);
       var rm = document.createElement('button');
       rm.className = 'preview-remove';
       rm.innerHTML = '×';
       rm.onclick = function(e){
         e.stopPropagation();
-        selectedFiles.splice(idx,1);
-        renderPreviews(); updateBtn();
+        arr.splice(idx,1);
+        if(type==='receipt') renderReceiptPreviews(); else renderPreviews();
+        updateBtn();
       };
       div.appendChild(img); div.appendChild(rm);
       grid.appendChild(div);
     })(i);
   }
-  if(selectedFiles.length > 8){
+  if(arr.length > 8){
     var more = document.createElement('div');
     more.className = 'preview-more';
-    more.textContent = '+' + (selectedFiles.length-8) + '장';
-    more.onclick = function(){ document.getElementById('file-input').click(); };
+    more.textContent = '+' + (arr.length-8) + '장';
     grid.appendChild(more);
   }
-  document.getElementById('upload-zone').classList.toggle('has-files', selectedFiles.length > 0);
+  var zone = document.getElementById(zoneId);
+  if(zone) zone.classList.toggle('has-files', arr.length > 0);
 }
 
 function updateBtn(){
   var btn = document.getElementById('upload-btn');
   var txt = document.getElementById('upload-btn-text');
   if(!btn) return;
-  btn.disabled = selectedFiles.length === 0;
-  if(txt) txt.textContent = selectedFiles.length > 0 ? '📤 ' + selectedFiles.length + '장 업로드' : '사진을 먼저 선택해주세요';
+  var hasPhoto   = selectedFiles.length > 0;
+  var hasSupply  = supplyOpen && (
+    (document.getElementById('supply-item')||{}).value ||
+    (document.getElementById('supply-amount')||{}).value ||
+    receiptFiles.length > 0
+  );
+  btn.disabled = !hasPhoto;
+  if(hasPhoto){
+    var label = '📤 현장사진 ' + selectedFiles.length + '장 업로드';
+    if(supplyOpen && receiptFiles.length > 0) label += ' + 영수증 ' + receiptFiles.length + '장';
+    txt.textContent = label;
+  } else {
+    txt.textContent = '사진을 먼저 선택해주세요';
+  }
 }
 
 // ── 업로드 ──
 var isUploading = false;
-var CONCURRENCY = 1; // 순차 업로드 (폴더 중복 생성 방지)
+var CONCURRENCY = 3;
 
 function startUpload(){
   if(!selectedFiles.length || isUploading) return;
   isUploading = true;
 
   var btn = document.getElementById('upload-btn');
-  var btnText = document.getElementById('upload-btn-text');
   btn.disabled = true;
-  btnText.textContent = '⏳ 업로드 중...';
+  document.getElementById('upload-btn-text').textContent = '⏳ 업로드 중...';
   document.getElementById('err-box').style.display = 'none';
   document.getElementById('prog-wrap').style.display = '';
 
-  var total = selectedFiles.length;
-  var done = 0;
+  var total  = selectedFiles.length;
+  var done   = 0;
   var failed = 0;
-
   updateProgress(0, total);
 
-  // ── Promise 기반 리사이즈 ──
+  // ── 리사이즈 유틸 ──
   function resizeFileToBase64(file){
     return new Promise(function(resolve){
-      var isHeic = file.type === 'image/heic' || file.type === 'image/heif'
-        || /\.(heic|heif)$/i.test(file.name||'');
-
-      if(isHeic && typeof heic2any !== 'undefined'){
-        heic2any({ blob: file, toType: 'image/jpeg', quality: 0.75 })
-          .then(function(blob){ return resizeBlobToBase64(blob, file); })
-          .catch(function(){ return fileToBase64(file); })
+      var isHeic = file.type==='image/heic'||file.type==='image/heif'||/\.(heic|heif)$/i.test(file.name||'');
+      if(isHeic && typeof heic2any!=='undefined'){
+        heic2any({blob:file,toType:'image/jpeg',quality:0.75})
+          .then(function(blob){return resizeBlobToBase64(blob,file);})
+          .catch(function(){return fileToBase64(file);})
           .then(resolve);
       } else {
-        resizeBlobToBase64(file, file).then(resolve);
+        resizeBlobToBase64(file,file).then(resolve);
       }
     });
   }
 
   function resizeBlobToBase64(blob, origFile){
     return new Promise(function(resolve){
-      var MAX_PX = 1024, QUALITY = 0.55;
+      var MAX_PX=1024, QUALITY=0.65;
       var url = URL.createObjectURL(blob);
       var img = new Image();
       img.onload = function(){
         URL.revokeObjectURL(url);
-        var w = img.width, h = img.height;
-        if(w > MAX_PX || h > MAX_PX){
-          if(w > h){ h = Math.round(h * MAX_PX / w); w = MAX_PX; }
-          else { w = Math.round(w * MAX_PX / h); h = MAX_PX; }
+        var w=img.width, h=img.height;
+        if(w>MAX_PX||h>MAX_PX){
+          if(w>h){h=Math.round(h*MAX_PX/w);w=MAX_PX;}
+          else{w=Math.round(w*MAX_PX/h);h=MAX_PX;}
         }
-        var canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        var canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
         canvas.toBlob(function(outBlob){
-          var reader = new FileReader();
-          reader.onload = function(e){
-            var base64 = e.target.result.split(',')[1];
-            var origKB = Math.round(origFile.size/1024);
-            var newKB  = Math.round(outBlob.size/1024);
-            document.getElementById('prog-file').textContent =
-              (origFile.name||'사진') + '  ' + origKB + 'KB → ' + newKB + 'KB';
-            resolve({ base64: base64, mime: 'image/jpeg',
-                      name: 'photo_' + Date.now() + '_' + Math.random().toString(36).slice(2,6) + '.jpg' });
+          var reader=new FileReader();
+          reader.onload=function(e){
+            var b64=e.target.result.split(',')[1];
+            var origKB=Math.round(origFile.size/1024);
+            var newKB=Math.round(outBlob.size/1024);
+            document.getElementById('prog-file').textContent=
+              (origFile.name||'사진')+'  '+origKB+'KB → '+newKB+'KB';
+            resolve({base64:b64,mime:'image/jpeg',
+              name:'photo_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)+'.jpg'});
           };
           reader.readAsDataURL(outBlob);
-        }, 'image/jpeg', QUALITY);
+        },'image/jpeg',QUALITY);
       };
-      img.onerror = function(){
-        URL.revokeObjectURL(url);
-        fileToBase64(origFile).then(resolve);
-      };
-      img.src = url;
+      img.onerror=function(){URL.revokeObjectURL(url);fileToBase64(origFile).then(resolve);};
+      img.src=url;
     });
   }
 
   function fileToBase64(file){
     return new Promise(function(resolve){
-      var reader = new FileReader();
-      reader.onload = function(e){
-        resolve({ base64: e.target.result.split(',')[1],
-                  mime: file.type || 'image/jpeg',
-                  name: file.name || ('photo_' + Date.now() + '.jpg') });
+      var reader=new FileReader();
+      reader.onload=function(e){
+        resolve({base64:e.target.result.split(',')[1],mime:file.type||'image/jpeg',
+          name:file.name||('photo_'+Date.now()+'.jpg')});
       };
       reader.readAsDataURL(file);
     });
   }
 
-  // ── GAS 전송 (Promise) ──
+  // ── GAS 전송 ──
   function sendToGAS(fileInfo){
-    var body = JSON.stringify({
-      co: params.co, site: params.site, date: params.date,
-      siteId: params.siteId,
-      name: fileInfo.name, data: fileInfo.base64, mime: fileInfo.mime
+    var body=JSON.stringify({
+      co:params.co, site:params.site, date:params.date, siteId:params.siteId,
+      name:fileInfo.name, data:fileInfo.base64, mime:fileInfo.mime
     });
-    return fetch(GAS_URL, { method: 'POST', body: body })
-      .then(function(r){ return r.json(); })
-      .then(function(d){ return d.ok ? 'ok' : 'fail'; })
-      .catch(function(){ return 'fail'; });
+    return fetch(GAS_URL,{method:'POST',body:body})
+      .then(function(r){return r.json();})
+      .then(function(d){return d.ok?'ok':'fail';})
+      .catch(function(){return 'fail';});
   }
 
-  // ── 파일 1장 처리 (리사이즈 + 전송) ──
   function processOne(file){
     return resizeFileToBase64(file)
-      .then(function(info){ return sendToGAS(info); })
+      .then(function(info){return sendToGAS(info);})
       .then(function(result){
-        if(result === 'ok') done++; else failed++;
-        updateProgress(done + failed, total);
+        if(result==='ok') done++; else failed++;
+        updateProgress(done+failed, total);
       })
-      .catch(function(){
-        failed++;
-        updateProgress(done + failed, total);
-      });
+      .catch(function(){failed++;updateProgress(done+failed,total);});
   }
 
-  // ── 동시 최대 CONCURRENCY장 병렬 업로드 ──
   function runPool(files, concurrency){
-    var queue = files.slice();
-    var active = 0;
+    var queue=files.slice(); var active=0;
     return new Promise(function(resolveAll){
       function next(){
-        while(active < concurrency && queue.length){
+        while(active<concurrency&&queue.length){
           active++;
-          var file = queue.shift();
-          processOne(file).then(function(){
+          processOne(queue.shift()).then(function(){
             active--;
-            if(queue.length === 0 && active === 0) resolveAll();
+            if(queue.length===0&&active===0) resolveAll();
             else next();
           });
         }
@@ -404,10 +490,10 @@ function startUpload(){
 }
 
 function updateProgress(done, total){
-  var pct = total > 0 ? Math.round(done / total * 100) : 0;
-  document.getElementById('prog-fill').style.width = pct + '%';
-  document.getElementById('prog-text').textContent = done + ' / ' + total + '장 업로드 중...';
-  document.getElementById('prog-pct').textContent = pct + '%';
+  var pct=total>0?Math.round(done/total*100):0;
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-text').textContent=done+' / '+total+'장 업로드 중...';
+  document.getElementById('prog-pct').textContent=pct+'%';
 }
 
 function onDone(done, failed){
@@ -415,60 +501,59 @@ function onDone(done, failed){
   document.getElementById('prog-wrap').style.display = 'none';
 
   if(failed === 0){
-    // Firebase에 보고 완료 기록 (/data/photos/{date}/{siteId} 구조)
+    // Firebase 보고 기록
     if(params.siteId && params.date && FB_URL){
-      var fbPath = FB_URL + '/data/photos/' + params.date + '/' + params.siteId + '.json';
-      fetch(fbPath)
-        .then(function(r){ return r.json(); })
-        .then(function(existing){
-          var prev = (existing && existing.photos) ? existing.photos : 0;
-          return fetch(fbPath, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ photos: prev + done, lastUpload: new Date().toISOString() })
-          });
-        })
-        .catch(function(){});
-
-      // reportLog 기록 — 보고 완료
-      var logPath = FB_URL + '/data/reportLog/' + params.siteId + '/' + params.date + '.json';
-      fetch(logPath, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ count: done, reportedAt: new Date().toISOString() })
+      var fbPath = FB_URL+'/data/photos/'+params.date+'/'+params.siteId+'.json';
+      fetch(fbPath).then(function(r){return r.json();}).then(function(existing){
+        var prev=(existing&&existing.photos)?existing.photos:0;
+        return fetch(fbPath,{method:'PUT',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({photos:prev+done,lastUpload:new Date().toISOString()})});
       }).catch(function(){});
 
-      // reportStart 기록 — 첫 보고일 (이미 있으면 덮어쓰지 않음)
-      var startPath = FB_URL + '/data/reportStart/' + params.siteId + '.json';
-      fetch(startPath)
-        .then(function(r){ return r.json(); })
-        .then(function(existing){
-          if(!existing){
-            return fetch(startPath, {
-              method: 'PUT',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify(params.date)
-            });
-          }
-        })
-        .catch(function(){});
+      var logPath = FB_URL+'/data/reportLog/'+params.siteId+'/'+params.date+'.json';
+      fetch(logPath,{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({count:done,reportedAt:new Date().toISOString()})}).catch(function(){});
+
+      var startPath = FB_URL+'/data/reportStart/'+params.siteId+'.json';
+      fetch(startPath).then(function(r){return r.json();}).then(function(existing){
+        if(!existing) return fetch(startPath,{method:'PUT',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify(params.date)});
+      }).catch(function(){});
     }
 
-    // 완료 카드 표시, 업로드 카드 숨김
+    // 완료 카드 표시
     document.getElementById('upload-card').style.display = 'none';
     var sc = document.getElementById('success-card');
     sc.style.display = '';
-    document.getElementById('success-count').textContent = done + '장';
+    document.getElementById('success-count').textContent = done+'장';
     document.getElementById('success-path').innerHTML =
-      '<strong>' + (params.site || '') + '</strong> 현장 사진 ' + done + '장이<br>성공적으로 저장되었습니다.';
+      '<strong>'+(params.site||'')+'</strong> 현장 사진 '+done+'장이<br>성공적으로 저장되었습니다.';
 
-    // 텔레그램 알림 발송 (메모 있을 때만)
-    var memo = (document.getElementById('memo-input')||{}).value||'';
-    memo = memo.trim();
-    if(memo) sendTelegramNotification(done, memo);
+    // 텔레그램 + 비품 처리
+    var memo   = ((document.getElementById('memo-input')||{}).value||'').trim();
+    var item   = ((document.getElementById('supply-item')||{}).value||'').trim();
+    var amount = parseInt((document.getElementById('supply-amount')||{}).value||'0')||0;
+
+    // clientMgr 조회 후 알림 발송
+    function proceed(clientMgr){
+      if(memo) sendTelegramMemo(done, memo, clientMgr);
+      if(supplyOpen && (item || amount || receiptFiles.length)){
+        processSupply(item, amount, clientMgr);
+      }
+    }
+
+    if(FB_URL && params.siteId){
+      fetch(FB_URL+'/data/sites.json')
+        .then(function(r){return r.json();})
+        .then(function(sitesData){
+          var found=Array.isArray(sitesData)?sitesData.find(function(s){return String(s.id)===String(params.siteId);}):null;
+          proceed(found&&found.clientMgr?found.clientMgr:'');
+        }).catch(function(){proceed('');});
+    } else { proceed(''); }
+
   } else {
     var eb = document.getElementById('err-box');
-    eb.textContent = done + '장 성공, ' + failed + '장 실패. 실패한 사진을 다시 업로드해주세요.';
+    eb.textContent = done+'장 성공, '+failed+'장 실패. 실패한 사진을 다시 업로드해주세요.';
     eb.style.display = '';
     document.getElementById('upload-card').style.display = '';
     var btn = document.getElementById('upload-btn');
@@ -477,58 +562,187 @@ function onDone(done, failed){
   }
 }
 
-// ── 초기화 (추가 업로드용) ──
-function sendTelegramNotification(photoCount, memo){
-  if(!TG_TOKEN || !TG_CHAT_ID) return;
+// ── 텔레그램: 에로사항 메모 ──
+function sendTelegramMemo(photoCount, memo, clientMgr){
+  if(!TG_TOKEN||!TG_CHAT_ID) return;
+  var sender = (params.site||'현장') + (clientMgr?' · '+clientMgr:'');
+  var lines = [
+    '📸 <b>'+sender+'</b>',
+    '📅 '+(params.date||'')+' | 📷 '+photoCount+'장 업로드',
+  ];
+  if(params.co) lines.push('🏢 '+params.co);
+  lines.push('');
+  lines.push('📝 <b>에로사항</b>');
+  lines.push(memo);
+  fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:TG_CHAT_ID,text:lines.join('\n'),parse_mode:'HTML'})
+  }).catch(function(){});
+}
 
-  var site = params.site || '알 수 없는 현장';
-  var co   = params.co   || '';
-  var date = params.date || '';
+// ── 비품 처리: 영수증 GAS 업로드 + 텔레그램 ──
+function processSupply(item, amount, clientMgr){
+  var date = params.date || new Date().toISOString().slice(0,10);
 
-  function sendMsg(clientMgr){
-    var sender = site + (clientMgr ? ' · ' + clientMgr : '');
-    var lines = [
-      '📸 <b>' + sender + '</b>',
-      '📅 ' + date + ' | 📷 ' + photoCount + '장 업로드',
-    ];
-    if(co) lines.push('🏢 ' + co);
-    if(memo){
-      lines.push('');
-      lines.push('📝 <b>에로사항</b>');
-      lines.push(memo);
-    }
-    fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TG_CHAT_ID, text: lines.join('\n'), parse_mode: 'HTML' })
-    }).catch(function(){});
-  }
-
-  // Firebase sites에서 clientMgr 조회
-  if(FB_URL && params.siteId){
-    fetch(FB_URL + '/data/sites.json')
-      .then(function(r){ return r.json(); })
-      .then(function(sitesData){
-        var found = Array.isArray(sitesData)
-          ? sitesData.find(function(s){ return String(s.id) === String(params.siteId); })
-          : null;
-        sendMsg(found && found.clientMgr ? found.clientMgr : '');
-      })
-      .catch(function(){ sendMsg(''); });
+  // 영수증 사진이 있으면 GAS로 업로드 후 텔레그램에 사진 전송
+  if(receiptFiles.length > 0){
+    uploadReceiptFiles(item, amount, date, clientMgr);
   } else {
-    sendMsg('');
+    // 사진 없이 Firebase supplies에만 기록 + 텔레그램 텍스트
+    saveSupplyToFirebase(item, amount, date, null);
+    sendTelegramSupplyText(item, amount, date, clientMgr, null);
   }
 }
 
+function uploadReceiptFiles(item, amount, date, clientMgr){
+  var files = receiptFiles.slice();
+  var uploadedUrls = [];
+  var done = 0;
+  var total = files.length;
+
+  function uploadOne(file){
+    return new Promise(function(resolve){
+      // HEIC 변환
+      var p = (file.type==='image/heic'||/\.heic$/i.test(file.name||''))&&typeof heic2any!=='undefined'
+        ? heic2any({blob:file,toType:'image/jpeg',quality:0.85}).catch(function(){return file;})
+        : Promise.resolve(file);
+
+      p.then(function(converted){
+        var fr = new FileReader();
+        fr.onload = function(ev){
+          var base64 = ev.target.result.split(',')[1];
+          var body = JSON.stringify({
+            type:'receipt',
+            co: params.co||'미분류',
+            site: params.site||'미분류',
+            date: date,
+            memo: item,
+            amount: amount,
+            siteId: String(params.siteId||''),
+            name: 'receipt_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)+'.jpg',
+            data: base64,
+            mime: converted.type||'image/jpeg'
+          });
+          fetch(RECEIPT_GAS_URL,{method:'POST',body:body})
+            .then(function(r){return r.json();})
+            .then(function(d){
+              if(d.ok && d.url) uploadedUrls.push(d.url);
+              done++;
+              if(done===total){
+                // Firebase supplies 저장
+                var firstUrl = uploadedUrls[0]||null;
+                saveSupplyToFirebase(item, amount, date, firstUrl);
+                // 텔레그램: 첫번째 사진 + 텍스트
+                sendTelegramSupplyPhoto(item, amount, date, clientMgr, base64, uploadedUrls);
+              }
+              resolve();
+            })
+            .catch(function(){done++;if(done===total)resolve();resolve();});
+        };
+        fr.readAsDataURL(converted instanceof Blob?converted:file);
+      });
+    });
+  }
+
+  // 순차 업로드 (영수증은 순서 보장)
+  files.reduce(function(chain, file){
+    return chain.then(function(){return uploadOne(file);});
+  }, Promise.resolve());
+}
+
+function saveSupplyToFirebase(item, amount, date, url){
+  if(!FB_URL||!params.siteId) return;
+  var supId = String(Date.now()+Math.floor(Math.random()*1000));
+  fetch(FB_URL+'/data/supplies/'+supId+'.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      id:parseInt(supId),
+      co:params.co||'',
+      siteId:String(params.siteId),
+      siteName:params.site||'',
+      item:item||'비품',
+      amount:amount,
+      date:date,
+      receipt:!!url,
+      url:url||''
+    })
+  }).catch(function(){});
+}
+
+// 텔레그램: 영수증 사진 있을 때 (sendPhoto API)
+function sendTelegramSupplyPhoto(item, amount, date, clientMgr, base64, urls){
+  if(!TG_TOKEN||!TG_CHAT_ID) return;
+  var sender=(params.site||'현장')+(clientMgr?' · '+clientMgr:'');
+  var amountStr=amount?Number(amount).toLocaleString()+'원':'금액 미입력';
+  var caption=[
+    '🧾 <b>비품 영수증 등록</b>',
+    '📍 '+sender,
+    '📅 '+date,
+    '🏢 '+(params.co||''),
+    '',
+    '💰 <b>'+amountStr+'</b>',
+    item?'📦 '+item:''
+  ].filter(Boolean).join('\n');
+
+  // base64 → Blob → FormData로 sendPhoto
+  var byteChars = atob(base64);
+  var byteArr = new Uint8Array(byteChars.length);
+  for(var i=0;i<byteChars.length;i++) byteArr[i]=byteChars.charCodeAt(i);
+  var blob = new Blob([byteArr],{type:'image/jpeg'});
+  var fd = new FormData();
+  fd.append('chat_id', TG_CHAT_ID);
+  fd.append('caption', caption);
+  fd.append('parse_mode','HTML');
+  fd.append('photo', blob, 'receipt.jpg');
+
+  fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendPhoto',{method:'POST',body:fd})
+    .catch(function(){
+      // 사진 전송 실패시 텍스트로 폴백
+      sendTelegramSupplyText(item, amount, date, clientMgr, urls&&urls[0]?urls[0]:null);
+    });
+}
+
+// 텔레그램: 영수증 사진 없을 때 (텍스트만)
+function sendTelegramSupplyText(item, amount, date, clientMgr, url){
+  if(!TG_TOKEN||!TG_CHAT_ID) return;
+  var sender=(params.site||'현장')+(clientMgr?' · '+clientMgr:'');
+  var amountStr=amount?Number(amount).toLocaleString()+'원':'금액 미입력';
+  var lines=[
+    '🧾 <b>비품 구매 보고</b>',
+    '📍 '+sender,
+    '📅 '+date,
+    '🏢 '+(params.co||''),
+    '',
+    '💰 <b>'+amountStr+'</b>',
+    item?'📦 '+item:'',
+    url?'🔗 <a href="'+url+'">영수증 보기</a>':''
+  ].filter(Boolean).join('\n');
+  fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:TG_CHAT_ID,text:lines.join('\n'),parse_mode:'HTML'})
+  }).catch(function(){});
+}
+
+// ── 리셋 ──
 function resetUpload(){
   selectedFiles = [];
-  document.getElementById('preview-grid').innerHTML = '';
+  receiptFiles  = [];
+  supplyOpen    = false;
+  document.getElementById('preview-grid').innerHTML         = '';
+  document.getElementById('receipt-preview-grid').innerHTML = '';
   document.getElementById('upload-zone').classList.remove('has-files');
-  document.getElementById('err-box').style.display = 'none';
-  document.getElementById('prog-wrap').style.display = 'none';
+  document.getElementById('receipt-zone').classList.remove('has-files');
+  document.getElementById('supply-toggle').classList.remove('on');
+  document.getElementById('supply-panel').classList.remove('open');
+  document.getElementById('err-box').style.display    = 'none';
+  document.getElementById('prog-wrap').style.display  = 'none';
   document.getElementById('success-card').style.display = 'none';
-  document.getElementById('upload-card').style.display = '';
-  document.getElementById('file-input').value = '';
+  document.getElementById('upload-card').style.display  = '';
+  document.getElementById('file-input').value    = '';
+  document.getElementById('receipt-input').value = '';
+  document.getElementById('memo-input').value    = '';
+  var si = document.getElementById('supply-item');   if(si) si.value='';
+  var sa = document.getElementById('supply-amount'); if(sa) sa.value='';
   updateBtn();
 }
 
@@ -536,11 +750,11 @@ function resetUpload(){
 function initDrop(){
   var zone = document.getElementById('upload-zone');
   if(!zone) return;
-  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag'); });
-  zone.addEventListener('dragleave', function(){ zone.classList.remove('drag'); });
-  zone.addEventListener('drop', function(e){
-    e.preventDefault(); zone.classList.remove('drag');
-    handleFiles(e.dataTransfer.files);
+  zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('drag');});
+  zone.addEventListener('dragleave',function(){zone.classList.remove('drag');});
+  zone.addEventListener('drop',function(e){
+    e.preventDefault();zone.classList.remove('drag');
+    handleFiles(e.dataTransfer.files,'photo');
   });
 }
 
