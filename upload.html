@@ -146,9 +146,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
     <input type="file" id="file-input" accept="image/*" multiple onchange="handleFiles(this.files)">
     <div class="preview-grid" id="preview-grid"></div>
-    <button class="upload-btn" id="upload-btn" onclick="startUpload()" disabled>
-      <span id="upload-btn-text">사진을 먼저 선택해주세요</span>
-    </button>
     <textarea id="memo-input" placeholder="📝 에로사항 메모 (선택사항)&#10;특이사항, 요청사항 등을 입력하세요" style="width:100%;margin-top:12px;background:#1e1e1e;border:1px solid #2c2c2c;border-radius:10px;padding:12px;color:#f0f0f0;font-size:14px;font-family:'Noto Sans KR',sans-serif;resize:vertical;min-height:80px;outline:none;line-height:1.6;"></textarea>
 
     <!-- 비품 토글 -->
@@ -178,6 +175,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         <div id="receipt-preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
       </div>
     </div>
+
+    <button class="upload-btn" id="upload-btn" onclick="startUpload()" disabled>
+      <span id="upload-btn-text">사진을 먼저 선택해주세요</span>
+    </button>
     <div class="prog-wrap" id="prog-wrap">
       <div class="prog-top">
         <span id="prog-text">업로드 중...</span>
@@ -306,7 +307,13 @@ function updateBtn(){
   var txt = document.getElementById('upload-btn-text');
   if(!btn) return;
   btn.disabled = selectedFiles.length === 0;
-  if(txt) txt.textContent = selectedFiles.length > 0 ? '📤 ' + selectedFiles.length + '장 업로드' : '사진을 먼저 선택해주세요';
+  if(selectedFiles.length > 0){
+    var label = '📤 현장사진 ' + selectedFiles.length + '장 업로드';
+    if(supplyOpen && receiptFiles.length > 0) label += ' + 영수증 ' + receiptFiles.length + '장';
+    if(txt) txt.textContent = label;
+  } else {
+    if(txt) txt.textContent = '사진을 먼저 선택해주세요';
+  }
 }
 
 // ── 업로드 ──
@@ -504,8 +511,10 @@ function onDone(done, failed){
     var sc = document.getElementById('success-card');
     sc.style.display = '';
     document.getElementById('success-count').textContent = done + '장';
-    document.getElementById('success-path').innerHTML =
-      '<strong>' + (params.site || '') + '</strong> 현장 사진 ' + done + '장이<br>성공적으로 저장되었습니다.';
+    var receiptCount = supplyOpen ? receiptFiles.length : 0;
+    var pathHtml = '<strong>' + (params.site || '') + '</strong> 현장 사진 ' + done + '장이<br>성공적으로 저장되었습니다.';
+    if(receiptCount > 0) pathHtml += '<br><span style="color:#ffb547;">🧾 영수증 ' + receiptCount + '장도 함께 등록됩니다.</span>';
+    document.getElementById('success-path').innerHTML = pathHtml;
 
     // 텔레그램 알림 발송 (메모 있을 때만)
     var memo = (document.getElementById('memo-input')||{}).value||'';
@@ -619,6 +628,7 @@ function handleReceiptFiles(files){
     if(!isDup) receiptFiles.push(f);
   }
   renderReceiptPreview();
+  updateBtn();
 }
 
 function renderReceiptPreview(){
