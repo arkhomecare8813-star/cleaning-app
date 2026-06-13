@@ -1479,7 +1479,7 @@ function openDetailSheetPopup(){
   var mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
 
   // 거래처 담당자 목록 추출
-  var mgrs=[...new Set(sites.map(function(s){return (s.clientMgr||'').trim();}).filter(Boolean))].sort();
+  var mgrs=[...new Set(sites.filter(function(s){return (s.status||'active')!=='inquiry';}).map(function(s){return (s.clientMgr||'').trim();}).filter(Boolean))].sort();
 
   var w=document.createElement('div');
   w.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:800;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
@@ -1516,7 +1516,7 @@ function exportDetailSheet(yr, mo, btn){
 
   // 선택된 담당자에 속한 현장
   var selSites=sites.filter(function(s){
-    return checked.indexOf((s.clientMgr||'').trim())>-1 && !s.noReport && (s.status||'active')!=='inquiry';
+    return checked.indexOf((s.clientMgr||'').trim())>-1 && (s.status||'active')!=='inquiry';
   });
 
   if(typeof XLSX==='undefined'){alert('XLSX 라이브러리 없음');return;}
