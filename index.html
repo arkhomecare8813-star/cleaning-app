@@ -4749,14 +4749,13 @@ function makeSmsBody(site, dateStr, isUnreported){
     ? '[미취합] [청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!\n{link}'
     : SMS_TEMPLATE;
   var body = tpl
-    .replace('{link}', uploadLink.replace(/&/g, '%26'))
+    .replace('{link}', uploadLink)
     .replace('{date}', dateStr)
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
     .replace('{company}', site.company||'');
-  // 링크가 포함된 body는 전체 encodeURIComponent 대신
-  // 줄바꿈만 %0A로 치환 (iOS sms: 스킴 호환)
-  return body.replace(/\n/g, '%0A');
+  // body 전체 encodeURIComponent — &, 공백 등 모두 완전 인코딩
+  return encodeURIComponent(body);
 }
 function sendSmsUnreported(siteId, dateStr){
   var site=sites.find(function(s){return s.id==siteId;});
@@ -5053,10 +5052,11 @@ function sendSmsAllPending(dateStr){
   pending.forEach(function(s){
     var link=makeUploadLink(s,dateStr);
     var tel=s.phone.replace(/[^0-9+]/g,'');
-    var msg='['+appTitle+'] 안녕하세요 '+(s.manager||'담당자')+'님%0A'
-      +'📍 '+s.site+' ('+s.company+')%0A'
-      +'📅 '+dateStr+' 사진이 아직 미보고입니다 📷%0A'
-      +'아래 링크에서 업로드해 주세요!%0A%0A'+link.replace(/&/g,'%26');
+    var rawMsg='['+appTitle+'] 안녕하세요 '+(s.manager||'담당자')+'님\n'
+      +'📍 '+s.site+' ('+s.company+')\n'
+      +'📅 '+dateStr+' 사진이 아직 미보고입니다 📷\n'
+      +'아래 링크에서 업로드해 주세요!\n\n'+link;
+    var msg = encodeURIComponent(rawMsg);
     window.open('sms:'+tel+'?body='+msg);
     if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
     if(!reportPhotoData[dateStr][s.id])reportPhotoData[dateStr][s.id]={photos:0};
