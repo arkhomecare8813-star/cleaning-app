@@ -4775,6 +4775,220 @@ function sendSmsOne(siteId, dateStr){
   saveReportData();renderReport();
   showToast('📱 문자앱이 열립니다.');
 }
+
+// ── 솔라피 자동발송 팝업 ──
+function openSolapiModal(mode, coName){
+  var today = todayStr();
+  var dow = getDayOfWeek(today);
+
+  // 발송 대상 목록 수집
+  var targets = [];
+
+  if(mode === 'pending'){
+    // Firebase reportLog + reportStart 읽어서 밀린보고 섹션과 동일하게 계산
+    Promise.all([
+      fetch(FB_URL+'/data/reportLog.json').then(function(r){return r.json();}).catch(function(){return {};}),
+      fetch(FB_URL+'/data/reportStart.json').then(function(r){return r.json();}).catch(function(){return {};})
+    ]).then(function(res){
+      var logData   = res[0]||{};
+      var startData = res[1]||{};
+      var todayDt   = new Date(today+'T00:00:00');
+
+      sites.forEach(function(s){
+        if(s.noReport||(s.status||'active')==='inquiry'||!s.phone) return;
+        var startDate = startData[String(s.id)]||null;
+        if(!startDate) return; // reportStart 없으면 제외 (밀린보고 섹션과 동일)
+        var siteLog = logData[String(s.id)]||{};
+        var unreported = [];
+        var cur = new Date(startDate+'T00:00:00');
+        while(cur < todayDt){
+          var ds   = cur.toISOString().slice(0,10);
+          var ddow = cur.getDay();
+          if(s.days&&s.days.includes(ddow)){
+            var sdt = s.startDate ? new Date(s.startDate+'T00:00:00') : null;
+            var edt = s.endDate   ? new Date(s.endDate  +'T00:00:00') : null;
+            if((!sdt||cur>=sdt)&&(!edt||cur<=edt)){
+              var log = siteLog[ds];
+              if(!log||(!log.count&&!log.photos&&!log.skipped)) unreported.push(ds);
+            }
+          }
+          cur.setDate(cur.getDate()+1);
+        }
+        if(!unreported.length) return;
+        targets.push({ s: s, dates: [unreported[unreported.length-1]], mode:'pending' });
+      });
+      if(!targets.length){ showToast('발송 대상이 없습니다.'); return; }
+      _showSolapiPopup(targets);
+    }).catch(function(){ showToast('❌ 데이터 로드 실패'); });
+    return;
+  } else {
+    // 오늘자 — 오늘 작업 있는 전체 현장
+    sites.filter(function(s){
+      return s.days&&s.days.includes(dow) && !s.noReport
+        && (s.status||'active')!=='inquiry' && s.phone;
+    }).forEach(function(s){
+      var info = (reportPhotoData[today]||{})[s.id];
+      var hasPhoto = info&&info.photos>0;
+      targets.push({ s: s, dates: [today], mode:'today', done: hasPhoto });
+    });
+  }
+
+  if(!targets.length){ showToast('발송 대상이 없습니다.'); return; }
+  _showSolapiPopup(targets);
+}
+
+function _showSolapiPopup(targets){
+  // 팝업 생성
+  var wrap = document.createElement('div');
+  wrap.id = 'solapi-modal';
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:800;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
+  wrap.onclick = function(e){ if(e.target===wrap) wrap.remove(); };
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:20px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;gap:12px;';
+
+  var title = document.createElement('div');
+  title.style.cssText = 'font-size:15px;font-weight:900;color:#5b8dee;';
+  title.textContent = '🚀 자동발송 대상 선택';
+  box.appendChild(title);
+
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:11px;color:#777;margin-top:-6px;';
+  sub.textContent = '발송할 현장을 선택하고 전송시작을 눌러주세요.';
+  box.appendChild(sub);
+
+  var list = document.createElement('div');
+  list.style.cssText = 'overflow-y:auto;display:flex;flex-direction:column;gap:8px;flex:1;';
+
+  var checkboxes = [];
+  targets.forEach(function(t, i){
+    var row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;cursor:pointer;';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !(t.done);  // 보고완료는 기본 해제
+    cb.style.cssText = 'width:16px;height:16px;accent-color:#5b8dee;flex-shrink:0;margin-top:2px;';
+    checkboxes.push({ cb: cb, target: t });
+    var info = document.createElement('div');
+    info.style.cssText = 'flex:1;';
+    info.innerHTML = '<div style="font-size:13px;font-weight:800;">'+(t.s.site||'')+'</div>'
+      +'<div style="font-size:11px;color:#777;">'+(t.s.company||'')+' · '+(t.s.phone||'')+'</div>'
+      +(t.mode==='pending'?'<div style="font-size:10px;color:#ff4d6d;margin-top:2px;">미취합: '+t.dates.join(', ')+'</div>':'')
+      +(t.mode==='today'&&t.done?'<div style="font-size:10px;color:#00e5a0;margin-top:2px;">✅ 이미 보고완료</div>':'');
+    row.appendChild(cb);
+    row.appendChild(info);
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+
+  // 전체선택/해제
+  var selRow = document.createElement('div');
+  selRow.style.cssText = 'display:flex;gap:8px;';
+  var selAll = document.createElement('button');
+  selAll.textContent = '전체 선택';
+  selAll.style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  selAll.onclick = function(){ checkboxes.forEach(function(x){ x.cb.checked=true; }); };
+  var deselAll = document.createElement('button');
+  deselAll.textContent = '전체 해제';
+  deselAll.style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  deselAll.onclick = function(){ checkboxes.forEach(function(x){ x.cb.checked=false; }); };
+  selRow.appendChild(selAll);
+  selRow.appendChild(deselAll);
+  box.appendChild(selRow);
+
+  // 전송시작 버튼
+  var sendBtn = document.createElement('button');
+  sendBtn.textContent = '✅ 전송시작';
+  sendBtn.style.cssText = 'width:100%;padding:13px;border-radius:10px;border:none;background:#5b8dee;color:#fff;font-size:15px;font-weight:900;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  sendBtn.onclick = function(){
+    var selected = checkboxes.filter(function(x){ return x.cb.checked; });
+    if(!selected.length){ showToast('선택된 현장이 없습니다.'); return; }
+    wrap.remove();
+    sendSolapiList(selected.map(function(x){ return x.target; }));
+  };
+  box.appendChild(sendBtn);
+
+  wrap.appendChild(box);
+  document.body.appendChild(wrap);
+}
+
+function sendSolapiList(targets){
+  var today = todayStr();
+  var total = targets.length;
+  var done = 0;
+  showToast('📤 '+total+'곳 발송 시작...');
+
+  targets.forEach(function(t){
+    var s = t.s;
+    var dateStr = t.dates ? t.dates[t.dates.length-1] : today;
+    var link = makeUploadLink(s, dateStr);
+    var text = SMS_TEMPLATE
+      .replace('{link}', link)
+      .replace('{date}', dateStr)
+      .replace('{site}', s.site||'')
+      .replace('{manager}', s.manager||'담당자')
+      .replace('{company}', s.company||'');
+
+    fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({ type:'sms', to: s.phone.replace(/[^0-9]/g,''), text: text })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      done++;
+      if(d.ok){
+        if(!reportPhotoData[dateStr]) reportPhotoData[dateStr]={};
+        if(!reportPhotoData[dateStr][s.id]) reportPhotoData[dateStr][s.id]={photos:0};
+        reportPhotoData[dateStr][s.id].smsSent = true;
+        var now = new Date();
+        reportPhotoData[dateStr][s.id].smsTime = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+      }
+      if(done===total){
+        saveReportData();
+        renderReport();
+        showToast('✅ '+total+'곳 발송 완료!');
+      }
+    })
+    .catch(function(){
+      done++;
+      if(done===total){ saveReportData(); renderReport(); showToast('⚠️ 일부 발송 실패'); }
+    });
+  });
+}
+// ── 솔라피 자동발송 ──
+function sendSolapiOne(siteId, dateStr){
+  var site=sites.find(function(s){return s.id==siteId;});
+  if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
+  var tel=site.phone.replace(/[^0-9]/g,'');
+  var link = makeUploadLink(site, dateStr);
+  var text = SMS_TEMPLATE
+    .replace('{link}', link)
+    .replace('{date}', dateStr)
+    .replace('{site}', site.site||'')
+    .replace('{manager}', site.manager||'담당자')
+    .replace('{company}', site.company||'');
+  showToast('📤 발송 중...');
+  fetch(GAS_URL, {
+    method:'POST',
+    body: JSON.stringify({ type:'sms', to: tel, text: text })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.ok){
+      if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
+      if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0};
+      reportPhotoData[dateStr][siteId].smsSent=true;
+      var now=new Date();
+      reportPhotoData[dateStr][siteId].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+      saveReportData();renderReport();
+      showToast('✅ 문자 발송 완료!');
+    } else {
+      showToast('❌ 발송 실패: '+(d.error||'알 수 없는 오류'));
+    }
+  })
+  .catch(function(){ showToast('❌ 발송 중 오류가 발생했습니다.'); });
+}
+
 function copyUploadLink(siteId, dateStr){
   var site=sites.find(function(s){return s.id==siteId;});
   if(!site)return;
@@ -4878,14 +5092,20 @@ function renderReport(){
     });
     if(accCards){
       html += '<div style="background:#1a0a0d;border:1px solid rgba(255,77,109,0.3);border-radius:12px;margin-bottom:14px;overflow:hidden;">'
-        +'<div style="display:flex;align-items:center;gap:8px;padding:11px 16px;background:rgba(255,77,109,0.07);border-bottom:1px solid rgba(255,77,109,0.2);">'
-        +'<div style="font-size:13px;font-weight:800;color:#ff4d6d;">⚠️ 밀린 보고</div>'
-        +'<div style="font-size:11px;color:#777;">날짜별 📱 버튼으로 재전송 · ✕로 skip</div>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:rgba(255,77,109,0.07);border-bottom:1px solid rgba(255,77,109,0.2);">'
+        +'<div style="display:flex;align-items:center;gap:8px;"><div style="font-size:13px;font-weight:800;color:#ff4d6d;">⚠️ 밀린 보고</div>'
+        +'<div style="font-size:11px;color:#777;">날짜별 📱 버튼으로 재전송 · ✕로 skip</div></div>'
+        +'<button onclick="openSolapiModal(\'pending\')" style="padding:5px 12px;border-radius:7px;border:none;background:#5b8dee;color:#fff;font-size:11px;font-weight:800;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🚀 자동발송</button>'
         +'</div>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:12px;">'+accCards+'</div>'
         +'</div>';
     }
     // ── 밀린 보고 섹션 끝 ──
+
+    // ── 오늘자 전체 자동발송 버튼 ──
+    html += '<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">'
+      +'<button onclick="openSolapiModal(\'today\')" style="padding:7px 16px;border-radius:8px;border:none;background:#5b8dee;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🚀 오늘 전체 자동발송</button>'
+      +'</div>';
 
     cos.forEach(function(co){
       var col     = getCompanyColor(co);
@@ -4953,6 +5173,7 @@ function renderReport(){
             var btnBg     = wasSent ? 'rgba(0,229,160,0.08)' : 'rgba(0,0,0,0.3)';
             var btnLabel  = wasSent ? '✓ 보냈음' : (hasPhoto ? '📱 재발송' : '📱 문자 발송');
             cards+='<button onclick="sendSmsOne(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid '+btnBorder+';background:'+btnBg+';color:'+btnColor+';font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">'+btnLabel+'</button>';
+            cards+='<button onclick="sendSolapiOne(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid #1a2a3a;background:rgba(91,141,238,0.12);color:#7ab8ff;font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🚀 자동발송</button>';
           }
           cards+='<button onclick="copyUploadLink(\''+s.id+'\',\''+today+'\')" style="width:100%;padding:7px;border-radius:7px;border:1px solid #2c2c2c;background:rgba(0,0,0,0.2);color:#7ab8ff;font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🔗 링크 복사</button>';
           cards+='</div>';
