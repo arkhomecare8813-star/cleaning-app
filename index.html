@@ -4741,14 +4741,14 @@ function makeSmsBody(site, dateStr, isUnreported){
     ? '[미취합] [청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!\n{link}'
     : SMS_TEMPLATE;
   var body = tpl
-    .replace('{link}', uploadLink)
+    .replace('{link}', uploadLink.replace(/&/g,'%26'))
     .replace('{date}', dateStr)
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
     .replace('{company}', site.company||'');
   // 링크가 포함된 body는 전체 encodeURIComponent 대신
   // 줄바꿈만 %0A로 치환 (iOS sms: 스킴 호환)
-  return body.replace(/\n/g, '%0A');
+  return encodeURIComponent(body);
 }
 function sendSmsUnreported(siteId, dateStr){
   var site=sites.find(function(s){return s.id==siteId;});
@@ -4769,7 +4769,7 @@ function sendSmsOne(siteId, dateStr){
   var site=sites.find(function(s){return s.id==siteId;});
   if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
   var tel=site.phone.replace(/[^0-9+]/g,'');
-  window.open('sms:'+tel+'?body='+makeSmsBody(site,dateStr));
+  location.href='sms:'+tel+'?body='+makeSmsBody(site,dateStr);
   if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
   if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0};
   reportPhotoData[dateStr][siteId].smsSent=true;
