@@ -4746,7 +4746,9 @@ function makeSmsBody(site, dateStr, isUnreported){
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
     .replace('{company}', site.company||'');
-  return encodeURIComponent(body);
+  // 링크가 포함된 body는 전체 encodeURIComponent 대신
+  // 줄바꿈만 %0A로 치환 (iOS sms: 스킴 호환)
+  return body.replace(/\n/g, '%0A');
 }
 function sendSmsUnreported(siteId, dateStr){
   var site=sites.find(function(s){return s.id==siteId;});
