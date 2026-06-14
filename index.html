@@ -4942,6 +4942,8 @@ function sendSolapiList(targets){
         reportPhotoData[dateStr][s.id].smsSent = true;
         var now = new Date();
         reportPhotoData[dateStr][s.id].smsTime = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+      } else {
+        showToast('❌ '+s.site+' 발송실패: '+(d.error||JSON.stringify(d)));
       }
       if(done===total){
         saveReportData();
@@ -4949,9 +4951,10 @@ function sendSolapiList(targets){
         showToast('✅ '+total+'곳 발송 완료!');
       }
     })
-    .catch(function(){
+    .catch(function(err){
       done++;
-      if(done===total){ saveReportData(); renderReport(); showToast('⚠️ 일부 발송 실패'); }
+      showToast('❌ 네트워크 오류: '+err.toString());
+      if(done===total){ saveReportData(); renderReport(); }
     });
   });
 }
