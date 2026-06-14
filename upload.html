@@ -531,7 +531,7 @@ function onDone(done, failed){
     if(hasSupply){
       setTimeout(function(){
         uploadReceiptsAndSave(spItem, spAmount, spDate, receiptSnap);
-      }, 2000);
+      }, 5000);
     }
   } else {
     var eb = document.getElementById('err-box');
@@ -691,14 +691,15 @@ function uploadReceiptsAndSave(item, amount, date, snap){
       var fr=new FileReader();
       fr.onload=function(ev){
         var base64=ev.target.result.split(',')[1];
-        fetch(GAS_URL,{method:'POST',body:JSON.stringify({
+        var fetchPromise = fetch(GAS_URL,{method:'POST',body:JSON.stringify({
           type:'receipt',co:params.co||'미분류',site:params.site||'미분류',
           date:date,memo:item,amount:parseInt(amount)||0,
           siteId:String(params.siteId||''),
           name:'receipt_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)+'.jpg',
           data:base64,mime:converted.type||'image/jpeg'
-        })})
-        .then(function(r){return r.json();})
+        })});
+        var timeoutPromise = new Promise(function(resolve){ setTimeout(function(){ resolve({ok:false}); }, 25000); });
+        Promise.race([fetchPromise.then(function(r){return r.json();}), timeoutPromise])
         .then(function(d){
           if(d.ok&&d.url&&!firstUrl) firstUrl=d.url;
           done++;
