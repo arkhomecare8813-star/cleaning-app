@@ -28,6 +28,7 @@ var appTitle = localStorage.getItem('cm-title')||'청소팀 관리';
 var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 var settleInvoice = JSON.parse(localStorage.getItem('cm-invoice')||'{}');
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
+var receiptsData = {}; // siteId별 영수증 데이터
 var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
 var rentBuildings = JSON.parse(localStorage.getItem('cm-rent-buildings')||'[]');
 var routines = JSON.parse(localStorage.getItem('cm-routines')||'[]');
@@ -4686,14 +4687,17 @@ function switchTab(name){
     updateSnapshotSel();
   }
   if(name==='supply'){
-    fetch(FB_URL+'/data/supplies.json')
-      .then(function(r){return r.json();})
-      .then(function(d){
-        if(d) supplies = Array.isArray(d) ? d : Object.values(d).filter(Boolean);
-        localStorage.setItem('cm-supplies', JSON.stringify(supplies));
-        // 전송 이력 로드 후 렌더
-        loadSupplySmsLog(function(){ renderSupply(); });
-      }).catch(function(){ loadSupplySmsLog(function(){ renderSupply(); }); });
+    Promise.all([
+      fetch(FB_URL+'/data/supplies.json').then(function(r){return r.json();}).catch(function(){return null;}),
+      fetch(FB_URL+'/data/receipts.json').then(function(r){return r.json();}).catch(function(){return null;})
+    ]).then(function(res){
+      var d = res[0];
+      if(d) supplies = Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+      localStorage.setItem('cm-supplies', JSON.stringify(supplies));
+      var r = res[1];
+      if(r) receiptsData = r;
+      loadSupplySmsLog(function(){ renderSupply(); });
+    });
     initReceiptSelects();
   }
   if(name==='report'){renderReport();}
@@ -6807,8 +6811,16 @@ function renderSupply(){
       var smsBtn = clientPhone
         ? '<button onclick="sendSupplySms('+s.id+')" style="padding:3px 8px;border-radius:5px;border:1px solid #1a3a2a;background:rgba(0,229,160,0.1);color:#00e5a0;font-size:11px;cursor:pointer;white-space:nowrap;">📱 문자</button>'
         : '';
-      var receiptBtn = s.url
-        ? '<a href="'+s.url+'" target="_blank" style="padding:3px 8px;border-radius:5px;border:1px solid #3a2800;background:rgba(255,181,71,0.08);color:#ffb547;font-size:11px;text-decoration:none;white-space:nowrap;">🧾</a>'
+      // supplies url 없으면 receipts에서 찾기
+      var receiptUrl = s.url || (function(){
+        var siteReceipts = receiptsData && receiptsData[String(s.siteId)];
+        if(!siteReceipts) return '';
+        var arr = Object.values(siteReceipts).filter(Boolean);
+        var match = arr.find(function(r){ return r.date === s.date; });
+        return match && match.url ? match.url : '';
+      })();
+      var receiptBtn = receiptUrl
+        ? '<a href="'+receiptUrl+'" target="_blank" style="padding:3px 8px;border-radius:5px;border:1px solid #3a2800;background:rgba(255,181,71,0.08);color:#ffb547;font-size:11px;text-decoration:none;white-space:nowrap;">🧾</a>'
         : '';
       return '<tr>'
         +'<td>'+s.date+smsSentBadge+'</td>'
