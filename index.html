@@ -6512,8 +6512,15 @@ function addSupply(){
   if(!item){showToast('구매 항목을 입력해주세요.');return;}
   if(!amount){showToast('금액을 입력해주세요.');return;}
   var site=sites.find(function(s){return s.id==siteId;});
-  supplies.push({id:Date.now(),co:co,siteId:siteId,siteName:site?site.site:'',item:item,amount:amount,date:todayStr()});
-  saveSupplies();
+  var newId = Date.now();
+  var newSupply = {id:newId,co:co,siteId:siteId,siteName:site?site.site:'',item:item,amount:amount,date:todayStr()};
+  supplies.push(newSupply);
+  // 개별 경로에 직접 저장 (배열 덮어쓰기 방지)
+  fetch(FB_URL+'/data/supplies/'+newId+'.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(newSupply)
+  }).catch(function(){});
+  localStorage.setItem('cm-supplies', JSON.stringify(supplies));
   document.getElementById('sp-item').value='';
   document.getElementById('sp-amount').value='';
   renderSupply();
@@ -6797,7 +6804,7 @@ function renderSupply(){
   el.innerHTML=cos.map(function(co){
     var col=getCompanyColor(co);
     var coItems=supplies.filter(function(s){return s.co===co;});
-    var total=coItems.reduce(function(sum,s){return sum+s.amount;},0);
+    var total=coItems.reduce(function(sum,s){return sum+(parseInt(s.amount)||0);},0);
     var rows=coItems.map(function(s){
       // 현장 정보에서 거래처 연락처 조회
       var site = sites.find(function(x){ return String(x.id)===String(s.siteId); });
@@ -6817,7 +6824,7 @@ function renderSupply(){
         +'<td>'+s.date+smsSentBadge+'</td>'
         +'<td style="font-weight:700;">'+s.siteName+'</td>'
         +'<td>'+s.item+'</td>'
-        +'<td style="font-family:DM Mono,monospace;text-align:right;color:#fb923c;font-weight:700;">'+s.amount.toLocaleString('ko-KR')+'</td>'
+        +'<td style="font-family:DM Mono,monospace;text-align:right;color:#fb923c;font-weight:700;">'+((parseInt(s.amount)||0).toLocaleString('ko-KR'))+'</td>'
         +'<td style="text-align:center;">'
         +'<div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
         +smsBtn
