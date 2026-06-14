@@ -90,11 +90,18 @@ function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&
     }
   }).catch(function(){});
 }
+function suppliesToObj(arr){
+  var obj={};
+  (arr||[]).forEach(function(s){
+    if(s && s.id) obj[String(s.id)]=s;
+  });
+  return obj;
+}
 function saveToFirebase(){
   fetch(FB_URL+'/data.json',{
     method:'PATCH',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,supplies:supplies,settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE})
+    body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,supplies:suppliesToObj(supplies),settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE})
   }).catch(function(){});
 }
 function toggleInvoice(key, checked){
@@ -868,16 +875,7 @@ main{padding:18px 14px;max-width:1400px;}
       </div>
     </div>
 
-    <!-- 영수증 목록 -->
-    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;color:#ffb547;">🧾 영수증 목록</div>
-        <select id="receipt-filter-site" onchange="renderReceipts()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:5px 8px;color:var(--text);font-size:12px;outline:none;">
-          <option value="">전체 현장</option>
-        </select>
-      </div>
-      <div id="receipt-list"><div style="text-align:center;color:#555;font-size:13px;padding:20px 0;">영수증이 없습니다.</div></div>
-    </div>
+
 
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px;">
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:14px;">+ 비품 추가</div>
@@ -4311,7 +4309,7 @@ function confirmRentMatch(){
 
 // ── CHECKLIST TAB ──
 // ══════════════════════════════════════════
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbwTVLebbpES7ZYqeyI7Z-H8tZ8i4K7xr9Dq9I5WGDYDAxB195SbUJYkjcuWQb3eTg/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxOVap39LwyxR1bS58myL8kt-L9djapQp_lsuwRWBImvE0iFfXypSXK36PWv3wiGMLs/exec';
 
 // 도단위 약칭 추출 ("경기도" → "경기", "서울특별시" → "서울" 등)
 function _sidoShort(sido){
@@ -4697,7 +4695,6 @@ function switchTab(name){
         loadSupplySmsLog(function(){ renderSupply(); });
       }).catch(function(){ loadSupplySmsLog(function(){ renderSupply(); }); });
     initReceiptSelects();
-    renderReceipts();
   }
   if(name==='report'){renderReport();}
   if(name==='list'){initFormPreviewListeners();updateFormPreview();}
@@ -4741,14 +4738,14 @@ function makeSmsBody(site, dateStr, isUnreported){
     ? '[미취합] [청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!\n{link}'
     : SMS_TEMPLATE;
   var body = tpl
-    .replace('{link}', uploadLink.replace(/&/g,'%26'))
+    .replace('{link}', uploadLink)
     .replace('{date}', dateStr)
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
     .replace('{company}', site.company||'');
   // 링크가 포함된 body는 전체 encodeURIComponent 대신
   // 줄바꿈만 %0A로 치환 (iOS sms: 스킴 호환)
-  return encodeURIComponent(body);
+  return body.replace(/\n/g, '%0A');
 }
 function sendSmsUnreported(siteId, dateStr){
   var site=sites.find(function(s){return s.id==siteId;});
@@ -4769,7 +4766,7 @@ function sendSmsOne(siteId, dateStr){
   var site=sites.find(function(s){return s.id==siteId;});
   if(!site||!site.phone){showToast('❌ 연락처가 없습니다.');return;}
   var tel=site.phone.replace(/[^0-9+]/g,'');
-  location.href='sms:'+tel+'?body='+makeSmsBody(site,dateStr);
+  window.open('sms:'+tel+'?body='+makeSmsBody(site,dateStr));
   if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
   if(!reportPhotoData[dateStr][siteId])reportPhotoData[dateStr][siteId]={photos:0};
   reportPhotoData[dateStr][siteId].smsSent=true;
@@ -6504,8 +6501,14 @@ function addSupply(){
   if(!item){showToast('구매 항목을 입력해주세요.');return;}
   if(!amount){showToast('금액을 입력해주세요.');return;}
   var site=sites.find(function(s){return s.id==siteId;});
-  supplies.push({id:Date.now(),co:co,siteId:siteId,siteName:site?site.site:'',item:item,amount:amount,date:todayStr()});
-  saveSupplies();
+  var newId = Date.now();
+  var newSupply = {id:newId,co:co,siteId:siteId,siteName:site?site.site:'',item:item,amount:amount,date:todayStr()};
+  supplies.push(newSupply);
+  fetch(FB_URL+'/data/supplies/'+newId+'.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(newSupply)
+  }).catch(function(){});
+  localStorage.setItem('cm-supplies', JSON.stringify(supplies));
   document.getElementById('sp-item').value='';
   document.getElementById('sp-amount').value='';
   renderSupply();
@@ -6616,16 +6619,18 @@ function sendSupplySms(id){
 function initReceiptSelects(){
   var linkSel   = document.getElementById('receipt-link-site');
   var filterSel = document.getElementById('receipt-filter-site');
-  if(!linkSel || !filterSel) return;
+  if(!linkSel) return;
 
   var activeSites = sites.filter(function(s){ return (s.status||'active')==='active'; });
-  linkSel.innerHTML   = '<option value="">현장 선택</option>';
-  filterSel.innerHTML = '<option value="">전체 현장</option>';
+  linkSel.innerHTML = '<option value="">현장 선택</option>';
+  if(filterSel) filterSel.innerHTML = '<option value="">전체 현장</option>';
   activeSites.forEach(function(s){
     var opt1 = document.createElement('option'); opt1.value=s.id; opt1.textContent=s.site+' ('+s.company+')';
-    var opt2 = document.createElement('option'); opt2.value=s.id; opt2.textContent=s.site+' ('+s.company+')';
     linkSel.appendChild(opt1);
-    filterSel.appendChild(opt2);
+    if(filterSel){
+      var opt2 = document.createElement('option'); opt2.value=s.id; opt2.textContent=s.site+' ('+s.company+')';
+      filterSel.appendChild(opt2);
+    }
   });
 }
 
@@ -6789,7 +6794,7 @@ function renderSupply(){
   el.innerHTML=cos.map(function(co){
     var col=getCompanyColor(co);
     var coItems=supplies.filter(function(s){return s.co===co;});
-    var total=coItems.reduce(function(sum,s){return sum+s.amount;},0);
+    var total=coItems.reduce(function(sum,s){return sum+(parseInt(s.amount)||0);},0);
     var rows=coItems.map(function(s){
       // 현장 정보에서 거래처 연락처 조회
       var site = sites.find(function(x){ return String(x.id)===String(s.siteId); });
@@ -6809,7 +6814,7 @@ function renderSupply(){
         +'<td>'+s.date+smsSentBadge+'</td>'
         +'<td style="font-weight:700;">'+s.siteName+'</td>'
         +'<td>'+s.item+'</td>'
-        +'<td style="font-family:DM Mono,monospace;text-align:right;color:#fb923c;font-weight:700;">'+s.amount.toLocaleString('ko-KR')+'</td>'
+        +'<td style="font-family:DM Mono,monospace;text-align:right;color:#fb923c;font-weight:700;">'+((parseInt(s.amount)||0).toLocaleString('ko-KR'))+'</td>'
         +'<td style="text-align:center;">'
         +'<div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
         +smsBtn
