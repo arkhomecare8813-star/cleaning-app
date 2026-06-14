@@ -6974,8 +6974,17 @@ function renderSupply(){
         var siteReceipts = receiptsData && receiptsData[String(s.siteId)];
         if(!siteReceipts) return '';
         var arr = Object.values(siteReceipts).filter(Boolean);
-        var match = arr.find(function(r){ return r.date === s.date; });
-        return match && match.url ? match.url : '';
+        // 같은 날짜 중 supply id(timestamp)와 가장 가까운 시간의 receipt 매칭
+        var matches = arr.filter(function(r){ return r.date === s.date && r.url; });
+        if(!matches.length) return '';
+        // receipt name에서 timestamp 추출해서 supply id와 가장 가까운 것
+        matches.sort(function(a,b){
+          var ta = parseInt((a.name||'').replace(/[^0-9]/g,'').slice(0,13))||0;
+          var tb = parseInt((b.name||'').replace(/[^0-9]/g,'').slice(0,13))||0;
+          var sid = parseInt(s.id)||0;
+          return Math.abs(ta-sid) - Math.abs(tb-sid);
+        });
+        return matches[0].url;
       })();
       supplyReceiptUrls[String(s.id)] = receiptUrl;
       var receiptBtn = receiptUrl
