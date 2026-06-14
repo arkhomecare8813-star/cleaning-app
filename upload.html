@@ -524,7 +524,7 @@ function onDone(done, failed){
 
     // tgConfig 로드 완료 후 텔레그램 발송
     _tgReady.then(function(){
-      if(memo) sendTelegramNotification(done, memo);
+      if(memo || hasSupply) sendTelegramNotification(done, memo, hasSupply ? {item: spItem, amount: spAmount} : null);
     });
 
     // 비품 처리 — 2초 딜레이로 GAS Lock 해소 후 전송
@@ -545,7 +545,7 @@ function onDone(done, failed){
 }
 
 // ── 초기화 (추가 업로드용) ──
-function sendTelegramNotification(photoCount, memo){
+function sendTelegramNotification(photoCount, memo, supply){
   if(!TG_TOKEN || !TG_CHAT_ID) return;
 
   var site = params.site || '알 수 없는 현장';
@@ -563,6 +563,12 @@ function sendTelegramNotification(photoCount, memo){
       lines.push('');
       lines.push('📝 <b>에로사항</b>');
       lines.push(memo);
+    }
+    if(supply){
+      lines.push('');
+      lines.push('🛒 <b>비품 구매</b>');
+      if(supply.item)   lines.push('품목: ' + supply.item);
+      if(supply.amount) lines.push('금액: ' + Number(supply.amount).toLocaleString() + '원');
     }
     fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
       method: 'POST',
