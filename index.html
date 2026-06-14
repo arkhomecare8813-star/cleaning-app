@@ -4916,7 +4916,7 @@ function sendSolapiList(targets){
   var today = todayStr();
   var total = targets.length;
   var done = 0;
-  showToast('📤 '+total+'곳 발송 시작...');
+  showToast('📤 '+total+'곳 발송 시작... GAS:'+GAS_URL.slice(-10));
 
   targets.forEach(function(t){
     var s = t.s;
