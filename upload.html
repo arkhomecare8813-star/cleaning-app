@@ -691,21 +691,17 @@ function uploadReceiptsAndSave(item, amount, date, snap){
       var fr=new FileReader();
       fr.onload=function(ev){
         var base64=ev.target.result.split(',')[1];
-        var fetchPromise = fetch(GAS_URL,{method:'POST',body:JSON.stringify({
+        // GAS에 영수증 사진 업로드 (receipts에 저장됨)
+        fetch(GAS_URL,{method:'POST',body:JSON.stringify({
           type:'receipt',co:params.co||'미분류',site:params.site||'미분류',
           date:date,memo:item,amount:parseInt(amount)||0,
           siteId:String(params.siteId||''),
           name:'receipt_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)+'.jpg',
           data:base64,mime:converted.type||'image/jpeg'
-        })});
-        var timeoutPromise = new Promise(function(resolve){ setTimeout(function(){ resolve({ok:false}); }, 25000); });
-        Promise.race([fetchPromise.then(function(r){return r.json();}), timeoutPromise])
-        .then(function(d){
-          if(d.ok&&d.url&&!firstUrl) firstUrl=d.url;
-          done++;
-          if(done===files.length) saveSupplyToFirebase(item,amount,date,firstUrl);
-        })
-        .catch(function(){done++;if(done===files.length)saveSupplyToFirebase(item,amount,date,firstUrl);});
+        })}).catch(function(){});
+        // supplies에는 바로 저장 (url은 비품탭에서 receipts로 찾아옴)
+        done++;
+        if(done===files.length) saveSupplyToFirebase(item,amount,date,null);
       };
       fr.readAsDataURL(converted instanceof Blob?converted:file);
     });
