@@ -6597,7 +6597,15 @@ function sendSupplySms(id){
     '📦 '+sp.item,
   ];
   if(amountStr) lines.push('💰 '+amountStr);
-  if(sp.url)    lines.push('🧾 영수증: '+sp.url);
+  // supplies url 없으면 receipts에서 찾기
+  var spReceiptUrl = sp.url || (function(){
+    var siteReceipts = receiptsData && receiptsData[String(sp.siteId)];
+    if(!siteReceipts) return '';
+    var arr = Object.values(siteReceipts).filter(Boolean);
+    var match = arr.find(function(r){ return r.date === sp.date; });
+    return match && match.url ? match.url : '';
+  })();
+  if(spReceiptUrl) lines.push('🧾 영수증: '+spReceiptUrl);
   lines.push('');
   lines.push('* '+clientMgr+'님께 발송된 자동 메시지입니다.');
 
