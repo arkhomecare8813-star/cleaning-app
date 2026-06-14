@@ -16,7 +16,7 @@ var googleTokenExpiry = parseInt(localStorage.getItem('g-token-exp') || '0');
 // Firebase Realtime DB
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var SMS_TPL_VERSION = '2';
-var SMS_TPL_DEFAULT = '{link}\n[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n사진을 업로드해주세요!';
+var SMS_TPL_DEFAULT = '[청소팀] {site} 담당자님\n{date} 현장작업 종료후\n아래 링크에서 사진을 업로드해주세요!\n{link}';
 if(localStorage.getItem('cm-sms-tpl-ver') !== SMS_TPL_VERSION){
   localStorage.setItem('cm-sms-template', SMS_TPL_DEFAULT);
   localStorage.setItem('cm-sms-tpl-ver', SMS_TPL_VERSION);
