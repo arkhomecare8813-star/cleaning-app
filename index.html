@@ -90,11 +90,19 @@ function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&
     }
   }).catch(function(){});
 }
+function suppliesToObj(arr){
+  // 배열을 {id: {...}} 객체로 변환 — Firebase PATCH 시 개별 항목 보존
+  var obj={};
+  (arr||[]).forEach(function(s){
+    if(s && s.id) obj[String(s.id)]=s;
+  });
+  return obj;
+}
 function saveToFirebase(){
   fetch(FB_URL+'/data.json',{
     method:'PATCH',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,supplies:supplies,settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE})
+    body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,supplies:suppliesToObj(supplies),settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE})
   }).catch(function(){});
 }
 function toggleInvoice(key, checked){
@@ -4741,7 +4749,7 @@ function makeSmsBody(site, dateStr, isUnreported){
     ? '[미취합] [청소팀] {site} 담당자님\n{date} 현장작업 사진이 아직 미취합입니다.\n아래 링크에서 업로드해 주세요!\n{link}'
     : SMS_TEMPLATE;
   var body = tpl
-    .replace('{link}', uploadLink)
+    .replace('{link}', uploadLink.replace(/&/g, '%26'))
     .replace('{date}', dateStr)
     .replace('{site}', site.site||'')
     .replace('{manager}', site.manager||'담당자')
@@ -5048,7 +5056,7 @@ function sendSmsAllPending(dateStr){
     var msg='['+appTitle+'] 안녕하세요 '+(s.manager||'담당자')+'님%0A'
       +'📍 '+s.site+' ('+s.company+')%0A'
       +'📅 '+dateStr+' 사진이 아직 미보고입니다 📷%0A'
-      +'아래 링크에서 업로드해 주세요!%0A%0A'+link;
+      +'아래 링크에서 업로드해 주세요!%0A%0A'+link.replace(/&/g,'%26');
     window.open('sms:'+tel+'?body='+msg);
     if(!reportPhotoData[dateStr])reportPhotoData[dateStr]={};
     if(!reportPhotoData[dateStr][s.id])reportPhotoData[dateStr][s.id]={photos:0};
