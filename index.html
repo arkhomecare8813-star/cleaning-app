@@ -4310,7 +4310,7 @@ function confirmRentMatch(){
 
 // ── CHECKLIST TAB ──
 // ══════════════════════════════════════════
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbxOVap39LwyxR1bS58myL8kt-L9djapQp_lsuwRWBImvE0iFfXypSXK36PWv3wiGMLs/exec';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbwTVLebbpES7ZYqeyI7Z-H8tZ8i4K7xr9Dq9I5WGDYDAxB195SbUJYkjcuWQb3eTg/exec';
 
 // 도단위 약칭 추출 ("경기도" → "경기", "서울특별시" → "서울" 등)
 function _sidoShort(sido){
@@ -4929,33 +4929,43 @@ function sendSolapiList(targets){
       .replace('{manager}', s.manager||'담당자')
       .replace('{company}', s.company||'');
 
-    fetch(GAS_URL, {
-      method:'POST',
-      body: JSON.stringify({ type:'sms', to: s.phone.replace(/[^0-9]/g,''), text: text })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      done++;
-      if(d.ok){
-        if(!reportPhotoData[dateStr]) reportPhotoData[dateStr]={};
-        if(!reportPhotoData[dateStr][s.id]) reportPhotoData[dateStr][s.id]={photos:0};
-        reportPhotoData[dateStr][s.id].smsSent = true;
-        var now = new Date();
-        reportPhotoData[dateStr][s.id].smsTime = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-      } else {
-        showToast('❌ '+s.site+' 발송실패: '+(d.error||JSON.stringify(d)));
-      }
-      if(done===total){
-        saveReportData();
-        renderReport();
-        showToast('✅ '+total+'곳 발송 완료!');
-      }
-    })
-    .catch(function(err){
-      done++;
-      showToast('❌ 네트워크 오류: '+err.toString());
-      if(done===total){ saveReportData(); renderReport(); }
-    });
+    // 솔라피 직접 호출
+    (function(site, siteId, dateStr, done_ref){
+      var apiKey    = 'NCS8HYGUCLJBXZU0';
+      var apiSecret = 'SPTCPSWBN4DTCBKTVYBVI8URHNCOVEGC';
+      var from      = '15511143';
+      var to        = site.phone.replace(/[^0-9]/g,'');
+      var dateHdr   = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+      var salt      = Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
+      // HMAC-SHA256은 브라우저에서 직접 못 하므로 솔라피 simple API 사용
+      fetch('https://api.solapi.com/messages/v4/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'HMAC-SHA256 apiKey='+apiKey+', date='+dateHdr+', salt='+salt+', signature='+salt
+        },
+        body: JSON.stringify({ message: { to: to, from: from, text: text } })
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        done++;
+        if(d.statusCode===2000||d.groupId||d.messageId){
+          if(!reportPhotoData[dateStr]) reportPhotoData[dateStr]={};
+          if(!reportPhotoData[dateStr][siteId]) reportPhotoData[dateStr][siteId]={photos:0};
+          reportPhotoData[dateStr][siteId].smsSent = true;
+          var now = new Date();
+          reportPhotoData[dateStr][siteId].smsTime = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+        } else {
+          showToast('❌ '+site.site+': '+(d.errorCode||d.message||JSON.stringify(d).slice(0,50)));
+        }
+        if(done===total){ saveReportData(); renderReport(); showToast('✅ '+total+'곳 발송 완료!'); }
+      })
+      .catch(function(err){
+        done++;
+        showToast('❌ 오류: '+err.toString().slice(0,50));
+        if(done===total){ saveReportData(); renderReport(); }
+      });
+    })(s, s.id, dateStr, done);
   });
 }
 // ── 솔라피 자동발송 ──
