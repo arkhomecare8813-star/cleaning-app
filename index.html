@@ -876,16 +876,7 @@ main{padding:18px 14px;max-width:1400px;}
       </div>
     </div>
 
-    <!-- 영수증 목록 -->
-    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;color:#ffb547;">🧾 영수증 목록</div>
-        <select id="receipt-filter-site" onchange="renderReceipts()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:5px 8px;color:var(--text);font-size:12px;outline:none;">
-          <option value="">전체 현장</option>
-        </select>
-      </div>
-      <div id="receipt-list"><div style="text-align:center;color:#555;font-size:13px;padding:20px 0;">영수증이 없습니다.</div></div>
-    </div>
+
 
     <div style="background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px;">
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:14px;">+ 비품 추가</div>
@@ -4704,8 +4695,7 @@ function switchTab(name){
         // 전송 이력 로드 후 렌더
         loadSupplySmsLog(function(){ renderSupply(); });
       }).catch(function(){ loadSupplySmsLog(function(){ renderSupply(); }); });
-    initReceiptSelects();
-    renderReceipts();
+    initReceiptSelects(); // 링크 발송용 select 초기화
   }
   if(name==='report'){renderReport();}
   if(name==='list'){initFormPreviewListeners();updateFormPreview();}
@@ -6631,16 +6621,18 @@ function sendSupplySms(id){
 function initReceiptSelects(){
   var linkSel   = document.getElementById('receipt-link-site');
   var filterSel = document.getElementById('receipt-filter-site');
-  if(!linkSel || !filterSel) return;
+  if(!linkSel) return;
 
   var activeSites = sites.filter(function(s){ return (s.status||'active')==='active'; });
-  linkSel.innerHTML   = '<option value="">현장 선택</option>';
-  filterSel.innerHTML = '<option value="">전체 현장</option>';
+  linkSel.innerHTML = '<option value="">현장 선택</option>';
+  if(filterSel) filterSel.innerHTML = '<option value="">전체 현장</option>';
   activeSites.forEach(function(s){
     var opt1 = document.createElement('option'); opt1.value=s.id; opt1.textContent=s.site+' ('+s.company+')';
-    var opt2 = document.createElement('option'); opt2.value=s.id; opt2.textContent=s.site+' ('+s.company+')';
     linkSel.appendChild(opt1);
-    filterSel.appendChild(opt2);
+    if(filterSel){
+      var opt2 = document.createElement('option'); opt2.value=s.id; opt2.textContent=s.site+' ('+s.company+')';
+      filterSel.appendChild(opt2);
+    }
   });
 }
 
