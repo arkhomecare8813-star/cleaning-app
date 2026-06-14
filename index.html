@@ -21,7 +21,7 @@ if(localStorage.getItem('cm-sms-tpl-ver') !== SMS_TPL_VERSION){
   localStorage.setItem('cm-sms-template', SMS_TPL_DEFAULT);
   localStorage.setItem('cm-sms-tpl-ver', SMS_TPL_VERSION);
 }
-var SMS_TEMPLATE = localStorage.getItem('cm-sms-template') || SMS_TPL_DEFAULT;
+var SMS_TEMPLATE = SMS_TPL_DEFAULT; // Firebase 로드 후 덮어씀
 // 모든 전역 변수 맨 위 선언
 var sites = JSON.parse(localStorage.getItem('cm-sites')||'[]');
 var appTitle = localStorage.getItem('cm-title')||'청소팀 관리';
