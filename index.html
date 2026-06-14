@@ -29,6 +29,7 @@ var reportPhotoData = JSON.parse(localStorage.getItem('cm-photos')||'{}');
 var settleInvoice = JSON.parse(localStorage.getItem('cm-invoice')||'{}');
 var supplies = JSON.parse(localStorage.getItem('cm-supplies')||'[]');
 var receiptsData = {}; // siteId별 영수증 데이터
+var supplyReceiptUrls = {}; // supplyId -> receiptUrl
 var settleSnapshots = JSON.parse(localStorage.getItem('cm-settle-snap')||'[]');
 var rentBuildings = JSON.parse(localStorage.getItem('cm-rent-buildings')||'[]');
 var routines = JSON.parse(localStorage.getItem('cm-routines')||'[]');
@@ -6737,11 +6738,7 @@ function loadSupplySmsLog(cb){
 }
 
 function sendSupplySms(id, receiptUrl){
-  // receiptUrl이 없으면 버튼 data-rurl에서 읽기
-  if(!receiptUrl){
-    var btn = document.querySelector('[onclick="sendSupplySms('+id+')"]');
-    if(btn) receiptUrl = decodeURIComponent(btn.getAttribute('data-rurl')||'');
-  }
+  if(!receiptUrl) receiptUrl = supplyReceiptUrls[String(id)]||'';
   var sp = supplies.find(function(s){ return s.id===id; });
   if(!sp){ showToast('❌ 항목을 찾을 수 없습니다.'); return; }
 
@@ -6970,7 +6967,7 @@ function renderSupply(){
         ? '<span style="font-size:10px;color:#00e5a0;font-weight:700;margin-left:4px;">✓전송 '+(smsLog.time||'')+'</span>'
         : '';
       var smsBtn = clientPhone
-        ? '<button onclick="sendSupplySms('+s.id+')" data-rurl="'+encodeURIComponent(receiptUrl||'')+'" style="padding:3px 8px;border-radius:5px;border:1px solid #1a3a2a;background:rgba(0,229,160,0.1);color:#00e5a0;font-size:11px;cursor:pointer;white-space:nowrap;">📱 문자</button>'
+        ? '<button onclick="sendSupplySms('+s.id+')" style="padding:3px 8px;border-radius:5px;border:1px solid #1a3a2a;background:rgba(0,229,160,0.1);color:#00e5a0;font-size:11px;cursor:pointer;white-space:nowrap;">📱 문자</button>'
         : '';
       // supplies url 없으면 receipts에서 찾기
       var receiptUrl = s.url || (function(){
@@ -6980,6 +6977,7 @@ function renderSupply(){
         var match = arr.find(function(r){ return r.date === s.date; });
         return match && match.url ? match.url : '';
       })();
+      supplyReceiptUrls[String(s.id)] = receiptUrl;
       var receiptBtn = receiptUrl
         ? '<a href="'+receiptUrl+'" target="_blank" style="padding:3px 8px;border-radius:5px;border:1px solid #3a2800;background:rgba(255,181,71,0.08);color:#ffb547;font-size:11px;text-decoration:none;white-space:nowrap;">🧾</a>'
         : '';
