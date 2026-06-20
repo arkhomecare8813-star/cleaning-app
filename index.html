@@ -681,7 +681,11 @@ main{padding:18px 14px;max-width:1400px;}
             <option value="none">해당없음</option>
           </select>
         </div>
-        <div class="form-group"><label>청소 요일 *</label>
+        <div class="form-group"><label id="f-days-label">청소 요일 *</label>
+          <div class="toggle-row" onclick="var c=document.getElementById('f-onetime');c.checked=!c.checked;toggleOneTime('f');" style="margin-bottom:8px;">
+            <input type="checkbox" id="f-onetime" onclick="event.stopPropagation();toggleOneTime('f');">
+            <label style="font-size:12px;cursor:pointer;user-select:none;color:#ffb547;">⚡ 1회성 청소 (정산 시 금액 분할 안 함)</label>
+          </div>
           <div class="day-picker" id="day-picker" style="margin-top:2px;">
             <div class="day-btn" data-day="0" onclick="toggleDay(this)">일</div>
             <div class="day-btn" data-day="1" onclick="toggleDay(this)">월</div>
@@ -1043,7 +1047,11 @@ main{padding:18px 14px;max-width:1400px;}
         </select>
       </div>
     </div>
-    <div class="form-group" style="margin-bottom:12px;"><label>청소 요일 *</label>
+    <div class="form-group" style="margin-bottom:12px;"><label id="e-days-label">청소 요일 *</label>
+      <div class="toggle-row" onclick="var c=document.getElementById('e-onetime');c.checked=!c.checked;toggleOneTime('e');" style="margin-bottom:8px;">
+        <input type="checkbox" id="e-onetime" onclick="event.stopPropagation();toggleOneTime('e');">
+        <label style="font-size:12px;cursor:pointer;user-select:none;color:#ffb547;">⚡ 1회성 청소 (정산 시 금액 분할 안 함)</label>
+      </div>
       <div class="day-picker" id="e-day-picker" style="margin-top:2px;">
         <div class="day-btn" data-day="0" onclick="toggleEditDay(this)">일</div>
         <div class="day-btn" data-day="1" onclick="toggleEditDay(this)">월</div>
@@ -1179,6 +1187,12 @@ function fmtN(n){return n?Number(n).toLocaleString('ko-KR'):'0';}
 function toggleDay(b){b.classList.toggle('active');}
 function toggleEditDay(b){b.classList.toggle('active');}
 function getDays(id){return[...document.querySelectorAll('#'+id+' .day-btn.active')].map(b=>parseInt(b.dataset.day));}
+function toggleOneTime(prefix){
+  var cb=document.getElementById(prefix+'-onetime');
+  var lbl=document.getElementById(prefix+'-days-label');
+  if(!cb||!lbl) return;
+  lbl.textContent = cb.checked ? '청소 요일 (선택, 1회성)' : '청소 요일 *';
+}
 
 // 상태 버튼 선택
 function setStatusBtn(btn, prefix){
@@ -1562,9 +1576,14 @@ function exportDetailSheet(yr, mo, btn){
 
   selSites.forEach(function(s){
     var monthlyVat=Math.round((s.priceMain||0)/1.1); // 월 공급가액
-    var totalCnt  =countDaysInMonth(s.days);
-    var actualCnt =countActualDays(s.days, s.startDate, s.endDate);
-    var supplyAmt =totalCnt>0?Math.round(monthlyVat/totalCnt*actualCnt):monthlyVat;
+    var totalCnt, actualCnt, supplyAmt;
+    if(s.isOneTime){
+      totalCnt=1; actualCnt=1; supplyAmt=monthlyVat; // 1회성: 분할 없이 전액 통과
+    } else {
+      totalCnt  =countDaysInMonth(s.days);
+      actualCnt =countActualDays(s.days, s.startDate, s.endDate);
+      supplyAmt =totalCnt>0?Math.round(monthlyVat/totalCnt*actualCnt):monthlyVat;
+    }
     var vatAmt    =Math.round(supplyAmt*0.1);
     var totalAmt  =supplyAmt+vatAmt;
     var startSerial=s.startDate?dateToSerial(s.startDate):'';
@@ -1574,7 +1593,7 @@ function exportDetailSheet(yr, mo, btn){
       totalCnt,actualCnt,
       supplyAmt,vatAmt,totalAmt,
       startSerial,
-      dowLabel(s.days),''
+      (s.isOneTime?'1회성':dowLabel(s.days)),''
     ]);
   });
   // Total행
@@ -1871,6 +1890,8 @@ function resetForm(){
   const fst=document.getElementById('f-subtaxtype');if(fst)fst.value='none';
   document.querySelectorAll('#day-picker .day-btn').forEach(function(b){b.classList.remove('active');});
   var nr=document.getElementById('f-noreport');if(nr)nr.checked=false;
+  var ot=document.getElementById('f-onetime');if(ot)ot.checked=false;
+  toggleOneTime('f');
   _updateCoDatalist();
   updateFormPreview();
 }
@@ -2051,12 +2072,13 @@ function addSite(){
   const site=document.getElementById('f-site').value.trim();
   const priceMain=parseInt(document.getElementById('f-price-main').value)||0;
   const days=getDays('day-picker');
+  const isOneTime=(function(){var el=document.getElementById('f-onetime');return el?el.checked:false;})();
   const status=document.getElementById('f-status').value||'active';
   const isInquiry=status==='inquiry';
   if(!company){alert('업체명을 입력해주세요.');return;}
   if(!site){alert('현장명을 입력해주세요.');return;}
   if(!isInquiry&&!priceMain){alert('원청 금액을 입력해주세요.');return;}
-  if(!isInquiry&&!days.length){alert('청소 요일을 선택해주세요.');return;}
+  if(!isInquiry&&!isOneTime&&!days.length){alert('청소 요일을 선택해주세요.');return;}
   sites.push({id:Date.now(),company,site,
     manager:document.getElementById('f-mgr').value.trim(),
     phone:document.getElementById('f-phone').value.trim(),
@@ -2071,7 +2093,7 @@ function addSite(){
     priceMain,priceSub:parseInt(document.getElementById('f-price-sub').value)||0,
     taxtype:'vat',
     subtaxtype:document.getElementById('f-subtaxtype').value||'none',
-    days,memo:document.getElementById('f-memo').value.trim(),
+    days,isOneTime,memo:document.getElementById('f-memo').value.trim(),
     addr:getFullAddr('f-sido','f-gungu','f-addr'),
     sido:document.getElementById('f-sido').value||'',
     gungu:document.getElementById('f-gungu').value||'',
@@ -2181,6 +2203,8 @@ function openEdit(id){
   });
   document.querySelectorAll('#e-day-picker .day-btn').forEach(function(b){b.classList.toggle('active',s.days.includes(parseInt(b.dataset.day)));});
   var enr=document.getElementById('e-noreport');if(enr)enr.checked=s.noReport||false;
+  var eot=document.getElementById('e-onetime');if(eot)eot.checked=s.isOneTime||false;
+  toggleOneTime('e');
   document.getElementById('edit-modal').classList.add('open');
   updateProfitPreview();
 }
@@ -2206,8 +2230,10 @@ function saveEdit(){
   const site=document.getElementById('e-site').value.trim();
   const priceMain=parseInt(document.getElementById('e-price-main').value)||0;
   const days=getDays('e-day-picker');
-  if(!company||!site||!priceMain||!days.length){alert('필수 항목을 입력해주세요.');return;}
-  s.company=company;s.site=site;s.days=days;s.priceMain=priceMain;
+  const isOneTime=(function(){var el=document.getElementById('e-onetime');return el?el.checked:false;})();
+  if(!company||!site||!priceMain){alert('필수 항목을 입력해주세요.');return;}
+  if(!isOneTime&&!days.length){alert('청소 요일을 선택해주세요.');return;}
+  s.company=company;s.site=site;s.days=days;s.isOneTime=isOneTime;s.priceMain=priceMain;
   s.priceSub=parseInt(document.getElementById('e-price-sub').value)||0;
   s.taxtype='vat';
   s.subtaxtype=document.getElementById('e-subtaxtype').value;
@@ -2566,6 +2592,7 @@ function totalCountInMonth(site, year, month){
 
 // 실제 참여 횟수 기준 정산 금액
 function effectivePrice(site, year, month, fullPrice){
+  if(site.isOneTime) return fullPrice; // 1회성 청소는 분할하지 않고 전액 통과
   const totalCount = totalCountInMonth(site, year, month);
   if(!totalCount) return fullPrice;
   const effectiveCount = getEffectiveDaysInMonth(site, year, month);
@@ -4872,8 +4899,12 @@ function openSolapiModal(mode){
       buildPopup(targets);
     });
   } else {
+    var todayDt2 = new Date(today+'T00:00:00');
     sites.filter(function(s){
-      return s.days&&s.days.includes(dow)&&!s.noReport&&(s.status||'active')!=='inquiry'&&s.phone;
+      if(!(s.days&&s.days.includes(dow)&&!s.noReport&&(s.status||'active')!=='inquiry'&&s.phone)) return false;
+      if(s.startDate && todayDt2 < new Date(s.startDate+'T00:00:00')) return false;
+      if(s.endDate   && todayDt2 > new Date(s.endDate+'T00:00:00'))   return false;
+      return true;
     }).forEach(function(s){
       var info = (reportPhotoData[today]||{})[s.id];
       var done = !!(info&&info.photos>0);
@@ -5051,12 +5082,21 @@ function renderReport(){
     cos.forEach(function(co){
       var col     = getCompanyColor(co);
       var coSites = sites.filter(function(s){return s.company===co;});
-      var coWork  = coSites.filter(function(s){return s.days&&s.days.includes(dow)&&!s.noReport;});
+      var coWork  = coSites.filter(function(s){
+        if(!(s.days&&s.days.includes(dow)&&!s.noReport)) return false;
+        var checkDt = new Date(today+'T00:00:00');
+        if(s.startDate && checkDt < new Date(s.startDate+'T00:00:00')) return false;
+        if(s.endDate   && checkDt > new Date(s.endDate+'T00:00:00'))   return false;
+        return true;
+      });
       var coOk    = coWork.filter(function(s){return dateData[s.id]&&dateData[s.id].photos>0;}).length;
       var cards   = '';
 
       coSites.forEach(function(s){
-        var isWork     = s.days&&s.days.includes(dow);
+        var todayDt0   = new Date(today+'T00:00:00');
+        var inRange    = (!s.startDate || todayDt0 >= new Date(s.startDate+'T00:00:00')) &&
+                          (!s.endDate   || todayDt0 <= new Date(s.endDate+'T00:00:00'));
+        var isWork     = !!(s.days&&s.days.includes(dow)&&inRange);
         var isExcluded = s.noReport||false;
         var info       = dateData[s.id]||{photos:0};
         var hasPhoto   = info.photos>0;
@@ -5196,8 +5236,12 @@ function skipUnreported(siteId, dateStr){
 function sendSmsAllPending(dateStr){
   var dow=getDayOfWeek(dateStr);
   var dateData=reportPhotoData[dateStr]||{};
+  var targetDt=new Date(dateStr+'T00:00:00');
   var pending=sites.filter(function(s){
-    return s.days&&s.days.includes(dow)&&!s.noReport&&s.phone&&!(dateData[s.id]&&dateData[s.id].photos>0);
+    if(!(s.days&&s.days.includes(dow)&&!s.noReport&&s.phone&&!(dateData[s.id]&&dateData[s.id].photos>0))) return false;
+    if(s.startDate && targetDt < new Date(s.startDate+'T00:00:00')) return false;
+    if(s.endDate   && targetDt > new Date(s.endDate+'T00:00:00'))   return false;
+    return true;
   });
   if(!pending.length){showToast('✅ 미완료 현장이 없어요!');return;}
   pending.forEach(function(s){
@@ -5219,7 +5263,13 @@ function sendSmsAllPending(dateStr){
 }
 function sendSmsAll(coName, dateStr){
   var dow=getDayOfWeek(dateStr);
-  var coSites=sites.filter(function(s){return s.company===coName&&s.days&&s.days.includes(dow)&&!s.noReport&&s.phone;});
+  var targetDt2=new Date(dateStr+'T00:00:00');
+  var coSites=sites.filter(function(s){
+    if(!(s.company===coName&&s.days&&s.days.includes(dow)&&!s.noReport&&s.phone)) return false;
+    if(s.startDate && targetDt2 < new Date(s.startDate+'T00:00:00')) return false;
+    if(s.endDate   && targetDt2 > new Date(s.endDate+'T00:00:00'))   return false;
+    return true;
+  });
   if(!coSites.length){showToast('📱 연락처가 있는 현장이 없습니다.');return;}
   coSites.forEach(function(s){
     var tel=s.phone.replace(/[^0-9+]/g,'');
