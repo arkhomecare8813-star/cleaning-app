@@ -2592,7 +2592,12 @@ function totalCountInMonth(site, year, month){
 
 // 실제 참여 횟수 기준 정산 금액
 function effectivePrice(site, year, month, fullPrice){
-  if(site.isOneTime) return fullPrice; // 1회성 청소는 분할하지 않고 전액 통과
+  if(site.isOneTime){
+    // 1회성 청소는 시작일(서비스일)이 속한 달에만 전액 반영, 다른 달은 매출 없음
+    if(!site.startDate) return fullPrice; // 시작일 미입력 시 안전하게 전액 통과(기존 동작 유지)
+    var sd = new Date(site.startDate+'T00:00:00');
+    return (sd.getFullYear()===year && sd.getMonth()===month) ? fullPrice : 0;
+  }
   const totalCount = totalCountInMonth(site, year, month);
   if(!totalCount) return fullPrice;
   const effectiveCount = getEffectiveDaysInMonth(site, year, month);
@@ -3014,13 +3019,12 @@ function renderDashboard(){
     return{label:m.label,val:mainVal,isCur:m.isCur,isFuture:m.isFuture};
   });
 
-  var annualEst=activeSites.reduce(function(sum,s){return sum+(s.priceMain||0);},0)*12;
+  var annualEst=activeSites.reduce(function(sum,s){
+    return sum + (s.isOneTime ? (s.priceMain||0) : (s.priceMain||0)*12);
+  },0);
   document.getElementById('db-annual').textContent='예상 연매출 '+fmtN(annualEst)+'원';
 
   // ── 꺾은선 차트 (SVG) ──
-  var annualEst=activeSites.reduce(function(sum,s){return sum+(s.priceMain||0);},0)*12;
-  document.getElementById('db-annual').textContent='예상 연매출 '+fmtN(annualEst)+'원';
-
   var svgEl=document.getElementById('db-chart-svg');
   if(svgEl && chartData.length){
     var W=600, H=110, padL=8, padR=8, padT=10, padB=22;
@@ -3154,11 +3158,20 @@ function renderDashboard(){
   }
 
   // ── 거래처 담당자별 매출 비중 ──
+  function pieMain(s){
+    // 1회성 청소는 시작월(=서비스월)에만 매출로 반영, 그 외 달은 0
+    if(s.isOneTime){
+      if(!s.startDate) return s.priceMain||0;
+      var sd=new Date(s.startDate+'T00:00:00');
+      return (sd.getFullYear()===curYr && sd.getMonth()===curMo) ? (s.priceMain||0) : 0;
+    }
+    return s.priceMain||0;
+  }
   var clientMap={};
   activeSites.forEach(function(s){
     var key=(s.clientMgr&&s.clientMgr.trim())||'미지정';
     if(!clientMap[key])clientMap[key]=0;
-    clientMap[key]+=s.priceMain||0;
+    clientMap[key]+=pieMain(s);
   });
   var clientArr=Object.keys(clientMap).map(function(k){return{co:k,main:clientMap[k]};});
   clientArr.sort(function(a,b){return b.main-a.main;});
@@ -3169,7 +3182,7 @@ function renderDashboard(){
   // ── 업체별 매출 비중 파이차트 ──
   var coDataPie=[...new Set(activeSites.map(function(s){return s.company;}))].map(function(co){
     var coSites=activeSites.filter(function(s){return s.company===co;});
-    var main=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+    var main=coSites.reduce(function(a,s){return a+pieMain(s);},0);
     return{co:co,main:main,col:getCompanyColor(co).text};
   }).filter(function(d){return d.main>0;});
   coDataPie.sort(function(a,b){return b.main-a.main;});
@@ -3181,7 +3194,7 @@ function renderDashboard(){
   activeSites.forEach(function(s){
     var region=s.sido||'미분류';
     if(!regionMap[region])regionMap[region]={main:0,count:0};
-    regionMap[region].main+=s.priceMain||0;
+    regionMap[region].main+=pieMain(s);
     regionMap[region].count++;
   });
   var regionArr=Object.keys(regionMap).map(function(r){return{region:r,main:regionMap[r].main,count:regionMap[r].count};});
@@ -5014,6 +5027,7 @@ function renderReport(){
 
     // ── 밀린 보고 섹션 (맨 위) ──
     var accCards = '';
+    var _pendingAccItems = []; // 전체삭제(일괄 skip)용 {siteId, dateStr} 목록
     sites.forEach(function(s){
       if(s.noReport||(s.status||'active')==='inquiry') return;
       var siteLog   = logData[s.id]||{};
@@ -5034,6 +5048,7 @@ function renderReport(){
         cur.setDate(cur.getDate()+1);
       }
       if(!unreported.length) return;
+      unreported.forEach(function(d){ _pendingAccItems.push({siteId:s.id, dateStr:d}); });
       var dateBtns = unreported.map(function(d){
         var diff = Math.round((new Date(today+'T00:00:00')-new Date(d+'T00:00:00'))/(1000*60*60*24));
         var lbl  = diff===1?'어제':diff+'일전';
@@ -5063,11 +5078,15 @@ function renderReport(){
         +'</div>';
     });
     if(accCards){
+      window._pendingAccItems = _pendingAccItems; // 전체삭제 버튼이 참조
       html += '<div style="background:#1a0a0d;border:1px solid rgba(255,77,109,0.3);border-radius:12px;margin-bottom:14px;overflow:hidden;">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:rgba(255,77,109,0.07);border-bottom:1px solid rgba(255,77,109,0.2);">'
         +'<div style="display:flex;align-items:center;gap:8px;"><div style="font-size:13px;font-weight:800;color:#ff4d6d;">⚠️ 밀린 보고</div>'
         +'<div style="font-size:11px;color:#777;">날짜별 📱 버튼으로 재전송 · ✕로 skip</div></div>'
+        +'<div style="display:flex;gap:6px;">'
+        +'<button onclick="clearAllUnreported()" style="padding:5px 12px;border-radius:7px;border:1px solid rgba(255,77,109,0.4);background:transparent;color:#ff4d6d;font-size:11px;font-weight:800;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🗑 전체삭제</button>'
         +'<button onclick="openSolapiModal(\'pending\')" style="padding:5px 12px;border-radius:7px;border:none;background:#5b8dee;color:#fff;font-size:11px;font-weight:800;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🚀 자동발송</button>'
+        +'</div>'
         +'</div>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:12px;">'+accCards+'</div>'
         +'</div>';
@@ -5231,6 +5250,25 @@ function skipUnreported(siteId, dateStr){
     showToast('⏭ '+dateStr+' Skip 처리됐어요.');
     renderReport();
   }).catch(function(){ showToast('❌ 처리 실패'); });
+}
+
+function clearAllUnreported(){
+  var items = window._pendingAccItems||[];
+  if(!items.length){ showToast('밀린 보고가 없습니다.'); return; }
+  showConfirm('밀린 보고 전체삭제', items.length+'건의 밀린 보고를 모두 skip 처리합니다. 해당 날짜들은 이후 미보고 누적에 다시 올라오지 않습니다. 계속할까요?', function(){
+    var skippedAt = new Date().toISOString();
+    Promise.all(items.map(function(it){
+      var fbPath = FB_URL+'/data/reportLog/'+it.siteId+'/'+it.dateStr+'.json';
+      return fetch(fbPath, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ skipped:true, skippedAt:skippedAt })
+      }).catch(function(){ return null; });
+    })).then(function(){
+      showToast('🗑 밀린 보고 '+items.length+'건 전체삭제 완료!');
+      renderReport();
+    });
+  });
 }
 
 function sendSmsAllPending(dateStr){
