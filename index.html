@@ -1294,7 +1294,7 @@ function exportExcel1(){
     const coSites=sites.filter(s=>s.company===co);
 
     coSites.forEach((s)=>{
-      const yr2=document.getElementById('settle-year');const mo2=document.getElementById('settle-month');const sYr=yr2?parseInt(yr2.value):today.getFullYear();const sMo=mo2?parseInt(mo2.value)-1:today.getMonth();const totalCount=s.days.reduce(function(sum,dow){var cnt=0;var dim=new Date(sYr,sMo+1,0).getDate();for(var dd=1;dd<=dim;dd++){if(new Date(sYr,sMo,dd).getDay()===dow)cnt++;}return sum+cnt;},0);const daysStr=totalCount+'회';
+      const yr2=document.getElementById('settle-year');const mo2=document.getElementById('settle-month');const sYr=yr2?parseInt(yr2.value):today.getFullYear();const sMo=mo2?parseInt(mo2.value)-1:today.getMonth();const totalCount=(s.days||[]).reduce(function(sum,dow){var cnt=0;var dim=new Date(sYr,sMo+1,0).getDate();for(var dd=1;dd<=dim;dd++){if(new Date(sYr,sMo,dd).getDay()===dow)cnt++;}return sum+cnt;},0);const daysStr=totalCount+'회';
       const effMain=effectivePrice(s, sYr, sMo, s.priceMain||0);
       const effSub=effectivePrice(s, sYr, sMo, s.priceSub||0);
       const mt=calcMainTax(effMain);
@@ -2133,7 +2133,7 @@ function openPopup(id){
   const t=calcTax(s.priceMain||0,s.taxtype||'vat');
   const profit=(s.priceMain||0)-(s.priceSub||0);
   let rows='';
-  rows+='<div class="popup-row"><div class="popup-row-icon">&#128197;</div><div class="popup-row-content"><div class="popup-row-lbl">청소 요일</div><div class="popup-days">'+s.days.sort().map(function(d){return '<span class="popup-day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div></div>';
+  rows+='<div class="popup-row"><div class="popup-row-icon">&#128197;</div><div class="popup-row-content"><div class="popup-row-lbl">청소 요일</div><div class="popup-days">'+(s.days||[]).slice().sort().map(function(d){return '<span class="popup-day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div></div>';
   rows+='<div class="popup-row"><div class="popup-row-icon">&#128176;</div><div class="popup-row-content"><div class="popup-row-lbl">금액 '+taxLabel(s.taxtype||'vat')+'</div><div class="popup-price-grid">'
     +'<div class="popup-price-item"><div class="popup-price-lbl">원청(VAT포함)</div><div class="popup-price-val main">'+fmtW(s.priceMain)+'</div></div>'
     +'<div class="popup-price-item"><div class="popup-price-lbl">공급가액</div><div class="popup-price-val" style="color:#4ade80;font-size:14px">'+fmtW(t.supply)+'</div></div>'
@@ -2204,7 +2204,7 @@ function openEdit(id){
       b.style.borderColor=ac;b.style.background='rgba('+(curStatus==='active'?'0,229,160':'255,181,71')+',0.12)';b.style.color=ac;
     }
   });
-  document.querySelectorAll('#e-day-picker .day-btn').forEach(function(b){b.classList.toggle('active',s.days.includes(parseInt(b.dataset.day)));});
+  document.querySelectorAll('#e-day-picker .day-btn').forEach(function(b){b.classList.toggle('active',(s.days||[]).includes(parseInt(b.dataset.day)));});
   var enr=document.getElementById('e-noreport');if(enr)enr.checked=s.noReport||false;
   var eot=document.getElementById('e-onetime');if(eot)eot.checked=s.isOneTime||false;
   toggleOneTime('e');
@@ -2369,7 +2369,7 @@ function renderSiteCard(s,col){
     +'<button class="icon-btn del" onclick="deleteSite('+s.id+')">&#128465;</button>'
     +'</div></div>'
     +'<div class="site-meta">'
-    +'<div class="meta-row"><span class="meta-lbl">요일</span><div style="display:flex;gap:4px;flex-wrap:wrap">'+s.days.sort().map(function(d){return '<span class="day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div>'
+    +'<div class="meta-row"><span class="meta-lbl">요일</span><div style="display:flex;gap:4px;flex-wrap:wrap">'+(s.days||[]).slice().sort().map(function(d){return '<span class="day-tag">'+DAYS[d]+'</span>';}).join('')+'</div></div>'
     +(s.startDate?'<div class="meta-row"><span class="meta-lbl">시작일</span><span style="font-family:DM Mono,monospace;font-size:12px;color:#ffb547;">'+s.startDate+'</span></div>':'')
     +(s.endDate?'<div class="meta-row"><span class="meta-lbl">종료일</span><span style="font-family:DM Mono,monospace;font-size:12px;color:#ff4d6d;">'+s.endDate+'</span></div>':'')
     +'<div class="meta-row"><span class="meta-lbl">금액</span>'
@@ -2510,7 +2510,7 @@ function renderCalendar(){
     if(!cell.other){
       const daySites=sites.filter(function(s){
         if((s.status||'active')==='inquiry') return false;
-        if(!s.days.includes(dow)) return false;
+        if(!s.days||!s.days.includes(dow)) return false;
         var cellDate=new Date(calYear,calMonth,cell.day);
         if(s.startDate && cellDate < new Date(s.startDate)) return false;
         if(s.endDate && cellDate > new Date(s.endDate)) return false;
@@ -2585,13 +2585,14 @@ function getEffectiveDaysInMonth(site, year, month){
   let count = 0;
   for(let d = startLimit; d <= endLimit; d++){
     const dow = new Date(year, month, d).getDay();
-    if(site.days.includes(dow)) count++;
+    if(site.days&&site.days.includes(dow)) count++;
   }
   return count;
 }
 
 // 해당 월 전체 횟수 (일당 단가 계산용 분모)
 function totalCountInMonth(site, year, month){
+  if(!site.days) return 0;
   return site.days.reduce(function(sum,dow){return sum+getDayCountInMonth(year,month,dow);},0);
 }
 
@@ -2620,7 +2621,7 @@ function renderWeekly(){
   for(let i=0;i<7;i++){var d=new Date(now);d.setDate(now.getDate()-todayDow+i);weekDates.push(d);}
   const baseYear=now.getFullYear();const baseMonth=now.getMonth();
   const daySums=DAYS.map(function(_,idx){
-    return sites.filter(function(s){return s.days.includes(idx);})
+    return sites.filter(function(s){return s.days&&s.days.includes(idx);})
       .reduce(function(sum,s){return sum+dailyPrice(s,baseYear,baseMonth);},0);
   });
   DAYS.forEach(function(d,i){
@@ -2642,7 +2643,7 @@ function renderWeekly(){
     const cell=document.createElement('div');cell.className='week-cell';
     sites.filter(function(s){
       if((s.status||'active')==='inquiry') return false;
-      if(!s.days.includes(idx)) return false;
+      if(!s.days||!s.days.includes(idx)) return false;
       var wd=weekDates[idx];
       if(s.startDate && wd < new Date(s.startDate)) return false;
       if(s.endDate && wd > new Date(s.endDate)) return false;
@@ -3207,7 +3208,7 @@ function renderDashboard(){
       var dd=new Date(now); dd.setDate(now.getDate()-di);
       var ds=dd.toISOString().slice(0,10);
       var dow=dd.getDay();
-      if(!s.days.includes(dow))continue;
+      if(!s.days||!s.days.includes(dow))continue;
       if(s.startDate&&dd<new Date(s.startDate))continue;
       if(s.endDate&&dd>new Date(s.endDate))continue;
       total++;
