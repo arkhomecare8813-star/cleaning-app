@@ -3019,7 +3019,11 @@ function renderDashboard(){
   });
 
   var annualEst=activeSites.reduce(function(sum,s){
-    return sum + (s.isOneTime ? 0 : (s.priceMain||0)*12);
+    if(s.isOneTime){
+      // 1회성은 1년 기준 월평균으로 환산해서 반영 (전액÷12)
+      return sum + Math.round((s.priceMain||0)/12);
+    }
+    return sum + (s.priceMain||0)*12;
   },0);
   document.getElementById('db-annual').textContent='예상 연매출 '+fmtN(annualEst)+'원';
 
@@ -3311,20 +3315,27 @@ function openKpiPopup(key){
   }
 
   else if(key==='sub'){
-    title='📋 이번달 하청 — 현장별 실지급';
-    var rows2=activeSites.map(function(s){
-      var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
-      var pay=calcSubTax(es,s.subtaxtype||'none').payout;
-      return{site:s.site,co:s.company,pay:pay,taxtype:s.subtaxtype||'none'};
-    }).filter(function(r){return r.pay>0;}).sort(function(a,b){return b.pay-a.pay;});
-    var grand2=(window._kpi&&window._kpi.totalSubPayout)||rows2.reduce(function(a,r){return a+r.pay;},0);
+    title='📋 이번달 하청 — 업체별';
+    var companies2=[...new Set(activeSites.map(function(s){return s.company;}))];
+    var rows2=companies2.map(function(co){
+      var coSites=activeSites.filter(function(s){return s.company===co;});
+      var total=coSites.reduce(function(a,s){
+        var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+        return a+calcSubTax(es,s.subtaxtype||'none').payout;
+      },0);
+      return {co:co,total:total,count:coSites.length};
+    }).filter(function(r){return r.total>0;}).sort(function(a,b){return b.total-a.total;});
+    var grand2=rows2.reduce(function(a,r){return a+r.total;},0);
     html=rows2.map(function(r){
       var col=getCompanyColor(r.co);
-      var lbl=r.taxtype==='vat'?'VAT':r.taxtype==='t33'?'3.3%':'—';
-      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bd);">'
-        +'<div><div style="font-size:12px;font-weight:700;">'+r.site+'</div>'
-        +'<div style="font-size:10px;color:var(--muted);">'+r.co+' · '+lbl+'</div></div>'
-        +'<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:800;color:#7ab8ff;">'+fmtN(r.pay)+'원</div>'
+      var pct=grand2?Math.round(r.total/grand2*100):0;
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--bd);">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">'
+        +'<div style="display:flex;align-items:center;gap:7px;"><div style="width:8px;height:8px;border-radius:50%;background:'+col.text+'"></div>'
+        +'<span style="font-size:13px;font-weight:700;">'+r.co+'</span><span style="font-size:11px;color:var(--muted);">'+r.count+'곳</span></div>'
+        +'<div style="font-family:DM Mono,monospace;font-size:13px;font-weight:800;color:#7ab8ff;">'+fmtN(r.total)+'원</div></div>'
+        +'<div style="background:var(--sf3);border-radius:3px;height:5px;"><div style="background:'+col.text+';height:100%;border-radius:3px;width:'+pct+'%;"></div></div>'
+        +'<div style="font-size:10px;color:var(--muted);margin-top:3px;">전체의 '+pct+'%</div>'
         +'</div>';
     }).join('')
     +'<div style="padding:12px 0;display:flex;justify-content:space-between;"><span style="font-size:13px;font-weight:800;">합계</span><span style="font-family:DM Mono,monospace;font-size:14px;font-weight:900;color:#7ab8ff;">'+fmtN(grand2)+'원</span></div>';
