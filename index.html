@@ -1294,19 +1294,21 @@ function exportExcel1(){
     const coSites=sites.filter(s=>s.company===co);
 
     coSites.forEach((s)=>{
-      const mt=calcMainTax(s.priceMain||0);
-      const st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
-      const subAdj=st.vat?st.vat:st.deduct?-st.deduct:0;
-      const profit=(s.priceMain||0)-st.payout;
       const yr2=document.getElementById('settle-year');const mo2=document.getElementById('settle-month');const sYr=yr2?parseInt(yr2.value):today.getFullYear();const sMo=mo2?parseInt(mo2.value)-1:today.getMonth();const totalCount=s.days.reduce(function(sum,dow){var cnt=0;var dim=new Date(sYr,sMo+1,0).getDate();for(var dd=1;dd<=dim;dd++){if(new Date(sYr,sMo,dd).getDay()===dow)cnt++;}return sum+cnt;},0);const daysStr=totalCount+'회';
+      const effMain=effectivePrice(s, sYr, sMo, s.priceMain||0);
+      const effSub=effectivePrice(s, sYr, sMo, s.priceSub||0);
+      const mt=calcMainTax(effMain);
+      const st=calcSubTax(effSub,s.subtaxtype||'none');
+      const subAdj=st.vat?st.vat:st.deduct?-st.deduct:0;
+      const profit=effMain-st.payout;
       const sttLabel=s.subtaxtype==='vat'?'부가세추가(VAT)':s.subtaxtype==='t33'?'3.3%공제':'해당없음';
-      grandMain+=s.priceMain||0; grandSubPayout+=st.payout; grandProfit+=profit;
+      grandMain+=effMain; grandSubPayout+=st.payout; grandProfit+=profit;
 
       wsData.push([
         co, s.site, s.addr||'',
         s.bizno||'', s.email||'', s.bank||'', s.account||'', daysStr,
-        s.priceMain||0, mt.supply, mt.vat,
-        sttLabel, s.priceSub||0,
+        effMain, mt.supply, mt.vat,
+        sttLabel, effSub,
         subAdj, st.payout, profit
       ]);
     });
@@ -1758,8 +1760,8 @@ function _shareExcelKakao(num){
     var grandMain=0, grandSub=0, grandProfit=0;
     companies.forEach(function(co){
       var coSites=sites.filter(function(s){return s.company===co;});
-      var coMain  =coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
-      var coSub   =coSites.reduce(function(a,s){var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');return a+st.payout;},0);
+      var coMain  =coSites.reduce(function(a,s){return a+effectivePrice(s,yr,mo-1,s.priceMain||0);},0);
+      var coSub   =coSites.reduce(function(a,s){var es=effectivePrice(s,yr,mo-1,s.priceSub||0);var st=calcSubTax(es,s.subtaxtype||'none');return a+st.payout;},0);
       var coProfit=coMain-coSub;
       grandMain+=coMain; grandSub+=coSub; grandProfit+=coProfit;
       lines.push('🏢 '+co);
@@ -1773,22 +1775,23 @@ function _shareExcelKakao(num){
   } else if(num===2){
     var t2=sites.filter(function(s){return s.bank&&s.account&&(s.priceSub||0)>0;});
     t2.forEach(function(s){
-      var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
+      var es=effectivePrice(s,yr,mo-1,s.priceSub||0);
+      var st=calcSubTax(es,s.subtaxtype||'none');
       lines.push(s.bank+' '+s.account+' '+st.payout.toLocaleString('ko-KR')+'원 ('+s.company+')');
     });
-    var total2=t2.reduce(function(a,s){var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');return a+st.payout;},0);
+    var total2=t2.reduce(function(a,s){var es=effectivePrice(s,yr,mo-1,s.priceSub||0);var st=calcSubTax(es,s.subtaxtype||'none');return a+st.payout;},0);
     lines.push('');
     lines.push('💰 총 이체: '+total2.toLocaleString('ko-KR')+'원');
   } else {
     var t3=sites.filter(function(s){return (s.subtaxtype||'none')==='t33'&&(s.priceSub||0)>0;});
     t3.forEach(function(s,i){
-      var 충=s.priceSub||0;
+      var 충=effectivePrice(s,yr,mo-1,s.priceSub||0);
       var 세=Math.round(충*0.033);
       var 실=충-세;
       lines.push((i+1)+'. '+(s.manager||s.site)+' — 충지급 '+충.toLocaleString('ko-KR')+'원 / 실지급 '+실.toLocaleString('ko-KR')+'원');
       if(s.bizno) lines.push('   📋 '+s.bizno);
     });
-    var total3=t3.reduce(function(a,s){return a+(s.priceSub||0);},0);
+    var total3=t3.reduce(function(a,s){return a+effectivePrice(s,yr,mo-1,s.priceSub||0);},0);
     lines.push('');
     lines.push('💰 총 지급: '+total3.toLocaleString('ko-KR')+'원');
   }
@@ -2304,16 +2307,18 @@ function renderList(){
   if(!filteredSites.length){
     el.innerHTML='<div class="empty"><div class="empty-icon">'+(q?'🔍':'&#127970;')+'</div><div class="empty-text">'+(q?'"'+q+'" 검색 결과가 없어요.':'등록된 업체가 없어요.<br>위 양식에서 추가해보세요.')+'</div></div>';return;
   }
+  const _rlNow=new Date(); const _rlYr=_rlNow.getFullYear(); const _rlMo=_rlNow.getMonth();
   const companies=[...new Set(filteredSites.map(function(s){return s.company;}))].sort();
   el.innerHTML=companies.map(function(co){
     const col=getCompanyColor(co);
     const coSites=filteredSites.filter(function(s){return s.company===co;});
     const inquiryCount=coSites.filter(function(s){return (s.status||'active')==='inquiry';}).length;
-    // 운영중 현장만 금액 합산
+    // 운영중 현장만 금액 합산 (이번달 일할계산 반영)
     const activeSites=coSites.filter(function(s){return (s.status||'active')==='active';});
-    const sumMain=activeSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+    const sumMain=activeSites.reduce(function(a,s){return a+effectivePrice(s,_rlYr,_rlMo,s.priceMain||0);},0);
     const sumSub=activeSites.reduce(function(a,s){
-      return a+calcSubTax(s.priceSub||0,s.subtaxtype||'none').payout;
+      var es=effectivePrice(s,_rlYr,_rlMo,s.priceSub||0);
+      return a+calcSubTax(es,s.subtaxtype||'none').payout;
     },0);
     const sumProfit=sumMain-sumSub;
     const summaryHtml='<div style="display:flex;gap:10px;font-family:DM Mono,monospace;font-size:11px;flex-wrap:wrap;margin-top:2px;">'
@@ -2851,18 +2856,16 @@ function renderDashboard(){
   var activeSites = sites.filter(function(s){return (s.status||'active')==='active';});
   var inquirySites = sites.filter(function(s){return (s.status||'active')==='inquiry';});
 
-  // ── KPI ──
-  var totalMain=0, totalMainNet=0, totalSubPayout=0, totalSubPayoutNet=0, totalSites=activeSites.length;
+  // ── KPI (일할계산 기준 — 정산탭과 동일한 effectivePrice 사용) ──
+  var totalMain=0, totalSubPayout=0, totalSites=activeSites.length;
   var totalMainVat=0, totalSubVat=0, totalSub33=0;
   activeSites.forEach(function(s){
     var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
     var em=effectivePrice(s,curYr,curMo,s.priceMain||0);
-    var mt=calcMainTax(s.priceMain||0);
-    var st=calcSubTax(s.priceSub||0,s.subtaxtype||'none');
-    totalMain+=s.priceMain||0;
-    totalMainNet+=em;
+    var mt=calcMainTax(em);
+    var st=calcSubTax(es,s.subtaxtype||'none');
+    totalMain+=em;
     totalSubPayout+=st.payout;
-    totalSubPayoutNet+=calcSubTax(es,s.subtaxtype||'none').payout;
     totalMainVat+=mt.vat;
     if(s.subtaxtype==='vat') totalSubVat+=st.vat;
     if(s.subtaxtype==='t33') totalSub33+=st.deduct;
@@ -2872,19 +2875,15 @@ function renderDashboard(){
   var curSupplyTotal=supplies.filter(function(sp){
     return sp.date && sp.date.startsWith(curPrefix);
   }).reduce(function(sum,sp){return sum+(parseInt(sp.amount)||0);},0);
-  totalSubPayout    += curSupplyTotal;
-  totalSubPayoutNet += curSupplyTotal;
+  totalSubPayout += curSupplyTotal;
   var totalProfit=totalMain-totalSubPayout;
-  var totalProfitNet=totalMainNet-totalSubPayoutNet;
   var vatPayable=totalMainVat-totalSubVat;
   var netProfit=totalProfit-vatPayable-totalSub33;
   var profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
-  var profitRateNet=totalMainNet?Math.round(totalProfitNet/totalMainNet*100):0;
   var coCount=[...new Set(activeSites.map(function(s){return s.company;}))].length;
-  var hasNetDiff = totalMain !== totalMainNet;
 
   // KPI 팝업에서 참조할 수 있도록 전역 저장
-  window._kpi = {totalMain,totalMainNet,totalSubPayout,totalSubPayoutNet,totalProfit,totalProfitNet,vatPayable,totalMainVat,totalSubVat,totalSub33,netProfit};
+  window._kpi = {totalMain,totalSubPayout,totalProfit,vatPayable,totalMainVat,totalSubVat,totalSub33,netProfit};
 
   // 오늘 미보고
   var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
@@ -2902,9 +2901,9 @@ function renderDashboard(){
   var kpiEl=document.getElementById('db-kpi');
   // KPI 데이터 — 클릭 시 팝업 키 포함
   var kpiItems=[
-    {label:'이번달 원청',val:fmtN(totalMain)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalMainNet)+'원':null,color:'#00e5a0',key:'main'},
-    {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalSubPayoutNet)+'원':null,color:'#7ab8ff',key:'sub'},
-    {label:'이번달 이익',val:fmtN(totalProfit)+'원',sub:hasNetDiff?'실발생 '+fmtN(totalProfitNet)+'원('+profitRateNet+'%)':null,color:'#ffb547',key:'profit'},
+    {label:'이번달 원청',val:fmtN(totalMain)+'원',sub:null,color:'#00e5a0',key:'main'},
+    {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',sub:null,color:'#7ab8ff',key:'sub'},
+    {label:'이번달 이익',val:fmtN(totalProfit)+'원',sub:'이익률 '+profitRate+'%',color:'#ffb547',key:'profit'},
     {label:'Net Profit',val:fmtN(netProfit)+'원',sub:'VAT '+fmtN(vatPayable)+'원 · 3.3% '+fmtN(totalSub33)+'원 차감',color:'#c084fc',key:'net'},
     {label:'운영 현장',val:totalSites+'곳',color:'#00e5a0',key:'sites'},
     {label:'업체 수',val:coCount+'개',color:'#7ab8ff',key:'companies'},
@@ -3020,7 +3019,7 @@ function renderDashboard(){
   });
 
   var annualEst=activeSites.reduce(function(sum,s){
-    return sum + (s.isOneTime ? (s.priceMain||0) : (s.priceMain||0)*12);
+    return sum + (s.isOneTime ? 0 : (s.priceMain||0)*12);
   },0);
   document.getElementById('db-annual').textContent='예상 연매출 '+fmtN(annualEst)+'원';
 
@@ -3093,7 +3092,7 @@ function renderDashboard(){
   // ── 업체별 매출 TOP10 ──
   var coDataBar=[...new Set(activeSites.map(function(s){return s.company;}))].map(function(co){
     var coSites=activeSites.filter(function(s){return s.company===co;});
-    var main=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+    var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
     var subPay=coSites.reduce(function(a,s){
       var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
       return a+calcSubTax(es,s.subtaxtype||'none').payout;
@@ -3159,13 +3158,7 @@ function renderDashboard(){
 
   // ── 거래처 담당자별 매출 비중 ──
   function pieMain(s){
-    // 1회성 청소는 시작월(=서비스월)에만 매출로 반영, 그 외 달은 0
-    if(s.isOneTime){
-      if(!s.startDate) return s.priceMain||0;
-      var sd=new Date(s.startDate+'T00:00:00');
-      return (sd.getFullYear()===curYr && sd.getMonth()===curMo) ? (s.priceMain||0) : 0;
-    }
-    return s.priceMain||0;
+    return effectivePrice(s, curYr, curMo, s.priceMain||0);
   }
   var clientMap={};
   activeSites.forEach(function(s){
@@ -3298,7 +3291,7 @@ function openKpiPopup(key){
     var companies=[...new Set(activeSites.map(function(s){return s.company;}))];
     var rows=companies.map(function(co){
       var coSites=activeSites.filter(function(s){return s.company===co;});
-      var total=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+      var total=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
       return {co:co,total:total,count:coSites.length};
     }).sort(function(a,b){return b.total-a.total;});
     var grand=rows.reduce(function(a,r){return a+r.total;},0);
@@ -3320,7 +3313,8 @@ function openKpiPopup(key){
   else if(key==='sub'){
     title='📋 이번달 하청 — 현장별 실지급';
     var rows2=activeSites.map(function(s){
-      var pay=calcSubTax(s.priceSub||0,s.subtaxtype||'none').payout;
+      var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
+      var pay=calcSubTax(es,s.subtaxtype||'none').payout;
       return{site:s.site,co:s.company,pay:pay,taxtype:s.subtaxtype||'none'};
     }).filter(function(r){return r.pay>0;}).sort(function(a,b){return b.pay-a.pay;});
     var grand2=(window._kpi&&window._kpi.totalSubPayout)||rows2.reduce(function(a,r){return a+r.pay;},0);
@@ -3341,7 +3335,7 @@ function openKpiPopup(key){
     var companies3=[...new Set(activeSites.map(function(s){return s.company;}))];
     var rows3=companies3.map(function(co){
       var coSites=activeSites.filter(function(s){return s.company===co;});
-      var main=coSites.reduce(function(a,s){return a+(s.priceMain||0);},0);
+      var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
       var pay=coSites.reduce(function(a,s){
         var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
         return a+calcSubTax(es,s.subtaxtype||'none').payout;
