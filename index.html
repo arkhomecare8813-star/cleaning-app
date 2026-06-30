@@ -516,6 +516,12 @@ main{padding:18px 14px;max-width:1400px;}
 <main>
   <!-- DASHBOARD -->
   <div class="view active" id="view-dashboard">
+    <!-- 매출 조회월 (KPI/파이차트/TOP10/월간차트에 적용, 오늘 기준 알림·루틴·보고율은 영향 없음) -->
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+      <span style="font-size:11px;color:var(--muted);">📊 매출 조회월</span>
+      <select id="db-year" onchange="onDbPeriodChange()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:5px 9px;color:var(--text);font-size:12px;outline:none;"></select>
+      <select id="db-month" onchange="onDbPeriodChange()" style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:5px 9px;color:var(--text);font-size:12px;outline:none;"></select>
+    </div>
     <!-- 핵심 KPI -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;" id="db-kpi"></div>
     <!-- 미보고 알림 -->
@@ -3019,9 +3025,24 @@ function _sendInvoiceSmsList(targets){
 var dbCoSortAsc = false;
 var dbRepSortAsc = false;
 
+// 대시보드 매출 조회월 드롭다운 초기화 (기본값: 오늘이 속한 달)
+function initDbPeriod(){
+  var yr=document.getElementById('db-year');
+  var mo=document.getElementById('db-month');
+  if(!yr||!mo||yr.options.length>0)return;
+  var y=today.getFullYear();
+  for(var i=y-2;i<=y+1;i++){var o=document.createElement('option');o.value=i;o.textContent=i+'년';if(i===y)o.selected=true;yr.appendChild(o);}
+  for(var m=1;m<=12;m++){var o2=document.createElement('option');o2.value=m;o2.textContent=m+'월';if(m===today.getMonth()+1)o2.selected=true;mo.appendChild(o2);}
+}
+function onDbPeriodChange(){ renderDashboard(); }
+
 function renderDashboard(){
+  initDbPeriod();
   var now = new Date();
-  var curYr = now.getFullYear(), curMo = now.getMonth();
+  var yrEl=document.getElementById('db-year'), moEl=document.getElementById('db-month');
+  // curYr/curMo: 매출 관련(KPI·파이차트·TOP10·월간차트) 계산 기준 — 조회월 드롭다운 값 사용
+  var curYr = yrEl?parseInt(yrEl.value):now.getFullYear();
+  var curMo = moEl?parseInt(moEl.value)-1:now.getMonth();
   var activeSites = sites.filter(function(s){return (s.status||'active')==='active';});
   var inquirySites = sites.filter(function(s){return (s.status||'active')==='inquiry';});
 
@@ -3039,11 +3060,12 @@ function renderDashboard(){
     if(s.subtaxtype==='vat') totalSubVat+=st.vat;
     if(s.subtaxtype==='t33') totalSub33+=st.deduct;
   });
-  // 이번 달 비품 합산
+  // 이번 달 비품 합산 — 정산탭과 동일하게 원청·하청 양쪽에 합산 (원청 청구 → 하청 그대로 지급, 마진 영향 없음)
   var curPrefix=curYr+'-'+String(curMo+1).padStart(2,'0');
   var curSupplyTotal=supplies.filter(function(sp){
     return sp.date && sp.date.startsWith(curPrefix);
   }).reduce(function(sum,sp){return sum+(parseInt(sp.amount)||0);},0);
+  totalMain += curSupplyTotal;
   totalSubPayout += curSupplyTotal;
   var totalProfit=totalMain-totalSubPayout;
   var vatPayable=totalMainVat-totalSubVat;
@@ -3068,11 +3090,13 @@ function renderDashboard(){
   var todayPending=todayWork.length-todayDone;
 
   var kpiEl=document.getElementById('db-kpi');
+  var isThisMonth = (curYr===now.getFullYear() && curMo===now.getMonth());
+  var moLabelPrefix = isThisMonth ? '이번달' : (curMo+1)+'월';
   // KPI 데이터 — 클릭 시 팝업 키 포함
   var kpiItems=[
-    {label:'이번달 원청',val:fmtN(totalMain)+'원',sub:null,color:'#00e5a0',key:'main'},
-    {label:'이번달 하청',val:fmtN(totalSubPayout)+'원',sub:null,color:'#7ab8ff',key:'sub'},
-    {label:'이번달 이익',val:fmtN(totalProfit)+'원',sub:'이익률 '+profitRate+'%',color:'#ffb547',key:'profit'},
+    {label:moLabelPrefix+' 원청',val:fmtN(totalMain)+'원',sub:null,color:'#00e5a0',key:'main'},
+    {label:moLabelPrefix+' 하청',val:fmtN(totalSubPayout)+'원',sub:null,color:'#7ab8ff',key:'sub'},
+    {label:moLabelPrefix+' 이익',val:fmtN(totalProfit)+'원',sub:'이익률 '+profitRate+'%',color:'#ffb547',key:'profit'},
     {label:'Net Profit',val:fmtN(netProfit)+'원',sub:'VAT '+fmtN(vatPayable)+'원 · 3.3% '+fmtN(totalSub33)+'원 차감',color:'#c084fc',key:'net'},
     {label:'운영 현장',val:totalSites+'곳',color:'#00e5a0',key:'sites'},
     {label:'업체 수',val:coCount+'개',color:'#7ab8ff',key:'companies'},
@@ -3443,7 +3467,10 @@ function dbSortReport(){
 
 // ── KPI 팝업 ──
 function openKpiPopup(key){
-  var now=new Date(); var curYr=now.getFullYear(); var curMo=now.getMonth();
+  var now=new Date();
+  var yrEl=document.getElementById('db-year'), moEl=document.getElementById('db-month');
+  var curYr=yrEl?parseInt(yrEl.value):now.getFullYear();
+  var curMo=moEl?parseInt(moEl.value)-1:now.getMonth();
   var activeSites=sites.filter(function(s){return (s.status||'active')==='active';});
   var inquirySites=sites.filter(function(s){return (s.status||'active')==='inquiry';});
   var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
@@ -3456,15 +3483,19 @@ function openKpiPopup(key){
   });
   var todayData=reportPhotoData[todayS]||{};
   var pendingSites=todayWork.filter(function(s){return!(todayData[s.id]&&todayData[s.id].photos>0);});
+  var isThisMonth = (curYr===now.getFullYear() && curMo===now.getMonth());
+  var moLabelPrefix = isThisMonth ? '이번달' : (curMo+1)+'월';
+  var curPrefix = curYr+'-'+String(curMo+1).padStart(2,'0');
 
   var title='', html='';
 
   if(key==='main'){
-    title='📋 이번달 원청 — 업체별';
+    title='📋 '+moLabelPrefix+' 원청 — 업체별';
     var companies=[...new Set(activeSites.map(function(s){return s.company;}))];
     var rows=companies.map(function(co){
       var coSites=activeSites.filter(function(s){return s.company===co;});
-      var total=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+      var coSupply=supplies.filter(function(sp){return sp.co===co&&sp.date&&sp.date.startsWith(curPrefix);}).reduce(function(a,sp){return a+(parseInt(sp.amount)||0);},0);
+      var total=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0)+coSupply;
       return {co:co,total:total,count:coSites.length};
     }).sort(function(a,b){return b.total-a.total;});
     var grand=rows.reduce(function(a,r){return a+r.total;},0);
@@ -3484,14 +3515,15 @@ function openKpiPopup(key){
   }
 
   else if(key==='sub'){
-    title='📋 이번달 하청 — 업체별';
+    title='📋 '+moLabelPrefix+' 하청 — 업체별';
     var companies2=[...new Set(activeSites.map(function(s){return s.company;}))];
     var rows2=companies2.map(function(co){
       var coSites=activeSites.filter(function(s){return s.company===co;});
+      var coSupply=supplies.filter(function(sp){return sp.co===co&&sp.date&&sp.date.startsWith(curPrefix);}).reduce(function(a,sp){return a+(parseInt(sp.amount)||0);},0);
       var total=coSites.reduce(function(a,s){
         var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
         return a+calcSubTax(es,s.subtaxtype||'none').payout;
-      },0);
+      },0)+coSupply;
       return {co:co,total:total,count:coSites.length};
     }).filter(function(r){return r.total>0;}).sort(function(a,b){return b.total-a.total;});
     var grand2=rows2.reduce(function(a,r){return a+r.total;},0);
@@ -3511,15 +3543,16 @@ function openKpiPopup(key){
   }
 
   else if(key==='profit'){
-    title='📋 이번달 이익 — 업체별';
+    title='📋 '+moLabelPrefix+' 이익 — 업체별';
     var companies3=[...new Set(activeSites.map(function(s){return s.company;}))];
     var rows3=companies3.map(function(co){
       var coSites=activeSites.filter(function(s){return s.company===co;});
-      var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0);
+      var coSupply=supplies.filter(function(sp){return sp.co===co&&sp.date&&sp.date.startsWith(curPrefix);}).reduce(function(a,sp){return a+(parseInt(sp.amount)||0);},0);
+      var main=coSites.reduce(function(a,s){return a+effectivePrice(s,curYr,curMo,s.priceMain||0);},0)+coSupply;
       var pay=coSites.reduce(function(a,s){
         var es=effectivePrice(s,curYr,curMo,s.priceSub||0);
         return a+calcSubTax(es,s.subtaxtype||'none').payout;
-      },0);
+      },0)+coSupply;
       return{co:co,main:main,profit:main-pay,rate:main?Math.round((main-pay)/main*100):0};
     }).sort(function(a,b){return b.profit-a.profit;});
     var grandProfit=(window._kpi&&window._kpi.totalProfit)||rows3.reduce(function(a,r){return a+r.profit;},0);
