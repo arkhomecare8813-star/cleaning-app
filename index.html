@@ -923,6 +923,7 @@ main{padding:18px 14px;max-width:1400px;}
         </select>
         <button class="excel-btn" onclick="openExcelPopup(1)" style="min-height:42px;touch-action:manipulation;">&#128202; 총정산</button>
         <button class="excel-btn" onclick="openExcelPopup(2)" style="min-height:42px;touch-action:manipulation;background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 이체용</button>
+        <button class="excel-btn" onclick="openInvoiceSmsModal()" style="min-height:42px;touch-action:manipulation;background:#1a3a2a;border-color:#2d6a4a;color:#00e5a0;">&#128241; 계산서 일괄발송</button>
         <button class="excel-btn" onclick="openExcelPopup(3)" style="min-height:42px;touch-action:manipulation;background:#2a1a3a;border-color:#6a2d9a;color:#c084fc;">&#128202; 3.3%신고</button>
         <button class="excel-btn" onclick="openDetailSheetPopup()" style="min-height:42px;touch-action:manipulation;background:#1a1a2a;border-color:#f59e0b;color:#f59e0b;">&#128203; 세부내역서</button>
       </div>
@@ -2791,12 +2792,13 @@ function renderSettle(){
           return '<label onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:5px;cursor:pointer;background:'+bg+';border:1px solid '+bd+';border-radius:6px;padding:3px 9px;">'
             +'<input type="checkbox" '+chk+' onclick="event.stopPropagation();" onchange="toggleInvoice(\''+invoiceKey+'\',this.checked)" style="accent-color:'+acc+';width:14px;height:14px;cursor:pointer;">'
             +'<span style="font-size:11px;font-weight:700;color:'+col+';">계산서발급</span>'
-            +'</label>';
+            +'</label>'
+            +'<button onclick="event.stopPropagation();sendInvoiceSms(\''+co.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:4px;background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.4);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;color:#00e5a0;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📤 계산서 안내</button>';
         })()
       : '';
     var has33 = coSites.some(function(s){ return (s.subtaxtype||'none')==='t33' && (s.priceSub||0)>0; });
     var badge33 = has33 ? '<span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;background:rgba(122,184,255,0.1);border:1px solid rgba(122,184,255,0.4);font-size:11px;font-weight:700;color:#7ab8ff;">3.3% 대상</span>' : '';
-    return '<div class="settle-company-block" data-taxtype="'+(coSites.some(function(s){return s.subtaxtype==='vat';})?'vat':coSites.some(function(s){return s.subtaxtype==='t33';})?'t33':'none')+'" data-payout="'+(cSubPayout+coSupplyTotal)+'" data-main="'+cMain+'" data-supply="'+cSupply+'" data-vat="'+cVat+'" data-subinput="'+(cSubInput+coSupplyTotal)+'" data-subsupply="'+(cSubSupply+coSupplySupply)+'" data-subadj="'+(cSubAdj+coSupplyVat)+'">'
+    return '<div class="settle-company-block" data-co="'+co.replace(/"/g,'&quot;')+'" data-phone="'+(coSites[0]&&coSites[0].phone?coSites[0].phone.replace(/"/g,'&quot;'):'')+'" data-taxtype="'+(coSites.some(function(s){return s.subtaxtype==='vat';})?'vat':coSites.some(function(s){return s.subtaxtype==='t33';})?'t33':'none')+'" data-payout="'+(cSubPayout+coSupplyTotal)+'" data-main="'+cMain+'" data-supply="'+cSupply+'" data-vat="'+cVat+'" data-subinput="'+(cSubInput+coSupplyTotal)+'" data-subsupply="'+(cSubSupply+coSupplySupply)+'" data-subadj="'+(cSubAdj+coSupplyVat)+'">'
       +'<div class="settle-company-hdr">'
       +'<div class="settle-co-toggle" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;padding:12px 0 12px 16px;" onclick="(function(hdr){var body=hdr.closest(\'.settle-company-block\').querySelector(\'.settle-co-body\');var chev=hdr.querySelector(\'.settle-co-chevron\');var isHidden=body.style.display===\'none\';body.style.display=isHidden?\'\':\'none\';if(chev)chev.style.transform=isHidden?\'\':\'rotate(-90deg)\';})(this)">'
       +'<div class="settle-co-left" style="display:flex;align-items:center;gap:8px;"><div class="company-dot" style="background:'+col.text+'"></div><div class="settle-co-name">'+co+'</div><div style="font-size:11px;color:var(--muted);margin-left:4px">(현장 '+coSites.length+'곳)</div></div>'
@@ -2845,6 +2847,146 @@ function renderSettle(){
   +'<td class="'+(gSubAdj<0?'settle-num deduct':'settle-num sub')+'">'+(gSubAdj>0?'+'+fmtN(gSubAdj):gSubAdj<0?'-'+fmtN(-gSubAdj):'—')+'</td>'
   +'<td class="settle-num sub" style="font-weight:800">'+fmtN(gSubPayout)+'</td>'
   +'</tr></tbody></table></div></div>';
+}
+
+// ── 계산서 발급 안내 SMS ──
+// 정산월 라벨 (예: "6월", "2026년 6월")
+function _settlePeriodLabel(){
+  var yr = document.getElementById('settle-year');
+  var mo = document.getElementById('settle-month');
+  var y = yr?parseInt(yr.value):new Date().getFullYear();
+  var m = mo?parseInt(mo.value):new Date().getMonth()+1;
+  return { year:y, month:m, label:y+'년 '+m+'월' };
+}
+
+function makeInvoiceSmsBody(coName, payoutAmt){
+  var p = _settlePeriodLabel();
+  return p.label+' 정산금액 안내드립니다.\n'
+    +coName+' 귀하\n'
+    +'부가세 포함 금액: '+fmtW(payoutAmt)+'\n'
+    +'위 금액으로 세금계산서 발급 부탁드립니다. 감사합니다.';
+}
+
+// 거래처 1곳 개별 발송
+function sendInvoiceSms(coName){
+  var allBlocks = document.querySelectorAll('.settle-company-block[data-co]');
+  var block = null;
+  for(var i=0;i<allBlocks.length;i++){
+    if(allBlocks[i].getAttribute('data-co')===coName){ block = allBlocks[i]; break; }
+  }
+  if(!block){ showToast('❌ 거래처 정보를 찾을 수 없습니다.'); return; }
+  var phone = block.getAttribute('data-phone');
+  var payout = parseInt(block.getAttribute('data-payout'))||0;
+  if(!phone){ showToast('❌ '+coName+'의 연락처가 없습니다.'); return; }
+  var text = makeInvoiceSmsBody(coName, payout);
+  showToast('📤 '+coName+' 발송 중...');
+  fetch(GAS_URL, {
+    method:'POST',
+    body: JSON.stringify({ type:'sms', to: phone.replace(/[^0-9]/g,''), text: text })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.ok) showToast('✅ '+coName+' 발송 완료!');
+    else showToast('❌ '+coName+': '+(d.error||'발송실패'));
+  })
+  .catch(function(){ showToast('❌ '+coName+' 발송 실패'); });
+}
+
+// VAT 대상 거래처 일괄 발송 모달
+function openInvoiceSmsModal(){
+  var blocks = document.querySelectorAll('.settle-company-block[data-co][data-taxtype="vat"]');
+  var targets = [];
+  blocks.forEach(function(el){
+    var co = el.getAttribute('data-co');
+    var phone = el.getAttribute('data-phone');
+    var payout = parseInt(el.getAttribute('data-payout'))||0;
+    if(!phone || payout<=0) return;
+    targets.push({ co:co, phone:phone, payout:payout });
+  });
+  if(!targets.length){ showToast('VAT 발급 대상 거래처가 없습니다.'); return; }
+
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:800;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
+  wrap.onclick = function(e){ if(e.target===wrap) wrap.remove(); };
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#161616;border:1px solid #2c2c2c;border-radius:16px;padding:20px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;gap:12px;';
+
+  var p = _settlePeriodLabel();
+  var title = document.createElement('div');
+  title.style.cssText = 'font-size:15px;font-weight:900;color:#00e5a0;';
+  title.textContent = '📤 '+p.label+' 계산서 안내 일괄발송';
+  box.appendChild(title);
+
+  var list = document.createElement('div');
+  list.style.cssText = 'overflow-y:auto;display:flex;flex-direction:column;gap:8px;flex:1;';
+
+  var checkboxes = [];
+  targets.forEach(function(t){
+    var row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:9px;border:1px solid #2c2c2c;background:#1e1e1e;cursor:pointer;';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.style.cssText = 'width:16px;height:16px;accent-color:#00e5a0;flex-shrink:0;margin-top:2px;';
+    checkboxes.push({ cb:cb, target:t });
+    var info = document.createElement('div');
+    info.innerHTML = '<div style="font-size:13px;font-weight:800;">'+t.co+'</div>'
+      +'<div style="font-size:11px;color:#777;">'+t.phone+' · '+fmtW(t.payout)+'</div>';
+    row.appendChild(cb); row.appendChild(info);
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+
+  var selRow = document.createElement('div');
+  selRow.style.cssText = 'display:flex;gap:8px;';
+  var selAll = document.createElement('button');
+  selAll.textContent = '전체 선택';
+  selAll.style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  selAll.onclick = function(){ checkboxes.forEach(function(x){ x.cb.checked=true; }); };
+  var deselAll = document.createElement('button');
+  deselAll.textContent = '전체 해제';
+  deselAll.style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  deselAll.onclick = function(){ checkboxes.forEach(function(x){ x.cb.checked=false; }); };
+  selRow.appendChild(selAll); selRow.appendChild(deselAll);
+  box.appendChild(selRow);
+
+  var sendBtn = document.createElement('button');
+  sendBtn.textContent = '✅ 전송시작';
+  sendBtn.style.cssText = 'width:100%;padding:13px;border-radius:10px;border:none;background:#00e5a0;color:#000;font-size:15px;font-weight:900;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  sendBtn.onclick = function(){
+    var selected = checkboxes.filter(function(x){ return x.cb.checked; }).map(function(x){ return x.target; });
+    if(!selected.length){ showToast('선택된 거래처가 없습니다.'); return; }
+    wrap.remove();
+    _sendInvoiceSmsList(selected);
+  };
+  box.appendChild(sendBtn);
+  wrap.appendChild(box);
+  document.body.appendChild(wrap);
+}
+
+function _sendInvoiceSmsList(targets){
+  var total = targets.length;
+  var done = 0, ok = 0;
+  showToast('📤 '+total+'곳 발송 시작...');
+  targets.forEach(function(t){
+    var text = makeInvoiceSmsBody(t.co, t.payout);
+    fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({ type:'sms', to: t.phone.replace(/[^0-9]/g,''), text: text })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      done++;
+      if(d.ok) ok++;
+      else showToast('❌ '+t.co+': '+(d.error||'발송실패'));
+      if(done===total) showToast('✅ '+ok+'/'+total+'곳 발송 완료!');
+    })
+    .catch(function(){
+      done++;
+      if(done===total) showToast('✅ '+ok+'/'+total+'곳 발송 완료!');
+    });
+  });
 }
 
 // ── 대시보드 ──
@@ -6020,11 +6162,8 @@ function doSendEmail(){
     }
 
     btn.textContent='📧 발송 중...';
-    var subject  = '['+appTitle+'] '+data.dateLabel+' 청소 현장 보고';
-    var htmlBody = _buildHtmlEmail(data);
-    var textBody = _buildTextReport(data);
 
-    function buildMime(toAddr){
+    function buildMime(toAddr, subject, htmlBody, textBody){
       var boundary = 'bnd_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
       function u2b(s){ return btoa(unescape(encodeURIComponent(s))); }
       var raw = [
@@ -6050,27 +6189,49 @@ function doSendEmail(){
       return btoa(raw).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
     }
 
-    // 각 수신자에게 순차 발송
-    var sendList = recipients.slice();
+    // 수신자별 발송 데이터 구성
+    // - 거래처 담당자: clientEmail이 일치하는 현장만 강제 필터링 (자기 현장만 받음)
+    // - 추가 수신자(제3자): 모달에서 수동 선택한 전체 현장 결과를 그대로 받음
+    var sendQueue = [];
+    checkedClients.forEach(function(clientEmail){
+      var filteredResults = data.results.filter(function(r){
+        return r.task.site.clientEmail === clientEmail;
+      });
+      if(!filteredResults.length) return; // 해당 담당자 현장의 결과가 없으면 발송 생략
+      sendQueue.push({ toAddr: clientEmail, data: { results: filteredResults, dateLabel: data.dateLabel, cos: data.cos } });
+    });
+    if(extraTo && !checkedClients.includes(extraTo)){
+      sendQueue.push({ toAddr: extraTo, data: data }); // 추가 수신자는 전체 선택 현장 기준
+    }
+
+    if(!sendQueue.length){
+      var errEl=document.getElementById('email-send-error');
+      errEl.textContent='선택한 거래처 담당자의 현장 데이터가 없습니다.'; errEl.style.display='';
+      btn.textContent='📧 이메일 발송'; btn.disabled=false; return;
+    }
+
     var sentCount = 0;
     var failCount = 0;
 
     function sendNext(){
-      if(!sendList.length){
+      if(!sendQueue.length){
         // 완료
         recipients.forEach(function(r){ saveEmailHistory(r); });
         closeEmailModal();
         showToast('✅ '+sentCount+'명 발송 완료!'+(failCount?' ('+failCount+'건 실패)':''));
         return;
       }
-      var toAddr = sendList.shift();
+      var item = sendQueue.shift();
+      var subject  = '['+appTitle+'] '+item.data.dateLabel+' 청소 현장 보고';
+      var htmlBody = _buildHtmlEmail(item.data);
+      var textBody = _buildTextReport(item.data);
       fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
         method:'POST',
         headers:{ Authorization:'Bearer '+googleAccessToken, 'Content-Type':'application/json' },
-        body: JSON.stringify({ raw: buildMime(toAddr) })
+        body: JSON.stringify({ raw: buildMime(item.toAddr, subject, htmlBody, textBody) })
       }).then(function(r){return r.json();}).then(function(d){
         if(d.id) sentCount++;
-        else { failCount++; console.error('발송 실패 ('+toAddr+'):', d.error); }
+        else { failCount++; console.error('발송 실패 ('+item.toAddr+'):', d.error); }
         sendNext();
       }).catch(function(){
         failCount++;
