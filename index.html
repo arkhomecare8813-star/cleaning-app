@@ -1466,6 +1466,37 @@ function exportExcel3(){
     return;
   }
 
+  // 작업자(manager) 단위로 합산 — 같은 이름의 작업자가 여러 현장 담당해도 1행으로 합산
+  // 합산 기준: manager 이름 (같은 이름이면 같은 사람으로 취급, bizno는 첫 번째 현장 값 사용)
+  const managerMap = {}; // key: manager명, value: {bizno, 하청금액합산, 비품합산, companies}
+  t33sites.forEach(function(s){
+    const name = s.manager || '(이름없음)';
+    const 하청금액 = effectivePrice(s, yr, mo-1, s.priceSub||0, s.priceSubHistory);
+    if(!managerMap[name]){
+      managerMap[name] = { bizno: s.bizno||'', 하청금액합산: 0, companies: new Set() };
+    }
+    managerMap[name].하청금액합산 += 하청금액;
+    managerMap[name].companies.add(s.company);
+  });
+
+  // 비품: 거래처 단위로 1번만 합산 (이미 4절에서 정립된 원칙 — 중복 방지)
+  // 그 거래처가 t33인 경우, 해당 작업자(그 거래처의 첫 manager)에게 비품 귀속
+  const coveredCos = new Set();
+  t33sites.forEach(function(s){
+    const co = s.company;
+    if(coveredCos.has(co)) return;
+    coveredCos.add(co);
+    const coSupply = supplies.filter(function(sp){
+      return sp.co===co && sp.date && sp.date.startsWith(prefix);
+    }).reduce(function(sum,sp){return sum+(parseInt(sp.amount)||0);},0);
+    if(!coSupply) return;
+    // 이 거래처의 첫 t33 현장의 manager에게 비품 귀속
+    const repSite = t33sites.find(function(x){return x.company===co;});
+    if(!repSite) return;
+    const name = repSite.manager || '(이름없음)';
+    if(managerMap[name]) managerMap[name].비품합산 = (managerMap[name].비품합산||0) + coSupply;
+  });
+
   const wb = XLSX.utils.book_new();
   const wsData = [];
 
@@ -1474,18 +1505,14 @@ function exportExcel3(){
 
   var total충=0, total소득세=0, total지방=0, total지급=0, total비품=0, total실수령=0;
 
-  t33sites.forEach(function(s, idx){
-    const 하청금액  = effectivePrice(s, yr, mo-1, s.priceSub||0, s.priceSubHistory);
-    // 같은 거래처 안에 t33현장이 이전에도 있었으면 비품은 그 거래처의 첫 t33현장에서 이미 합산됐으므로 중복 방지
-    var isFirstT33OfCo = t33sites.findIndex(function(x){return x.company===s.company;}) === idx;
-    const 비품합계  = isFirstT33OfCo ? supplies.filter(function(sp){
-      return sp.co===s.company && sp.date && sp.date.startsWith(prefix);
-    }).reduce(function(sum,sp){return sum+(parseInt(sp.amount)||0);},0) : 0;
-
+  Object.keys(managerMap).forEach(function(name, idx){
+    const m = managerMap[name];
+    const 하청금액  = m.하청금액합산;
+    const 비품합계  = m.비품합산 || 0;
     const 소득세    = Math.round(하청금액 * 0.03);
     const 지방소득세 = Math.round(하청금액 * 0.003);
-    const 지급액    = 하청금액 - 소득세 - 지방소득세;  // 세후 하청금액
-    const 실수령액  = 지급액 + 비품합계;               // 실제 수령 = 세후하청 + 비품
+    const 지급액    = 하청금액 - 소득세 - 지방소득세;
+    const 실수령액  = 지급액 + 비품합계;
 
     total충     += 하청금액;
     total소득세  += 소득세;
@@ -1496,8 +1523,8 @@ function exportExcel3(){
 
     wsData.push([
       idx+1,
-      s.manager || '',
-      s.bizno   || '',
+      name,
+      m.bizno,
       하청금액,
       소득세,
       지방소득세,
