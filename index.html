@@ -2847,6 +2847,14 @@ function totalCountInMonth(site, year, month){
   return site.days.reduce(function(sum,dow){return sum+getDayCountInMonth(year,month,dow);},0);
 }
 
+// 조회월 기준 "실제 운영중" 판정 — status가 active여도 서비스 종료일이
+// 조회월 시작 이전이면 이미 끝난 현장이므로 제외 (대시보드 KPI 등 카운트용)
+function isOperatingInMonth(site, year, month){
+  if((site.status||'active')!=='active') return false;
+  if(site.endDate && new Date(site.endDate) < new Date(year, month, 1)) return false;
+  return true;
+}
+
 // 단가이력 배열에서 특정 날짜에 유효한 금액을 찾음 (from <= dateStr 중 가장 최근). 이력 없으면 fallbackPrice
 function getPriceAtDate(history, fallbackPrice, dateStr){
   if(!history || !history.length) return fallbackPrice;
@@ -3305,11 +3313,15 @@ function renderDashboard(){
   // curYr/curMo: 매출 관련(KPI·파이차트·TOP10·월간차트) 계산 기준 — 조회월 드롭다운 값 사용
   var curYr = yrEl?parseInt(yrEl.value):now.getFullYear();
   var curMo = moEl?parseInt(moEl.value)-1:now.getMonth();
+  // activeSites: 매출 계산(다개월 차트 포함)용 — status만 기준. effectivePrice가
+  // 각 site의 startDate/endDate를 월별로 알아서 반영하므로 여기서 endDate로 미리 걸러내면 안 됨.
   var activeSites = sites.filter(function(s){return (s.status||'active')==='active';});
+  // curMonthSites: "운영 현장" 카운트 전용 — 조회월 기준으로 이미 종료된 현장 제외
+  var curMonthSites = sites.filter(function(s){return isOperatingInMonth(s,curYr,curMo);});
   var inquirySites = sites.filter(function(s){return (s.status||'active')==='inquiry';});
 
   // ── KPI (일할계산 기준 — 정산탭과 동일한 effectivePrice 사용) ──
-  var totalMain=0, totalSubPayout=0, totalSites=activeSites.length;
+  var totalMain=0, totalSubPayout=0, totalSites=curMonthSites.length;
   var totalMainVat=0, totalSubVat=0, totalSub33=0;
   activeSites.forEach(function(s){
     var es=effectivePrice(s,curYr,curMo, s.priceSub||0, s.priceSubHistory);
@@ -3333,7 +3345,7 @@ function renderDashboard(){
   var vatPayable=totalMainVat-totalSubVat;
   var netProfit=totalProfit-vatPayable-totalSub33;
   var profitRate=totalMain?Math.round(totalProfit/totalMain*100):0;
-  var coCount=[...new Set(activeSites.map(function(s){return s.company;}))].length;
+  var coCount=[...new Set(curMonthSites.map(function(s){return s.company;}))].length;
 
   // KPI 팝업에서 참조할 수 있도록 전역 저장
   window._kpi = {totalMain,totalSubPayout,totalProfit,vatPayable,totalMainVat,totalSubVat,totalSub33,netProfit};
@@ -3734,6 +3746,7 @@ function openKpiPopup(key){
   var curYr=yrEl?parseInt(yrEl.value):now.getFullYear();
   var curMo=moEl?parseInt(moEl.value)-1:now.getMonth();
   var activeSites=sites.filter(function(s){return (s.status||'active')==='active';});
+  var curMonthSites=sites.filter(function(s){return isOperatingInMonth(s,curYr,curMo);});
   var inquirySites=sites.filter(function(s){return (s.status||'active')==='inquiry';});
   var todayS=todayStr(); var todayDow=getDayOfWeek(todayS);
   var todayWork=activeSites.filter(function(s){
@@ -3883,10 +3896,10 @@ function openKpiPopup(key){
 
   else if(key==='sites'){
     title='📋 운영중 현장 전체';
-    var companies5=[...new Set(activeSites.map(function(s){return s.company;}))].sort();
+    var companies5=[...new Set(curMonthSites.map(function(s){return s.company;}))].sort();
     html=companies5.map(function(co){
       var col=getCompanyColor(co);
-      var coSites=activeSites.filter(function(s){return s.company===co;});
+      var coSites=curMonthSites.filter(function(s){return s.company===co;});
       return '<div style="margin-bottom:14px;">'
         +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">'
         +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+'"></div>'
@@ -3909,11 +3922,11 @@ function openKpiPopup(key){
     html=companies6.map(function(co){
       var col=getCompanyColor(co);
       var all=sites.filter(function(s){return s.company===co;});
-      var act=all.filter(function(s){return (s.status||'active')==='active';});
-      var inq=all.filter(function(s){return (s.status||'active')==='inquiry';});
       var ter=all.filter(function(s){
         return s.endDate&&new Date(s.endDate)<new Date(todayStr());
       });
+      var act=all.filter(function(s){return (s.status||'active')==='active'&&!ter.includes(s);});
+      var inq=all.filter(function(s){return (s.status||'active')==='inquiry';});
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);">'
         +'<div style="display:flex;align-items:center;gap:8px;">'
         +'<div style="width:9px;height:9px;border-radius:50%;background:'+col.text+'"></div>'
