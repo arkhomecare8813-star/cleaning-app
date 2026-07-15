@@ -100,10 +100,14 @@ function suppliesToObj(arr){
   return obj;
 }
 function saveToFirebase(){
+  // ⚠️ supplies, settleSnap은 여기서 절대 같이 보내지 말 것.
+  // 이 둘은 /data/supplies/{id}, /data/settleSnap/{key} 개별 key로 별도 저장됨.
+  // 여기서 통째로 같이 보내면, 다른 기기(핸드폰)나 업체(receipt.html)가 방금 추가한
+  // 항목이 이 기기의 옛날 메모리 스냅샷으로 덮어써져서 사라지는 버그가 발생함 (2026-07-15 확인).
   fetch(FB_URL+'/data.json',{
     method:'PATCH',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,supplies:suppliesToObj(supplies),settleSnap:settleSnapshots,smsTemplate:SMS_TEMPLATE})
+    body:JSON.stringify({sites:sites,title:appTitle,photos:reportPhotoData,smsTemplate:SMS_TEMPLATE})
   }).catch(function(){});
 }
 function toggleInvoice(key, checked){
@@ -5284,7 +5288,9 @@ function sendSmsUnreported(siteId, dateStr){
   reportPhotoData[dateStr][siteId].smsSent=true;
   var now=new Date();
   reportPhotoData[dateStr][siteId].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-  saveReportData();renderReport();
+  localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData));
+  fetch(FB_URL+'/data/photos/'+dateStr+'/'+siteId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({smsSent:true,smsTime:reportPhotoData[dateStr][siteId].smsTime})}).catch(function(){});
+  renderReport();
   showToast('📱 [미취합] 문자앱이 열립니다.');
 }
 
@@ -5431,14 +5437,16 @@ function sendSolapiList(targets){
         reportPhotoData[dateStr][s.id].smsSent = true;
         var now = new Date();
         reportPhotoData[dateStr][s.id].smsTime = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+        localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData));
+        fetch(FB_URL+'/data/photos/'+dateStr+'/'+s.id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({smsSent:true,smsTime:reportPhotoData[dateStr][s.id].smsTime})}).catch(function(){});
       } else {
         showToast('❌ '+s.site+': '+(d.error||'발송실패'));
       }
-      if(done===total){ saveReportData(); renderReport(); showToast('✅ '+total+'곳 발송 완료!'); }
+      if(done===total){ renderReport(); showToast('✅ '+total+'곳 발송 완료!'); }
     })
     .catch(function(){
       done++;
-      if(done===total){ saveReportData(); renderReport(); showToast('⚠️ 일부 발송 실패'); }
+      if(done===total){ renderReport(); showToast('⚠️ 일부 발송 실패'); }
     });
   });
 }
@@ -5453,7 +5461,9 @@ function sendSmsOne(siteId, dateStr){
   reportPhotoData[dateStr][siteId].smsSent=true;
   var now=new Date();
   reportPhotoData[dateStr][siteId].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-  saveReportData();renderReport();
+  localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData));
+  fetch(FB_URL+'/data/photos/'+dateStr+'/'+siteId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({smsSent:true,smsTime:reportPhotoData[dateStr][siteId].smsTime})}).catch(function(){});
+  renderReport();
   showToast('📱 문자앱이 열립니다.');
 }
 function copyUploadLink(siteId, dateStr){
@@ -5777,8 +5787,10 @@ function sendSmsAllPending(dateStr){
     reportPhotoData[dateStr][s.id].smsSent=true;
     var now=new Date();
     reportPhotoData[dateStr][s.id].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    fetch(FB_URL+'/data/photos/'+dateStr+'/'+s.id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({smsSent:true,smsTime:reportPhotoData[dateStr][s.id].smsTime})}).catch(function(){});
   });
-  saveReportData();renderReport();
+  localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData));
+  renderReport();
   showToast('📱 '+pending.length+'곳 재발송!');
 }
 function sendSmsAll(coName, dateStr){
@@ -5799,8 +5811,10 @@ function sendSmsAll(coName, dateStr){
     reportPhotoData[dateStr][s.id].smsSent=true;
     var now=new Date();
     reportPhotoData[dateStr][s.id].smsTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    fetch(FB_URL+'/data/photos/'+dateStr+'/'+s.id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({smsSent:true,smsTime:reportPhotoData[dateStr][s.id].smsTime})}).catch(function(){});
   });
-  saveReportData();renderReport();
+  localStorage.setItem('cm-photos', JSON.stringify(reportPhotoData));
+  renderReport();
   showToast('📱 '+coSites.length+'곳 문자앱이 열립니다.');
 }
 function sendReportEmail(){
@@ -7289,7 +7303,13 @@ function editSupply(id){
     if(!item||!amount){showToast('항목과 금액을 입력해주세요.');return;}
     var dateChangedMonth = date && s.date && date.slice(0,7)!==s.date.slice(0,7);
     s.item=item;s.amount=amount;if(date)s.date=date;
-    saveSupplies();w.remove();renderSupply();
+    localStorage.setItem('cm-supplies', JSON.stringify(supplies));
+    // 개별 key PATCH로 Firebase 반영 (전체 배열 덮어쓰기 금지 — 다른 기기 항목 유실 방지)
+    fetch(FB_URL+'/data/supplies/'+s.id+'.json',{
+      method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({item:s.item,amount:s.amount,date:s.date})
+    }).catch(function(){});
+    w.remove();renderSupply();
     showToast(dateChangedMonth ? '수정됐어요! (다른 달로 이동됨)' : '수정됐어요!');
   };
   btnRow.appendChild(cancelBtn);btnRow.appendChild(saveBtn);box.appendChild(btnRow);
@@ -7299,7 +7319,10 @@ function editSupply(id){
 function deleteSupply(id){
   showConfirm('비품 삭제','이 항목을 삭제할까요?',function(){
     supplies=supplies.filter(function(s){return s.id!==id;});
-    saveSupplies();renderSupply();
+    localStorage.setItem('cm-supplies', JSON.stringify(supplies));
+    // 개별 key DELETE로 Firebase 반영 (전체 배열 덮어쓰기 금지 — 다른 기기 항목 유실 방지)
+    fetch(FB_URL+'/data/supplies/'+id+'.json', {method:'DELETE'}).catch(function(){});
+    renderSupply();
   });
 }
 
@@ -7671,7 +7694,13 @@ function doSaveSnapshot(key){
     supplies: JSON.parse(JSON.stringify(supplies))
   };
   settleSnapshots[key] = snapshot;
-  saveSettleSnapshots();
+  localStorage.setItem('cm-settle-snap', JSON.stringify(settleSnapshots));
+  // ⚠️ settleSnap도 전체 덮어쓰기 대신 해당 key만 개별 PUT (다른 기기 스냅샷 유실 방지, 2026-07-15)
+  fetch(FB_URL+'/data/settleSnap/'+encodeURIComponent(key)+'.json',{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(snapshot)
+  }).catch(function(){});
   updateSnapshotSel();
   showToast('💾 '+key+' 정산이 저장됐어요!');
 }
