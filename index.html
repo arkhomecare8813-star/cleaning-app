@@ -289,7 +289,8 @@ function renderMapCompanyFilters(){
   companies.forEach(function(co){
     var col = getCompanyColor(co);
     var active = _siteMapCompanyFilter === co;
-    html += '<button onclick="setMapCompanyFilter('+JSON.stringify(co)+')" style="padding:5px 12px;border-radius:20px;border:1px solid '
+    var coEsc = String(co).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html += "<button onclick='setMapCompanyFilter(\""+coEsc+"\")' style=\"padding:5px 12px;border-radius:20px;border:1px solid "
       +(active ? col.text : 'var(--bd)')+';background:'+(active?'rgba(0,0,0,0.2)':'var(--sf2)')+';color:'+(active?col.text:'var(--muted)')+';font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:\'Noto Sans KR\',sans-serif;">'
       +'<span style="width:8px;height:8px;border-radius:50%;background:'+col.text+';display:inline-block;"></span>'+co+'</button>';
   });
