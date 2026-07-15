@@ -35,6 +35,7 @@ var _siteMapInstance = null;
 var _siteMapMarkers = [];
 var _siteMapInfoWindow = null;
 var _siteMapSdkLoaded = false;
+var _siteMapCompanyFilter = null; // null = 전체보기, 문자열 = 해당 거래처만
 var rentBuildings = JSON.parse(localStorage.getItem('cm-rent-buildings')||'[]');
 var routines = JSON.parse(localStorage.getItem('cm-routines')||'[]');
 var rentTenants   = JSON.parse(localStorage.getItem('cm-rent-tenants')||'[]');
@@ -226,6 +227,13 @@ function renderSiteMap(){
     });
     var allMapSites = mapSites.concat(inquirySites);
 
+    // 업체별 필터 적용
+    if(_siteMapCompanyFilter){
+      allMapSites = allMapSites.filter(function(s){ return s.company === _siteMapCompanyFilter; });
+    }
+
+    renderMapCompanyFilters();
+
     var noCoordCount = sites.filter(function(s){ return (s.status||'active')!=='inquiry' && s.addr && (!s.lat||!s.lng); }).length;
     if(statusEl){
       statusEl.textContent = allMapSites.length+'곳 표시 중'+(noCoordCount?' · 좌표 없는 현장 '+noCoordCount+'곳 (좌표 갱신 눌러주세요)':'');
@@ -255,6 +263,7 @@ function renderSiteMap(){
         xAnchor: 0.5
       });
       overlay.setMap(_siteMapInstance);
+      overlay._siteId = s.id; // 검색 시 마커 찾기용
       _siteMapMarkers.push(overlay);
       content.addEventListener('click', function(){
         showSiteMapDetail(s, pos);
@@ -265,26 +274,104 @@ function renderSiteMap(){
   });
 }
 
+// 업체별 필터 배지 렌더
+function renderMapCompanyFilters(){
+  var wrap = document.getElementById('map-company-filters');
+  if(!wrap) return;
+  var companies = [...new Set(sites.filter(function(s){
+    return (s.status||'active')!=='inquiry' && s.lat && s.lng;
+  }).map(function(s){ return s.company; }))].sort();
+
+  var html = '<button onclick="setMapCompanyFilter(null)" style="padding:5px 12px;border-radius:20px;border:1px solid '
+    +(!_siteMapCompanyFilter?'var(--accent);background:rgba(0,229,160,0.12);color:var(--accent);':'var(--bd);background:var(--sf2);color:var(--muted);')
+    +'font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">전체보기</button>';
+
+  companies.forEach(function(co){
+    var col = getCompanyColor(co);
+    var active = _siteMapCompanyFilter === co;
+    html += '<button onclick="setMapCompanyFilter('+JSON.stringify(co)+')" style="padding:5px 12px;border-radius:20px;border:1px solid '
+      +(active ? col.text : 'var(--bd)')+';background:'+(active?'rgba(0,0,0,0.2)':'var(--sf2)')+';color:'+(active?col.text:'var(--muted)')+';font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:\'Noto Sans KR\',sans-serif;">'
+      +'<span style="width:8px;height:8px;border-radius:50%;background:'+col.text+';display:inline-block;"></span>'+co+'</button>';
+  });
+  wrap.innerHTML = html;
+}
+
+function setMapCompanyFilter(co){
+  _siteMapCompanyFilter = co;
+  renderSiteMap();
+}
+
+// 현장 검색 → 지도 이동 + 마커 강조
+function searchMapSite(){
+  var q = (document.getElementById('map-search').value||'').trim();
+  var resultsEl = document.getElementById('map-search-results');
+  if(!q){ resultsEl.style.display='none'; return; }
+  var matched = sites.filter(function(s){
+    return s.lat && s.lng && (
+      (s.company||'').indexOf(q) > -1 ||
+      (s.site||'').indexOf(q) > -1 ||
+      (s.addr||'').indexOf(q) > -1
+    );
+  }).slice(0, 8);
+
+  if(!matched.length){
+    resultsEl.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--muted);">검색 결과가 없어요</div>';
+    resultsEl.style.display = 'block';
+    return;
+  }
+  resultsEl.innerHTML = matched.map(function(s){
+    var col = getCompanyColor(s.company);
+    return '<div onclick="goToMapSite('+s.id+')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;" onmouseover="this.style.background=\'var(--sf2)\'" onmouseout="this.style.background=\'transparent\'">'
+      +'<span style="width:8px;height:8px;border-radius:50%;background:'+col.text+';flex-shrink:0;"></span>'
+      +'<div style="min-width:0;"><div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(s.site||'')+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(s.company||'')+' · '+(s.addr||'')+'</div></div>'
+      +'</div>';
+  }).join('');
+  resultsEl.style.display = 'block';
+}
+
+function goToMapSite(id){
+  var s = sites.find(function(s){ return s.id === id; });
+  if(!s || !s.lat || !s.lng) return;
+  document.getElementById('map-search-results').style.display = 'none';
+  document.getElementById('map-search').value = s.site||'';
+  // 필터가 이 현장을 가리고 있으면 전체보기로 전환
+  if(_siteMapCompanyFilter && _siteMapCompanyFilter !== s.company){
+    _siteMapCompanyFilter = null;
+    renderSiteMap();
+  }
+  loadKakaoMapSdk(function(){
+    var pos = new kakao.maps.LatLng(s.lat, s.lng);
+    _siteMapInstance.setLevel(4);
+    _siteMapInstance.setCenter(pos);
+    showSiteMapDetail(s, pos);
+  });
+}
+
 function showSiteMapDetail(s, pos){
   var col = getCompanyColor(s.company);
   var isInquiry = (s.status||'active')==='inquiry';
   var priceRow = !isInquiry ? '<div style="font-size:12px;color:var(--muted);margin-top:2px;">원청 단가: '+(s.priceMain||0).toLocaleString()+'원</div>' : '';
-  var html = '<div style="padding:12px 14px;min-width:200px;max-width:260px;font-family:\'Noto Sans KR\',sans-serif;background:var(--sf,#1a1a1a);border-radius:10px;">'
-    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+  var html = '<div style="padding:12px 14px;min-width:200px;max-width:260px;font-family:\'Noto Sans KR\',sans-serif;background:var(--sf,#1a1a1a);border-radius:10px;position:relative;">'
+    +'<button onclick="closeSiteMapDetail()" style="position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;border:none;background:var(--sf2,#222);color:var(--muted,#888);font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">&#10005;</button>'
+    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding-right:20px;">'
     +'<div style="width:9px;height:9px;border-radius:50%;background:'+(col.text||'#00e5a0')+';flex-shrink:0;"></div>'
     +'<div style="font-size:11px;color:var(--muted,#888);">'+(s.company||'')+'</div>'
     +'</div>'
-    +'<div style="font-size:14px;font-weight:800;color:var(--text,#fff);margin-bottom:4px;">'+(s.site||'')+(isInquiry?' <span style="font-size:11px;color:#ffcc66;">🟡문의중</span>':'')+'</div>'
+    +'<div style="font-size:14px;font-weight:800;color:var(--text,#fff);margin-bottom:4px;padding-right:20px;">'+(s.site||'')+(isInquiry?' <span style="font-size:11px;color:#ffcc66;">🟡문의중</span>':'')+'</div>'
     +(s.addr?'<div style="font-size:12px;color:var(--muted,#888);">📍 '+s.addr+'</div>':'')
     +(s.manager?'<div style="font-size:12px;color:var(--muted,#888);margin-top:2px;">담당: '+s.manager+(s.phone?' · '+s.phone:'')+'</div>':'')
     +priceRow
     +'<div style="margin-top:8px;display:flex;gap:6px;">'
-    +'<button onclick="switchTab(\'list\');setTimeout(function(){openEdit('+s.id+');},100);" style="flex:1;padding:6px;border-radius:7px;border:1px solid var(--bd,#333);background:var(--sf2,#222);color:var(--text,#fff);font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">상세보기</button>'
+    +'<button onclick="openEdit('+s.id+');" style="flex:1;padding:6px;border-radius:7px;border:1px solid var(--bd,#333);background:var(--sf2,#222);color:var(--text,#fff);font-size:11px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">상세보기</button>'
     +'</div>'
     +'</div>';
   _siteMapInfoWindow.setContent(html);
   _siteMapInfoWindow.setPosition(pos);
   _siteMapInfoWindow.open(_siteMapInstance);
+}
+function closeSiteMapDetail(){
+  if(_siteMapInfoWindow) _siteMapInfoWindow.close();
 }
 function toggleInvoice(key, checked){
   settleInvoice[key] = checked;
@@ -1151,6 +1238,12 @@ main{padding:18px 14px;max-width:1400px;}
       <div>&#128993; 문의중 = 테두리만 있는 마커</div>
       <div>마커 색상 = 거래처별 구분 (업체/현장 탭과 동일)</div>
     </div>
+    <div style="position:relative;margin-bottom:10px;max-width:360px;">
+      <input type="text" id="map-search" placeholder="🔍 업체명 / 현장명 / 주소 검색 후 Enter" oninput="searchMapSite()" onkeydown="if(event.key==='Enter')searchMapSite()"
+        style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:9px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;box-sizing:border-box;">
+      <div id="map-search-results" style="position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--sf,#1a1a1a);border:1px solid var(--bd);border-radius:9px;z-index:50;overflow:hidden;display:none;max-height:260px;overflow-y:auto;"></div>
+    </div>
+    <div id="map-company-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
     <div id="site-map" style="width:100%;height:70vh;min-height:420px;border-radius:12px;border:1px solid var(--bd);overflow:hidden;background:var(--sf2);"></div>
   </div>
 </main>
@@ -5403,7 +5496,20 @@ function switchTab(name){
   document.getElementById('view-'+name).classList.add('active');
   if(name==='dashboard')renderDashboard();
   if(name==='contacts'){initContactsSido();renderContacts();}
-  if(name==='map'){renderSiteMap();}
+  if(name==='map'){
+    renderSiteMap();
+    if(!window._mapSearchOutsideClickBound){
+      window._mapSearchOutsideClickBound = true;
+      document.addEventListener('click', function(e){
+        var resultsEl = document.getElementById('map-search-results');
+        var searchEl = document.getElementById('map-search');
+        if(!resultsEl || !searchEl) return;
+        if(e.target !== searchEl && !resultsEl.contains(e.target)){
+          resultsEl.style.display = 'none';
+        }
+      });
+    }
+  }
   if(name==='settle'){
     _settleAllOpen = false;
     renderSettle();
