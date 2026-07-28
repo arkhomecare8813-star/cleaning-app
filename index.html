@@ -1898,7 +1898,16 @@ function exportDetailSheet(yr, mo, btn){
 
   // 선택된 담당자에 속한 현장
   var selSites=sites.filter(function(s){
-    return checked.indexOf((s.clientMgr||'').trim())>-1 && (s.status||'active')!=='inquiry';
+    if(checked.indexOf((s.clientMgr||'').trim())===-1) return false;
+    if((s.status||'active')==='inquiry') return false;
+    // 정기 현장: 종료일이 선택월 이전이면 이미 끝난 현장이므로 제외
+    if(!s.isOneTime && s.endDate && new Date(s.endDate+'T00:00:00') < new Date(yr, mo-1, 1)) return false;
+    // 1회성 현장: 서비스월(startDate)이 선택된 연/월과 정확히 일치할 때만 포함
+    if(s.isOneTime && s.startDate){
+      var sd=new Date(s.startDate+'T00:00:00');
+      if(sd.getFullYear()!==yr || sd.getMonth()!==mo-1) return false;
+    }
+    return true;
   });
 
   if(typeof XLSX==='undefined'){alert('XLSX 라이브러리 없음');return;}
