@@ -1202,7 +1202,7 @@ main{padding:18px 14px;max-width:1400px;}
           <option value="">📂 저장된 정산 보기</option>
         </select>
         <button class="excel-btn" onclick="openExcelPopup(1)" style="min-height:42px;touch-action:manipulation;">&#128202; 총정산</button>
-        <button class="excel-btn" onclick="openExcelPopup(2)" style="min-height:42px;touch-action:manipulation;background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 이체용</button>
+        <button class="excel-btn" onclick="openExcelPopup(2)" style="min-height:42px;touch-action:manipulation;background:#1a2a3a;border-color:#2d4a6a;color:#7ab8ff;">&#128202; 이체(익월)</button>
         <button class="excel-btn" onclick="openInvoiceSmsModal()" style="min-height:42px;touch-action:manipulation;background:#1a3a2a;border-color:#2d6a4a;color:#00e5a0;">&#128241; 계산서 일괄발송</button>
         <button class="excel-btn" onclick="openExcelPopup(3)" style="min-height:42px;touch-action:manipulation;background:#2a1a3a;border-color:#6a2d9a;color:#c084fc;">&#128202; 3.3%신고</button>
         <button class="excel-btn" onclick="openDetailSheetPopup()" style="min-height:42px;touch-action:manipulation;background:#1a1a2a;border-color:#f59e0b;color:#f59e0b;">&#128203; 세부내역서</button>
@@ -1681,46 +1681,74 @@ function exportExcel2(){
   if(!sites.length){alert('등록된 현장이 없습니다.');return;}
   if(typeof XLSX==='undefined'){alert('엑셀 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
   initSettlePeriod();
-  const yrEl=document.getElementById('settle-year');
-  const moEl=document.getElementById('settle-month');
-  const yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
-  const mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+  // 익월 정산지급 방식: 정산탭에서 몇 월이 선택돼 있든 상관없이,
+  // 이체(익월)는 항상 '오늘 기준 지난달' 작업분을 계산한다.
+  const _now=new Date();
+  const _prevDate=new Date(_now.getFullYear(), _now.getMonth()-1, 1);
+  const yr=_prevDate.getFullYear();
+  const mo=_prevDate.getMonth()+1;
   const moStr=String(mo).padStart(2,'0');
   const prefix=yr+'-'+moStr; // '2026-06'
 
   const wb=XLSX.utils.book_new();
-  const wsData=[];
-
-  // 헤더: 은행명 / 계좌번호 / 금액 / 업체명
-  wsData.push(['은행명','계좌번호','금액','업체명','비고']);
-
   const companies=[...new Set(sites.map(s=>s.company))].sort();
-  companies.forEach((co)=>{
-    const coSites=sites.filter(s=>s.company===co&&s.bank&&s.account&&s.priceSub);
-    // 거래처 전체 비품(이 거래처의 모든 현장 기준)을 한 번만 합산해, 대표 입금 현장(첫 번째 계좌보유 현장)에만 더함
-    // — 비품의 siteId가 계좌 없는/하청금액 0인 현장으로 등록돼 있어도 누락되지 않도록 거래처 단위로 모음
-    const coSupplyTotal=supplies.filter(sp=>sp.co===co&&sp.date&&sp.date.startsWith(prefix)).reduce((sum,sp)=>sum+(parseInt(sp.amount)||0),0);
-    coSites.forEach((s, idx)=>{
-      // 정산탭과 동일하게 effectivePrice 적용 (시작일/종료일 반영)
-      const effectiveSub = effectivePrice(s, yr, mo-1, s.priceSub||0, s.priceSubHistory);
-      const st=calcSubTax(effectiveSub, s.subtaxtype||'none');
-      const supplyForThisRow = idx===0 ? coSupplyTotal : 0; // 거래처당 비품은 첫 행에만 합산(중복 방지)
-      const total=st.payout + supplyForThisRow;
-      wsData.push([
-        s.bank||'',
-        s.account||'',
-        total,
-        co,
-        supplyForThisRow>0?'(하청'+st.payout.toLocaleString()+'원 + 비품'+supplyForThisRow.toLocaleString()+'원)':''
-      ]);
+  const sheetDefs=[{type:'vat',label:'VAT'},{type:'t33',label:'3.3%'},{type:'none',label:'없음'}];
+
+  sheetDefs.forEach(function(def){
+    const wsData=[];
+    // 헤더: 은행명 / 계좌번호 / 금액 / 업체명
+    wsData.push(['은행명','계좌번호','금액','업체명','비고']);
+    let grandTotal=0;
+
+    companies.forEach((co)=>{
+      const allCoSites=sites.filter(s=>s.company===co&&s.bank&&s.account&&s.priceSub);
+      if(!allCoSites.length) return;
+      // 거래처 전체 비품(이 거래처의 모든 현장 기준)을 한 번만 합산해, '그 거래처의 첫 현장'이 속한 세금유형 시트에만 더함(중복 방지)
+      const coSupplyTotal=supplies.filter(sp=>sp.co===co&&sp.date&&sp.date.startsWith(prefix)).reduce((sum,sp)=>sum+(parseInt(sp.amount)||0),0);
+      const firstType = allCoSites[0].subtaxtype||'none';
+
+      const coSites=allCoSites.filter(s=>(s.subtaxtype||'none')===def.type);
+      if(!coSites.length) return;
+
+      // 같은 업체라도 계좌(은행+계좌번호)가 다르면 따로, 같은 계좌면 여러 현장 금액을 한 행으로 합산
+      const acctMap={}; const acctOrder=[];
+      coSites.forEach((s)=>{
+        const key=(s.bank||'')+'|'+(s.account||'');
+        // 정산탭과 동일하게 effectivePrice 적용 (시작일/종료일 반영)
+        const effectiveSub = effectivePrice(s, yr, mo-1, s.priceSub||0, s.priceSubHistory);
+        const st=calcSubTax(effectiveSub, s.subtaxtype||'none');
+        if(!acctMap[key]){
+          acctMap[key]={bank:s.bank||'', account:s.account||'', payoutSum:0};
+          acctOrder.push(key);
+        }
+        acctMap[key].payoutSum += st.payout;
+      });
+
+      acctOrder.forEach((key, idx)=>{
+        const a=acctMap[key];
+        const supplyForThisRow = (idx===0 && firstType===def.type) ? coSupplyTotal : 0; // 거래처당 비품은 첫 계좌 행에만 합산(중복 방지)
+        const total=a.payoutSum + supplyForThisRow;
+        grandTotal+=total;
+        wsData.push([
+          a.bank,
+          a.account,
+          total,
+          co,
+          supplyForThisRow>0?'(하청'+a.payoutSum.toLocaleString()+'원 + 비품'+supplyForThisRow.toLocaleString()+'원)':''
+        ]);
+      });
     });
+
+    if(wsData.length>1){ // 헤더 외 내용이 있을 때만 시트 생성
+      wsData.push(['합계','',grandTotal,'','']);
+      const ws=XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols']=[{wch:12},{wch:20},{wch:14},{wch:16},{wch:30}];
+      ws['!rows']=wsData.map((_,i)=>({hpt:i===0?22:18}));
+      XLSX.utils.book_append_sheet(wb,ws,def.label);
+    }
   });
 
-  const ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:12},{wch:20},{wch:14},{wch:16},{wch:30}];
-  ws['!rows']=wsData.map((_,i)=>({hpt:i===0?22:18}));
-
-  XLSX.utils.book_append_sheet(wb,ws,'이체목록');
+  if(!wb.SheetNames.length){alert('이체 대상 현장이 없습니다.');return;}
   var filename = '이체목록_'+yr+'년'+mo+'월.xlsx';
   XLSX.writeFile(wb, filename);
 }
@@ -2039,7 +2067,7 @@ function dateToSerial(dateStr){
 }
 
 function openExcelPopup(num){
-  var labels = ['','총정산','이체용','3.3%신고'];
+  var labels = ['','총정산','이체(익월)','3.3%신고'];
   var cols   = ['','#4ade80','#7ab8ff','#c084fc'];
   var label  = labels[num];
   var col    = cols[num];
@@ -2126,9 +2154,17 @@ function _shareExcelKakao(num){
   initSettlePeriod();
   var yrEl=document.getElementById('settle-year');
   var moEl=document.getElementById('settle-month');
-  var yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
-  var mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
-  var labels=['','총정산','이체용','3.3%신고'];
+  var yr, mo;
+  if(num===2){
+    // 익월 정산지급 방식: 정산탭 드롭다운과 무관하게 항상 '오늘 기준 지난달' 기준
+    var _now=new Date();
+    var _prevDate=new Date(_now.getFullYear(), _now.getMonth()-1, 1);
+    yr=_prevDate.getFullYear(); mo=_prevDate.getMonth()+1;
+  } else {
+    yr=yrEl?parseInt(yrEl.value):new Date().getFullYear();
+    mo=moEl?parseInt(moEl.value):new Date().getMonth()+1;
+  }
+  var labels=['','총정산','이체(익월)','3.3%신고'];
 
   var lines = ['📊 (주)아크멤버스 '+labels[num]+' ('+yr+'년 '+mo+'월)',''];
 
