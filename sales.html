@@ -353,7 +353,7 @@ tr.row-clickable:hover{background:var(--sf2);}
 <script>
 /* ============ CONFIG — 정훈님이 채워주셔야 하는 부분 ============ */
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
-var APP_PASSWORD = 'arkmembers2026'; // 여기 원하는 비밀번호로 바꿔주세요. 페이지 소스보기하면 그대로 보이니, 남한테 공유 안 하는 링크에서만 쓰는 걸 권장드려요.
+var APP_PASSWORD = '777'; // 여기 원하는 비밀번호로 바꿔주세요. 페이지 소스보기하면 그대로 보이니, 남한테 공유 안 하는 링크에서만 쓰는 걸 권장드려요.
 var SOLAPI_API_KEY = 'NCS8HYGUCLJBXZU0';
 var SOLAPI_API_SECRET = 'SPTCPSWBN4DTCBKTVYBVI8URHNCOVEGC'; // ⚠ 브라우저 소스에 그대로 노출됩니다 (정훈님 동의하에 반영)
 var SOLAPI_FROM = '01092925782'; // 세일즈 전용 발신번호 (청소앱은 1551-1143을 씀, 이 계정에 등록된 발신번호여야 발송됩니다)
@@ -1270,6 +1270,7 @@ function addSchedule(dateStr){
   showToast('일정이 추가됐어요.');
 }
 function deleteSchedule(id, dateStr){
+  if(!confirm('이 일정을 삭제할까요?')) return;
   fetch(FB_URL+ROOT+'/schedules/'+id+'.json',{method:'DELETE'});
   delete schedules[id];
   document.querySelector('.modal-overlay').remove();
