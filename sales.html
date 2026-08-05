@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>한정훈 rFM Sales Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script async type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=e004c815a0d82df2fdf15e8960f1f6f4&libraries=services&autoload=false"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff;--sf:#f7f8fa;--sf2:#eef0f4;--sf3:#e2e5ec;
+  --bd:#dde1e8;--accent:#4361ee;--a2:#e8ecff;--a3:#5577ee;
+  --text:#1a1a1a;--muted:#6b7280;--dim:#9ca3af;--danger:#e0294b;--warn:#c97a12;--good:#0f9d67;
+  --safe:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+button,input,select,textarea{font-family:'Noto Sans KR',sans-serif;}
+input,select,textarea{font-size:16px !important;}
+header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd);position:sticky;top:0;background:rgba(255,255,255,0.97);backdrop-filter:blur(16px);z-index:100;gap:8px;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text{font-size:16px;font-weight:900;letter-spacing:-0.5px;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.header-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;}
+.tabs{display:flex;padding:0 14px;border-bottom:1px solid var(--bd);background:var(--bg);overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:12px 14px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+main{padding:18px 14px;max-width:1200px;margin:0 auto;padding-bottom:60px;}
+.view{display:none;}.view.active{display:block;}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--accent);}
+.btn{padding:9px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--sf2);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.danger{border-color:#f6c8d1;color:var(--danger);}
+input,select,textarea{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;color:var(--text);outline:none;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:700px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+.stat-card{background:var(--sf2);border-radius:10px;padding:12px 14px;}
+.stat-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
+.stat-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:700;}
+.stat-card.danger .stat-val{color:var(--danger);}
+.stat-card.danger{background:#fdeaee;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;padding:8px 10px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap;}
+td{padding:8px 10px;border-bottom:1px solid var(--bd);white-space:nowrap;}
+tr.row-clickable{cursor:pointer;}
+tr.row-clickable:hover{background:var(--sf2);}
+.badge{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:6px;font-weight:700;}
+.badge.risk{background:#fdeaee;color:var(--danger);}
+.badge.ok{background:#e5f7ee;color:var(--good);}
+.badge.neutral{background:var(--sf3);color:var(--muted);}
+.filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.filter-row input,.filter-row select{width:auto;flex:1;min-width:120px;font-size:13px;padding:8px 10px;}
+.energy-bar-wrap{background:var(--sf2);border-radius:8px;height:20px;overflow:hidden;position:relative;}
+.energy-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--good));border-radius:8px;transition:width .3s;}
+#login-overlay{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+#login-box{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:28px;width:100%;max-width:340px;}
+#login-box h1{font-size:18px;margin-bottom:20px;text-align:center;}
+#login-box .form-group{margin-bottom:12px;}
+#login-box label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px;}
+#login-error{color:var(--danger);font-size:12px;margin-top:8px;min-height:14px;}
+#app{display:none;}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:700;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;}
+.modal-box{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;}
+.modal-close{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;font-size:14px;}
+.profile-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.profile-name{font-size:17px;font-weight:900;}
+.profile-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.info-table td{border:none;padding:4px 8px 4px 0;font-size:12.5px;}
+.info-table td.k{color:var(--muted);white-space:nowrap;}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;}
+.metric-cell{background:var(--sf2);border-radius:8px;padding:10px;text-align:center;}
+.metric-cell .k{font-size:10.5px;color:var(--muted);margin-bottom:4px;}
+.metric-cell .v{font-size:15px;font-weight:700;}
+.trend-track{display:flex;gap:4px;margin-bottom:10px;}
+.trend-cell{flex:1;text-align:center;border-radius:6px;padding:5px 2px;}
+.trend-cell .m{font-size:9px;color:var(--muted);}
+.trend-cell .g{font-size:12px;font-weight:700;}
+.note-item{border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.note-date{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;}
+.note-text{font-size:13px;margin-top:4px;white-space:pre-wrap;}
+.trash-icon{cursor:pointer;color:var(--muted);font-size:12px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0;}
+.cal-cell{background:var(--sf2);border-radius:6px;min-height:64px;padding:4px;font-size:11px;position:relative;cursor:pointer;}
+.cal-cell.today{border:1px solid var(--accent);}
+.cal-cell .dnum{font-size:11px;color:var(--muted);}
+.cal-cell .sched{font-size:10px;background:var(--a2);color:var(--accent);border-radius:4px;padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--sf3);color:var(--text);padding:10px 18px;border-radius:10px;font-size:13px;z-index:900;opacity:0;transition:opacity .2s;pointer-events:none;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div id="login-box">
+    <h1>🎯 한정훈 rFM Sales Dashboard</h1>
+    <div class="form-group"><label>비밀번호</label><input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin();"></div>
+    <button class="btn primary" style="width:100%;" onclick="doLogin()">로그인</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎯</div>
+      <div class="logo-text">한정훈 rFM Sales Dashboard</div>
+    </div>
+    <div class="header-right">
+      <button class="header-btn" onclick="doLogout()">로그아웃</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 대시보드</button>
+    <button class="tab" data-tab="org" onclick="switchTab('org')">🗂 조직도</button>
+    <button class="tab" data-tab="calendar" onclick="switchTab('calendar')">📅 캘린더</button>
+    <button class="tab" data-tab="map" onclick="switchTab('map')">🗺 지도</button>
+    <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ 조직설정</button>
+  </div>
+
+  <main>
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="grid-4" style="margin-bottom:16px;">
+        <div class="stat-card"><div class="stat-label">전체 인원</div><div class="stat-val" id="d-total">-</div></div>
+        <div class="stat-card danger"><div class="stat-label">위험군</div><div class="stat-val" id="d-risk">-</div></div>
+        <div class="stat-card"><div class="stat-label">이번달 신규위촉</div><div class="stat-val" id="d-new">-</div></div>
+        <div class="stat-card"><div class="stat-label">이번달 해촉</div><div class="stat-val" id="d-out">-</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔋 이번달 컨택 Engagement</div>
+        <div class="energy-bar-wrap"><div class="energy-bar-fill" id="engage-fill" style="width:0%;"></div></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;" id="engage-label">-</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📅 오늘 면담 일정</div>
+          <div id="today-schedule"><div class="empty">일정이 없어요.</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🚨 이탈 위험군 상위</div>
+          <div id="risk-list"><div class="empty">-</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📈 컨택 효과 — S/W 변화량 비교</div>
+        <div style="position:relative;height:160px;"><canvas id="engageEffectChart"></canvas></div>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;">최근 두 달 스냅샷 기준, 이번달 컨택한 그룹과 안 한 그룹의 평균 S/W 증감을 비교합니다.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🏢 본부별 실적 요약 (2026.1~5월 업적평균 건수)</div>
+        <div style="position:relative;height:180px;"><canvas id="hqChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ORG -->
+    <div class="view" id="view-org">
+      <div class="filter-row">
+        <input type="text" id="org-search" placeholder="이름, 지점 검색" oninput="renderOrgList()">
+        <select id="org-filter-hq" onchange="renderOrgList()"><option value="">전체 본부</option></select>
+        <select id="org-filter-seg" onchange="renderOrgList()"><option value="">Seg 전체</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+        <select id="org-filter-risk" onchange="renderOrgList()"><option value="">전체</option><option value="risk">위험군만</option></select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>이름</th><th>본부/지점</th><th>Seg</th><th>C/R</th><th>eFSR</th><th>S/W</th><th>최근 면담</th><th>상태</th>
+          </tr></thead>
+          <tbody id="org-rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="view" id="view-calendar">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <button class="btn" onclick="calShift(-1)">← 이전달</button>
+        <div id="cal-title" style="font-weight:700;font-size:15px;"></div>
+        <button class="btn" onclick="calShift(1)">다음달 →</button>
+      </div>
+      <div class="cal-grid" id="cal-dows"></div>
+      <div class="cal-grid" id="cal-cells" style="margin-top:4px;"></div>
+    </div>
+
+    <!-- MAP -->
+    <div class="view" id="view-map">
+      <div class="filter-row">
+        <button class="btn" onclick="geocodeAllPeople()">📍 좌표 일괄 갱신</button>
+        <span id="map-geo-status" style="font-size:12px;color:var(--muted);align-self:center;"></span>
+      </div>
+      <div id="sales-map" style="width:100%;height:520px;border-radius:12px;border:1px solid var(--bd);background:var(--sf2);"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="view" id="view-settings">
+      <div class="card">
+        <div class="card-title">📥 엑셀 업로드 (매월 업데이트)</div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:5px;">이 데이터가 몇 년 몇 월 기준인가요?</label>
+          <div style="display:flex;gap:8px;">
+            <select id="upload-year" style="max-width:110px;"></select>
+            <select id="upload-month" style="max-width:110px;"></select>
+          </div>
+        </div>
+        <input type="file" id="excel-file" accept=".xlsx,.xls" style="margin-bottom:10px;">
+        <button class="btn primary" onclick="handleExcelUpload()">업로드 및 반영</button>
+        <div id="upload-status" style="font-size:12px;color:var(--muted);margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🧑‍💼 본부별 담당 MD</div>
+        <div id="hq-map-rows"></div>
+        <button class="btn" style="margin-top:8px;" onclick="saveOrgMap()">저장</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🧑‍💼 지점별 담당 AM</div>
+        <div id="branch-map-rows"></div>
+        <button class="btn" style="margin-top:8px;" onclick="saveOrgMap()">저장</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* ============ CONFIG — 정훈님이 채워주셔야 하는 부분 ============ */
+var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
+var APP_PASSWORD = 'arkmembers2026'; // 여기 원하는 비밀번호로 바꿔주세요. 페이지 소스보기하면 그대로 보이니, 남한테 공유 안 하는 링크에서만 쓰는 걸 권장드려요.
+/* ================================================================ */
+
+var ROOT = '/salesData';
+
+var people = {};      // empId -> latest profile
+var snapshots = {};   // yyyymm -> { empId: {...} }
+var notes = {};       // empId -> { noteId: {...} }
+var contacts = {};    // empId -> { logId: {...} }
+var orgMap = { hq:{}, branch:{} };
+var schedules = {};   // scheduleId -> {...}
+var calYear, calMonth; // 0-indexed month
+
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');}, 2200);
+}
+
+/* ---------- AUTH (간단 비밀번호 방식) ---------- */
+function checkAuth(){
+  if(localStorage.getItem('salesAppAuthed')==='1'){
+    document.getElementById('login-overlay').style.display='none';
+    document.getElementById('app').style.display='block';
+    boot();
+  } else {
+    document.getElementById('login-overlay').style.display='flex';
+    document.getElementById('app').style.display='none';
+  }
+}
+function doLogin(){
+  var pw=document.getElementById('login-pw').value;
+  var errEl=document.getElementById('login-error');
+  errEl.textContent='';
+  if(pw===APP_PASSWORD){
+    localStorage.setItem('salesAppAuthed','1');
+    checkAuth();
+  } else {
+    errEl.textContent='비밀번호가 틀렸어요.';
+  }
+}
+function doLogout(){
+  localStorage.removeItem('salesAppAuthed');
+  checkAuth();
+}
+checkAuth();
+
+/* ---------- DATA LOAD ---------- */
+function boot(){
+  Promise.all([
+    fetch(FB_URL+ROOT+'/people.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/snapshots.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/notes.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/contacts.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/orgMap.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/schedules.json').then(function(r){return r.json();})
+  ]).then(function(res){
+    people = res[0]||{};
+    snapshots = res[1]||{};
+    notes = res[2]||{};
+    contacts = res[3]||{};
+    orgMap = res[4]||{hq:{},branch:{}};
+    if(!orgMap.hq) orgMap.hq={};
+    if(!orgMap.branch) orgMap.branch={};
+    schedules = res[5]||{};
+    var now=new Date(); calYear=now.getFullYear(); calMonth=now.getMonth();
+    initUploadPeriod();
+    renderAll();
+  }).catch(function(e){ console.error(e); showToast('데이터 로딩 실패'); });
+}
+
+function renderAll(){
+  renderDashboard();
+  renderOrgFilters();
+  renderOrgList();
+  renderCalendar();
+  renderOrgMapSettings();
+}
+
+/* ---------- TABS ---------- */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active', t.dataset.tab===name);});
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  document.getElementById('view-'+name).classList.add('active');
+  if(name==='map') renderMap();
+}
+
+/* ---------- HELPERS ---------- */
+function pad2(n){ return String(n).padStart(2,'0'); }
+function yyyymm(y,m){ return ''+y+pad2(m+1); } // m: 0-indexed
+function fmtDate8(d){ // YYYYMMDD -> YYYY.MM.DD
+  if(!d) return '-';
+  var s=String(d);
+  if(s.length!==8) return s;
+  if(s==='99991231') return '-';
+  return s.slice(0,4)+'.'+s.slice(4,6)+'.'+s.slice(6,8);
+}
+function latestTwoSnapshotKeys(){
+  var keys = Object.keys(snapshots).sort();
+  return keys.slice(-2);
+}
+function personSW(empId, ymKey){
+  var snap = snapshots[ymKey];
+  if(!snap || !snap[empId]) return null;
+  var v = snap[empId].sw;
+  return (v===undefined||v===null||v==='') ? null : Number(v);
+}
+function isRisk(empId){
+  var p = people[empId];
+  if(!p) return false;
+  var keys = latestTwoSnapshotKeys();
+  var latestKey = keys[keys.length-1];
+  var sw = latestKey ? personSW(empId, latestKey) : null;
+  if(sw!==null && sw < 30) return true; // S/W 150점 만점 중 30점 미만은 위험 신호로 우선 설정
+  var lastNoteDate = latestNoteDate(empId);
+  if(!lastNoteDate) return true; // 면담 기록이 아예 없으면 위험군으로 표시
+  var days = (Date.now()-new Date(lastNoteDate).getTime())/86400000;
+  if(days > 90) return true; // 90일(3개월) 이상 미면담
+  return false;
+}
+function latestNoteDate(empId){
+  var n = notes[empId];
+  if(!n) return null;
+  var dates = Object.values(n).map(function(x){return x.date;}).filter(Boolean).sort();
+  return dates.length ? dates[dates.length-1] : null;
+}
+function riskReason(empId){
+  var keys = latestTwoSnapshotKeys();
+  var latestKey = keys[keys.length-1];
+  var sw = latestKey ? personSW(empId, latestKey) : null;
+  if(sw!==null && sw < 30) return 'S/W 저조';
+  var lastNoteDate = latestNoteDate(empId);
+  if(!lastNoteDate) return '면담기록 없음';
+  var days = (Date.now()-new Date(lastNoteDate).getTime())/86400000;
+  if(days > 90) return '장기 미면담';
+  return '';
+}
+function branchColor(branch){
+  var str = branch||'';
+  var hash=0;
+  for(var i=0;i<str.length;i++){ hash = str.charCodeAt(i) + ((hash<<5)-hash); }
+  var hue = Math.abs(hash) % 360;
+  return 'hsl('+hue+',55%,55%)';
+}
+var segColorMap = { A:'#639922', B:'#97C459', C:'#EF9F27', D:'#D85A30', E:'#E24B4A' };
+
+/* ---------- DASHBOARD ---------- */
+function renderDashboard(){
+  var ids = Object.keys(people);
+  document.getElementById('d-total').textContent = ids.length;
+  var riskIds = ids.filter(isRisk);
+  document.getElementById('d-risk').textContent = riskIds.length;
+
+  var now=new Date(); var thisYm = yyyymm(now.getFullYear(), now.getMonth());
+  var newCount=0, outCount=0;
+  ids.forEach(function(id){
+    var p=people[id];
+    if(p.joinDate && String(p.joinDate).slice(0,6)===thisYm) newCount++;
+    if(p.rejoinDate && String(p.rejoinDate)!=='99991231' && String(p.rejoinDate).slice(0,6)===thisYm) outCount++;
+  });
+  document.getElementById('d-new').textContent = newCount;
+  document.getElementById('d-out').textContent = outCount;
+
+  // engagement bar
+  var contactedThisMonth = ids.filter(function(id){
+    var c = contacts[id];
+    if(!c) return false;
+    return Object.values(c).some(function(log){ return log.date && log.date.slice(0,7)===(now.getFullYear()+'-'+pad2(now.getMonth()+1)); });
+  });
+  var pct = ids.length ? Math.round(contactedThisMonth.length/ids.length*100) : 0;
+  document.getElementById('engage-fill').style.width = pct+'%';
+  document.getElementById('engage-label').textContent = contactedThisMonth.length+' / '+ids.length+'명 컨택 ('+pct+'%)';
+
+  // today schedule
+  var todayStr = now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate());
+  var todayList = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===todayStr;});
+  var tsEl = document.getElementById('today-schedule');
+  if(!todayList.length){ tsEl.innerHTML='<div class="empty">일정이 없어요.</div>'; }
+  else {
+    tsEl.innerHTML = todayList.map(function(s){
+      var p = people[s.empId]||{};
+      return '<div style="padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+s.empId+'\')">'
+        +'<div style="font-size:13px;">'+(p.name||'?')+' <span style="font-size:11px;color:var(--muted);">· '+(p.branch||'')+'</span></div>'
+        +'<div style="font-size:11px;color:var(--muted);">'+(s.memo||'')+'</div></div>';
+    }).join('');
+  }
+
+  // risk list top
+  var riskEl = document.getElementById('risk-list');
+  var topRisk = riskIds.slice(0,6);
+  if(!topRisk.length){ riskEl.innerHTML='<div class="empty">위험군 없음</div>'; }
+  else {
+    riskEl.innerHTML = topRisk.map(function(id){
+      var p=people[id];
+      return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+id+'\')">'
+        +'<span style="font-size:13px;">'+p.name+' <span style="font-size:11px;color:var(--muted);">· '+p.branch+'</span></span>'
+        +'<span class="badge risk">'+riskReason(id)+'</span></div>';
+    }).join('');
+  }
+
+  renderEngageEffectChart(ids, contactedThisMonth.map(function(x){return x;}));
+  renderHqChart(ids);
+}
+
+function renderEngageEffectChart(allIds, contactedIds){
+  var keys = latestTwoSnapshotKeys();
+  var ctxEl = document.getElementById('engageEffectChart');
+  if(keys.length<2){
+    ctxEl.parentElement.innerHTML='<div class="empty">스냅샷이 2개월 이상 쌓이면 비교가 가능해요.</div>';
+    return;
+  }
+  var prevKey=keys[0], curKey=keys[1];
+  function avgDelta(ids){
+    var deltas=[];
+    ids.forEach(function(id){
+      var a=personSW(id, prevKey), b=personSW(id, curKey);
+      if(a!==null && b!==null) deltas.push(b-a);
+    });
+    if(!deltas.length) return 0;
+    return deltas.reduce(function(s,v){return s+v;},0)/deltas.length;
+  }
+  var contactedSet = {}; contactedIds.forEach(function(id){contactedSet[id]=true;});
+  var notContacted = allIds.filter(function(id){return !contactedSet[id];});
+  var avgC = avgDelta(allIds.filter(function(id){return contactedSet[id];}));
+  var avgN = avgDelta(notContacted);
+  new Chart(ctxEl.getContext('2d'), {
+    type:'bar',
+    data:{ labels:['컨택한 그룹','컨택 안 한 그룹'], datasets:[{ data:[Math.round(avgC*10)/10, Math.round(avgN*10)/10], backgroundColor:['#4361ee','#c7cbd4'], borderRadius:6, maxBarThickness:60 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(128,128,128,0.15)'},title:{display:true,text:'S/W 평균 증감'}} } }
+  });
+}
+
+function renderHqChart(ids){
+  var byHq = {};
+  ids.forEach(function(id){
+    var p=people[id]; var hq=p.hq||'미분류';
+    if(!byHq[hq]) byHq[hq]=[];
+    if(p.avgCount!==undefined && p.avgCount!==null && p.avgCount!=='') byHq[hq].push(Number(p.avgCount));
+  });
+  var labels = Object.keys(byHq);
+  var data = labels.map(function(hq){
+    var arr=byHq[hq]; if(!arr.length) return 0;
+    return Math.round(arr.reduce(function(s,v){return s+v;},0)/arr.length*10)/10;
+  });
+  var ctxEl=document.getElementById('hqChart');
+  new Chart(ctxEl.getContext('2d'), {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ data:data, backgroundColor:'#4361ee', borderRadius:6, maxBarThickness:32 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{font:{size:10}}}, y:{grid:{color:'rgba(128,128,128,0.15)'}} } }
+  });
+}
+
+/* ---------- ORG LIST ---------- */
+function renderOrgFilters(){
+  var hqs = [...new Set(Object.values(people).map(function(p){return p.hq;}).filter(Boolean))].sort();
+  var sel = document.getElementById('org-filter-hq');
+  sel.innerHTML = '<option value="">전체 본부</option>' + hqs.map(function(h){return '<option>'+h+'</option>';}).join('');
+}
+function renderOrgList(){
+  var q = document.getElementById('org-search').value.trim();
+  var fHq = document.getElementById('org-filter-hq').value;
+  var fSeg = document.getElementById('org-filter-seg').value;
+  var fRisk = document.getElementById('org-filter-risk').value;
+  var ids = Object.keys(people).filter(function(id){
+    var p = people[id];
+    if(q && !((p.name||'').includes(q) || (p.branch||'').includes(q))) return false;
+    if(fHq && p.hq!==fHq) return false;
+    if(fSeg && p.seg!==fSeg) return false;
+    if(fRisk==='risk' && !isRisk(id)) return false;
+    return true;
+  });
+  var tbody = document.getElementById('org-rows');
+  if(!ids.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty">결과 없음</div></td></tr>'; return; }
+  tbody.innerHTML = ids.map(function(id){
+    var p=people[id];
+    var risk = isRisk(id);
+    var segCol = segColorMap[p.seg]||'#777';
+    var lastNote = latestNoteDate(id) || '-';
+    return '<tr class="row-clickable" onclick="openProfile(\''+id+'\')">'
+      +'<td>'+(p.name||'')+'</td>'
+      +'<td style="color:var(--muted);">'+(p.hq||'')+' · '+(p.branch||'')+'</td>'
+      +'<td><span style="color:'+segCol+';font-weight:700;">'+(p.seg||'-')+'</span></td>'
+      +'<td>'+(p.cr||'-')+'</td>'
+      +'<td>'+(p.efsr||'-')+'</td>'
+      +'<td>'+(p.sw!==undefined?p.sw:'-')+'</td>'
+      +'<td style="color:var(--muted);">'+lastNote+'</td>'
+      +'<td>'+(risk?'<span class="badge risk">'+riskReason(id)+'</span>':'<span class="badge ok">정상</span>')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+/* ---------- PROFILE ---------- */
+function openProfile(empId){
+  var p = people[empId];
+  if(!p){ showToast('데이터를 찾을 수 없어요.'); return; }
+  var overlay = document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+  var box = document.createElement('div');
+  box.className='modal-box';
+  box.style.position='relative';
+  box.innerHTML = buildProfileHtml(empId, p);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  setTimeout(function(){ renderProfileTrend(empId); }, 50);
+}
+function buildProfileHtml(empId, p){
+  var risk = isRisk(empId);
+  return '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
+  +'<div class="profile-header">'
+    +'<div><div class="profile-name">'+p.name+' <span style="font-size:12px;color:var(--muted);">'+(p.position||'')+'</span></div>'
+    +'<div class="profile-sub">'+(p.hq||'')+' · '+(p.branch||'')+' <span style="color:'+branchColor(p.branch)+';">●</span></div></div>'
+    +'<div style="display:flex;gap:6px;">'
+      +'<a href="tel:'+(p.phone||'')+'" onclick="logContact(\''+empId+'\',\'call\')" class="btn" style="text-decoration:none;">📞 전화</a>'
+      +'<a href="sms:'+(p.phone||'')+'" onclick="logContact(\''+empId+'\',\'sms\')" class="btn" style="text-decoration:none;">💬 문자</a>'
+    +'</div></div>'
+  + (risk ? '<div class="badge risk" style="margin-bottom:10px;">⚠ '+riskReason(empId)+'</div>' : '')
+  +'<table class="info-table">'
+    +'<tr><td class="k">사번</td><td>'+(p.empId||empId)+'</td><td class="k">담당FM</td><td>'+(p.fm||'-')+'</td></tr>'
+    +'<tr><td class="k">담당AM</td><td>'+(orgMap.branch[p.branch]||'-')+'</td><td class="k">담당MD</td><td>'+(orgMap.hq[p.hq]||'-')+'</td></tr>'
+    +'<tr><td class="k">성별/생년월일</td><td>'+(p.gender||'-')+' · '+fmtDate8(p.birth)+'</td><td class="k">대표/독립</td><td>'+(p.repIndep||'-')+'</td></tr>'
+    +'<tr><td class="k">위촉일자</td><td>'+fmtDate8(p.joinDate)+'</td><td class="k">재위촉일자</td><td>'+fmtDate8(p.rejoinDate)+'</td></tr>'
+  +'</table>'
+  +'<div style="margin:10px 0;">'
+    +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">사무실 주소</label>'
+    +'<div style="display:flex;gap:6px;">'
+      +'<input type="text" id="office-addr-'+empId+'" value="'+(p.officeAddress||'')+'" placeholder="예: 서울시 강남구 ..." style="font-size:12.5px;">'
+      +'<button class="btn" onclick="saveOfficeAddress(\''+empId+'\')">저장</button>'
+    +'</div></div>'
+  +'<div class="metric-grid">'
+    +metricCell('Seg', p.seg)+metricCell('C/R', p.cr)+metricCell('eFSR', p.efsr)+metricCell('PSP', p.psp)
+    +metricCell('H/C', p.hc)+metricCell('BNW', p.bnw)+metricCell('S/W', p.sw)+metricCell('변액', p.byunaek)
+  +'</div>'
+  +'<div class="metric-grid" style="grid-template-columns:repeat(5,1fr);">'
+    +metricCell('건수', p.avgCount)+metricCell('MIP', p.avgMip)+metricCell('SP', p.avgSp)+metricCell('건당MIP', p.perMip)+metricCell('건당SP', p.perSp)
+  +'</div>'
+  +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:8px;">'
+    +'<div class="card-title" style="margin-bottom:8px;">실적 변화 추이 (S/W)</div>'
+    +'<div style="position:relative;height:120px;margin-bottom:10px;"><canvas id="swChart-'+empId+'"></canvas></div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:5px;">Seg 변화</div>'
+    +'<div class="trend-track" id="segTrack-'+empId+'"></div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-bottom:5px;">C/R 변화</div>'
+    +'<div class="trend-track" id="crTrack-'+empId+'"></div>'
+  +'</div>'
+  +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:8px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+      +'<div class="card-title" style="margin:0;">면담 메모 · 액션플랜</div>'
+      +'<button class="btn" onclick="addNote(\''+empId+'\')">+ 추가</button>'
+    +'</div>'
+    +'<div id="notes-'+empId+'">'+renderNotesHtml(empId)+'</div>'
+  +'</div>';
+}
+function metricCell(k,v){
+  return '<div class="metric-cell"><div class="k">'+k+'</div><div class="v">'+((v===undefined||v===null||v==='')?'-':v)+'</div></div>';
+}
+function renderNotesHtml(empId){
+  var n = notes[empId]||{};
+  var keys = Object.keys(n).sort(function(a,b){ return (n[b].date||'').localeCompare(n[a].date||''); });
+  if(!keys.length) return '<div class="empty">면담 기록이 없어요.</div>';
+  return keys.map(function(k){
+    var item=n[k];
+    return '<div class="note-item"><div class="note-date"><span>'+item.date+'</span><span class="trash-icon" onclick="deleteNote(\''+empId+'\',\''+k+'\')">삭제</span></div><div class="note-text">'+(item.text||'')+'</div></div>';
+  }).join('');
+}
+function addNote(empId){
+  var text = prompt('면담 메모를 입력해주세요.');
+  if(!text) return;
+  var id = 'n'+Date.now();
+  var date = new Date().toISOString().slice(0,10);
+  var entry = {date:date, text:text};
+  fetch(FB_URL+ROOT+'/notes/'+empId+'/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
+  if(!notes[empId]) notes[empId]={};
+  notes[empId][id]=entry;
+  document.getElementById('notes-'+empId).innerHTML = renderNotesHtml(empId);
+  showToast('메모가 저장됐어요.');
+}
+function deleteNote(empId, noteId){
+  if(!confirm('이 메모를 삭제할까요?')) return;
+  fetch(FB_URL+ROOT+'/notes/'+empId+'/'+noteId+'.json',{method:'DELETE'});
+  delete notes[empId][noteId];
+  document.getElementById('notes-'+empId).innerHTML = renderNotesHtml(empId);
+}
+function saveOfficeAddress(empId){
+  var val = document.getElementById('office-addr-'+empId).value.trim();
+  var patch = {officeAddress:val};
+  people[empId].officeAddress = val;
+  fetch(FB_URL+ROOT+'/people/'+empId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
+  showToast('주소가 저장됐어요.');
+  if(val){
+    loadKakaoMapSdk(function(){
+      geocodeAddr(val, function(coord){
+        if(coord){
+          people[empId].officeLat = coord.lat; people[empId].officeLng = coord.lng;
+          fetch(FB_URL+ROOT+'/people/'+empId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({officeLat:coord.lat, officeLng:coord.lng})});
+          showToast('지도 좌표도 찾았어요.');
+        } else {
+          showToast('⚠ 이 주소로 좌표를 찾지 못했어요.');
+        }
+      });
+    });
+  }
+}
+function logContact(empId, type){
+  var id='c'+Date.now();
+  var entry = {date:new Date().toISOString(), type:type};
+  fetch(FB_URL+ROOT+'/contacts/'+empId+'/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
+  if(!contacts[empId]) contacts[empId]={};
+  contacts[empId][id]=entry;
+}
+function renderProfileTrend(empId){
+  var keys = Object.keys(snapshots).sort();
+  var labels = keys.map(function(k){ return k.slice(0,4)+'.'+k.slice(4,6); });
+  var swData = keys.map(function(k){ var s=snapshots[k][empId]; return s? Number(s.sw||0) : null; });
+  var canvasEl = document.getElementById('swChart-'+empId);
+  if(canvasEl){
+    new Chart(canvasEl.getContext('2d'), {
+      type:'line',
+      data:{ labels:labels, datasets:[{ data:swData, borderColor:'#4361ee', backgroundColor:'rgba(67,97,238,0.12)', borderWidth:2, pointRadius:3, tension:0.3, fill:true, spanGaps:true }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{font:{size:9}}}, y:{grid:{color:'rgba(128,128,128,0.15)'},min:0,max:150,ticks:{font:{size:9}}} } }
+    });
+  }
+  var segTrack = document.getElementById('segTrack-'+empId);
+  var crTrack = document.getElementById('crTrack-'+empId);
+  var crColorMap = {A1:'#639922',A2:'#97C459',A3:'#EF9F27',B1:'#97C459',B2:'#EF9F27',B3:'#D85A30',C1:'#EF9F27',C2:'#D85A30',C3:'#E24B4A'};
+  if(segTrack){
+    segTrack.innerHTML = keys.map(function(k){
+      var s=snapshots[k][empId]; var g = s?s.seg:null;
+      var col = segColorMap[g]||'#444';
+      return '<div class="trend-cell" style="background:'+col+'22;border:1px solid '+col+';"><div class="m">'+k.slice(4,6)+'월</div><div class="g" style="color:'+col+';">'+(g||'-')+'</div></div>';
+    }).join('');
+  }
+  if(crTrack){
+    crTrack.innerHTML = keys.map(function(k){
+      var s=snapshots[k][empId]; var g = s?s.cr:null;
+      var col = crColorMap[g]||'#444';
+      return '<div class="trend-cell" style="background:'+col+'22;border:1px solid '+col+';"><div class="m">'+k.slice(4,6)+'월</div><div class="g" style="color:'+col+';">'+(g||'-')+'</div></div>';
+    }).join('');
+  }
+}
+
+/* ---------- CALENDAR ---------- */
+function renderCalendar(){
+  var dows=['일','월','화','수','목','금','토'];
+  document.getElementById('cal-dows').innerHTML = dows.map(function(d){return '<div class="cal-dow">'+d+'</div>';}).join('');
+  document.getElementById('cal-title').textContent = calYear+'년 '+(calMonth+1)+'월';
+  var first = new Date(calYear, calMonth, 1);
+  var startDow = first.getDay();
+  var daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  var today = new Date();
+  var cellsEl = document.getElementById('cal-cells');
+  var html='';
+  for(var i=0;i<startDow;i++) html+='<div></div>';
+  for(var d=1; d<=daysInMonth; d++){
+    var dateStr = calYear+'-'+pad2(calMonth+1)+'-'+pad2(d);
+    var isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===d;
+    var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
+    html += '<div class="cal-cell'+(isToday?' today':'')+'" onclick="openDayModal(\''+dateStr+'\')">'
+      +'<div class="dnum">'+d+'</div>'
+      + daySchedules.slice(0,3).map(function(s){ var p=people[s.empId]; return '<div class="sched">'+(p?p.name:'?')+'</div>'; }).join('')
+      + (daySchedules.length>3? '<div style="font-size:9px;color:var(--muted);">+'+(daySchedules.length-3)+'</div>':'')
+      +'</div>';
+  }
+  cellsEl.innerHTML = html;
+}
+function calShift(dir){
+  calMonth += dir;
+  if(calMonth<0){calMonth=11;calYear--;}
+  if(calMonth>11){calMonth=0;calYear++;}
+  renderCalendar();
+}
+function openDayModal(dateStr){
+  var overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+  var box=document.createElement('div');
+  box.className='modal-box'; box.style.position='relative'; box.style.maxWidth='400px';
+  var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
+  var peopleOptions = Object.keys(people).map(function(id){ return '<option value="'+id+'">'+people[id].name+' ('+people[id].branch+')</option>'; }).join('');
+  box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
+    +'<div class="card-title">'+dateStr+' 일정</div>'
+    +'<div id="day-sched-list">'+ (daySchedules.length? daySchedules.map(function(s){
+        var p=people[s.empId]||{};
+        return '<div class="note-item"><div class="note-date"><span>'+(p.name||'?')+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div><button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button></div>';
+      }).join('') : '<div class="empty">일정 없음</div>') + '</div>'
+    +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:10px;">'
+      +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">대상자</label>'
+      +'<select id="sched-person">'+peopleOptions+'</select>'
+      +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">메모</label>'
+      +'<textarea id="sched-memo" rows="2" placeholder="면담 목적, 확인할 것 등"></textarea>'
+      +'<button class="btn primary" style="width:100%;margin-top:8px;" onclick="addSchedule(\''+dateStr+'\')">일정 추가</button>'
+    +'</div>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+function addSchedule(dateStr){
+  var empId = document.getElementById('sched-person').value;
+  var memo = document.getElementById('sched-memo').value.trim();
+  if(!empId){ showToast('대상자를 선택해주세요.'); return; }
+  var id='s'+Date.now();
+  var entry={date:dateStr, empId:empId, memo:memo, done:false};
+  fetch(FB_URL+ROOT+'/schedules/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
+  schedules[id]=entry;
+  document.querySelector('.modal-overlay').remove();
+  renderCalendar();
+  renderDashboard();
+  showToast('일정이 추가됐어요.');
+}
+function deleteSchedule(id, dateStr){
+  fetch(FB_URL+ROOT+'/schedules/'+id+'.json',{method:'DELETE'});
+  delete schedules[id];
+  document.querySelector('.modal-overlay').remove();
+  renderCalendar();
+  renderDashboard();
+  openDayModal(dateStr);
+}
+
+/* ---------- SETTINGS: EXCEL UPLOAD ---------- */
+function initUploadPeriod(){
+  var yEl=document.getElementById('upload-year'), mEl=document.getElementById('upload-month');
+  var now=new Date();
+  for(var y=now.getFullYear()-1;y<=now.getFullYear()+1;y++){ var o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===now.getFullYear())o.selected=true; yEl.appendChild(o); }
+  for(var m=1;m<=12;m++){ var o2=document.createElement('option'); o2.value=m; o2.textContent=m+'월'; if(m===now.getMonth()+1)o2.selected=true; mEl.appendChild(o2); }
+}
+var COL_MAP = [
+  'phone','hq','branch','empId','name','position','fm','gender','birth','joinDate','rejoinDate','repIndep',
+  'seg','cr','psp','hc','efsr','bnw','sw','byunaek','tipVideo','esmapLogin','mdrtCount','mdrt2026','star',
+  'mpc2025','summer2025','avgCount','avgMip','avgSp','perMip','perSp','activeMonths','monthlyCount','spCount','subordinateFsr'
+];
+function handleExcelUpload(){
+  var fileEl=document.getElementById('excel-file');
+  var statusEl=document.getElementById('upload-status');
+  if(!fileEl.files.length){ showToast('파일을 선택해주세요.'); return; }
+  var yr=document.getElementById('upload-year').value;
+  var mo=document.getElementById('upload-month').value;
+  var ymKey = yr+pad2(parseInt(mo));
+  statusEl.textContent='읽는 중...';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+      var dataRows = rows.slice(4); // 5행부터 데이터
+      var count=0;
+      var batchPeople={}, batchSnap={};
+      dataRows.forEach(function(row){
+        if(!row || !row[3]) return; // 8자리사번 없으면 스킵
+        var obj={};
+        COL_MAP.forEach(function(key, idx){ obj[key]=row[idx]!==undefined?row[idx]:''; });
+        var empId=String(obj.empId);
+        batchPeople[empId]=obj;
+        batchSnap[empId]=obj;
+        count++;
+      });
+      Promise.all([
+        fetch(FB_URL+ROOT+'/people.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(batchPeople)}),
+        fetch(FB_URL+ROOT+'/snapshots/'+ymKey+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(batchSnap)})
+      ]).then(function(){
+        Object.keys(batchPeople).forEach(function(id){ people[id]=Object.assign(people[id]||{}, batchPeople[id]); });
+        if(!snapshots[ymKey]) snapshots[ymKey]={};
+        Object.assign(snapshots[ymKey], batchSnap);
+        statusEl.textContent = count+'명 반영 완료 ('+ymKey+')';
+        showToast('업로드 완료: '+count+'명');
+        renderAll();
+      }).catch(function(err){ statusEl.textContent='저장 실패: '+err; });
+    }catch(err){ statusEl.textContent='파일 읽기 실패: '+err; }
+  };
+  reader.readAsArrayBuffer(fileEl.files[0]);
+}
+
+/* ---------- SETTINGS: ORG MAP ---------- */
+function renderOrgMapSettings(){
+  var hqs = [...new Set(Object.values(people).map(function(p){return p.hq;}).filter(Boolean))].sort();
+  var branches = [...new Set(Object.values(people).map(function(p){return p.branch;}).filter(Boolean))].sort();
+  document.getElementById('hq-map-rows').innerHTML = hqs.map(function(hq){
+    return '<div style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">'
+      +'<div style="width:110px;font-size:12.5px;color:var(--muted);">'+hq+'</div>'
+      +'<input type="text" data-hq="'+hq+'" value="'+(orgMap.hq[hq]||'')+'" placeholder="담당 MD 이름" style="font-size:12.5px;padding:7px 10px;">'
+      +'</div>';
+  }).join('');
+  document.getElementById('branch-map-rows').innerHTML = branches.map(function(br){
+    return '<div style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">'
+      +'<div style="width:110px;font-size:12.5px;color:var(--muted);">'+br+'</div>'
+      +'<input type="text" data-branch="'+br+'" value="'+(orgMap.branch[br]||'')+'" placeholder="담당 AM 이름" style="font-size:12.5px;padding:7px 10px;">'
+      +'</div>';
+  }).join('');
+}
+function saveOrgMap(){
+  document.querySelectorAll('[data-hq]').forEach(function(el){ orgMap.hq[el.dataset.hq]=el.value.trim(); });
+  document.querySelectorAll('[data-branch]').forEach(function(el){ orgMap.branch[el.dataset.branch]=el.value.trim(); });
+  fetch(FB_URL+ROOT+'/orgMap.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(orgMap)});
+  showToast('저장됐어요.');
+}
+
+/* ---------- MAP (Kakao) ---------- */
+var _mapSdkLoaded = false;
+var _mapInstance = null;
+var _mapMarkers = [];
+function loadKakaoMapSdk(callback){
+  if(_mapSdkLoaded){ callback(); return; }
+  var tries = 0;
+  function checkAndLoad(){
+    if(typeof kakao !== 'undefined' && kakao.maps && kakao.maps.load){
+      kakao.maps.load(function(){ _mapSdkLoaded = true; callback(); });
+      return;
+    }
+    tries++;
+    var statusEl = document.getElementById('map-geo-status');
+    if(tries > 20){
+      if(statusEl) statusEl.textContent = '⚠ 카카오맵 SDK 로드 실패 (도메인 등록/앱키 확인 필요)';
+      return;
+    }
+    setTimeout(checkAndLoad, 200);
+  }
+  checkAndLoad();
+}
+function geocodeAddr(addr, cb){
+  var geocoder = new kakao.maps.services.Geocoder();
+  geocoder.addressSearch(addr, function(result, status){
+    if(status === kakao.maps.services.Status.OK && result[0]){
+      cb({lat:parseFloat(result[0].y), lng:parseFloat(result[0].x)});
+    } else { cb(null); }
+  });
+}
+function renderMap(){
+  var statusEl = document.getElementById('map-geo-status');
+  loadKakaoMapSdk(function(){
+    var mapDiv = document.getElementById('sales-map');
+    if(!_mapInstance){
+      _mapInstance = new kakao.maps.Map(mapDiv, { center: new kakao.maps.LatLng(37.5665,126.9780), level:8 });
+    }
+    _mapMarkers.forEach(function(m){ m.setMap(null); });
+    _mapMarkers = [];
+    var withCoord = Object.keys(people).filter(function(id){ var p=people[id]; return p.officeLat && p.officeLng; });
+    var noAddrCount = Object.keys(people).filter(function(id){ var p=people[id]; return p.officeAddress && (!p.officeLat||!p.officeLng); }).length;
+    if(statusEl) statusEl.textContent = withCoord.length+'명 표시 중'+(noAddrCount?' · 좌표 없는 주소 '+noAddrCount+'건 (좌표 일괄 갱신 눌러주세요)':'');
+    if(!withCoord.length) return;
+    var bounds = new kakao.maps.LatLngBounds();
+    withCoord.forEach(function(id){
+      var p = people[id];
+      var pos = new kakao.maps.LatLng(p.officeLat, p.officeLng);
+      var col = branchColor(p.branch);
+      var content = document.createElement('div');
+      content.style.cursor='pointer';
+      content.innerHTML = '<div style="width:16px;height:16px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>';
+      var overlay = new kakao.maps.CustomOverlay({ position:pos, content:content, yAnchor:0.5, xAnchor:0.5 });
+      overlay.setMap(_mapInstance);
+      content.addEventListener('click', function(){ openProfile(id); });
+      _mapMarkers.push(overlay);
+      bounds.extend(pos);
+    });
+    _mapInstance.setBounds(bounds);
+  });
+}
+function geocodeAllPeople(){
+  loadKakaoMapSdk(function(){
+    var targets = Object.keys(people).filter(function(id){ var p=people[id]; return p.officeAddress && (!p.officeLat||!p.officeLng); });
+    var statusEl = document.getElementById('map-geo-status');
+    if(!targets.length){ if(statusEl) statusEl.textContent='✅ 모든 주소 좌표가 최신 상태예요'; renderMap(); return; }
+    var done=0, failed=0;
+    function next(i){
+      if(i>=targets.length){
+        if(statusEl) statusEl.textContent='✅ 좌표 갱신 완료 ('+done+'명 성공'+(failed?', '+failed+'명 실패':'')+')';
+        renderMap();
+        return;
+      }
+      var id=targets[i];
+      if(statusEl) statusEl.textContent='📍 좌표 확인 중... ('+(i+1)+'/'+targets.length+')';
+      geocodeAddr(people[id].officeAddress, function(coord){
+        if(coord){
+          people[id].officeLat=coord.lat; people[id].officeLng=coord.lng;
+          fetch(FB_URL+ROOT+'/people/'+id+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({officeLat:coord.lat, officeLng:coord.lng})});
+          done++;
+        } else { failed++; }
+        setTimeout(function(){ next(i+1); }, 150);
+      });
+    }
+    next(0);
+  });
+}
+</script>
+</body>
+</html>
