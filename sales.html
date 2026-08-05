@@ -39,9 +39,12 @@ main{padding:18px 14px;max-width:1200px;margin:0 auto;padding-bottom:60px;}
 input,select,textarea{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;color:var(--text);outline:none;width:100%;}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-@media(max-width:700px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+@media(max-width:700px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-5{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
 .stat-card{background:var(--sf2);border-radius:10px;padding:12px 14px;}
+.stat-card.clickable{cursor:pointer;}
+.stat-card.clickable:hover{background:var(--sf3);}
 .stat-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
 .stat-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:700;}
 .stat-card.danger .stat-val{color:var(--danger);}
@@ -136,11 +139,12 @@ tr.row-clickable:hover{background:var(--sf2);}
 
     <!-- DASHBOARD -->
     <div class="view active" id="view-dashboard">
-      <div class="grid-4" style="margin-bottom:16px;">
+      <div class="grid-5" style="margin-bottom:16px;">
         <div class="stat-card"><div class="stat-label">전체 인원</div><div class="stat-val" id="d-total">-</div></div>
-        <div class="stat-card danger"><div class="stat-label">지난달 대비 하락</div><div class="stat-val" id="d-risk">-</div></div>
-        <div class="stat-card"><div class="stat-label">이번달 신규위촉</div><div class="stat-val" id="d-new">-</div></div>
-        <div class="stat-card"><div class="stat-label">이번달 해촉</div><div class="stat-val" id="d-out">-</div></div>
+        <div class="stat-card danger clickable" onclick="showStatDetail('declined')"><div class="stat-label">지난달 대비 하락</div><div class="stat-val" id="d-declined">-</div></div>
+        <div class="stat-card clickable" onclick="showStatDetail('improved')" style="background:#e5f7ee;"><div class="stat-label" style="color:var(--good);">지난달 대비 상승</div><div class="stat-val" id="d-improved" style="color:var(--good);">-</div></div>
+        <div class="stat-card clickable" onclick="showStatDetail('new')"><div class="stat-label">이번달 신규위촉</div><div class="stat-val" id="d-new">-</div></div>
+        <div class="stat-card clickable" onclick="showStatDetail('out')"><div class="stat-label">이번달 해촉</div><div class="stat-val" id="d-out">-</div></div>
       </div>
 
       <div class="card">
@@ -525,17 +529,20 @@ function renderDashboard(){
   var ids = Object.keys(people);
   document.getElementById('d-total').textContent = ids.length;
   var declinedIds = ids.filter(function(id){ return swTrend(id).declined; });
-  document.getElementById('d-risk').textContent = declinedIds.length;
+  var improvedIds = ids.filter(function(id){ return swTrend(id).improved; });
+  document.getElementById('d-declined').textContent = declinedIds.length;
+  document.getElementById('d-improved').textContent = improvedIds.length;
 
   var now=new Date(); var thisYm = yyyymm(now.getFullYear(), now.getMonth());
-  var newCount=0, outCount=0;
+  var newIds=[], outIds=[];
   ids.forEach(function(id){
     var p=people[id];
-    if(p.joinDate && String(p.joinDate).slice(0,6)===thisYm) newCount++;
-    if(p.rejoinDate && String(p.rejoinDate)!=='99991231' && String(p.rejoinDate).slice(0,6)===thisYm) outCount++;
+    if(p.joinDate && String(p.joinDate).slice(0,6)===thisYm) newIds.push(id);
+    if(p.rejoinDate && String(p.rejoinDate)!=='99991231' && String(p.rejoinDate).slice(0,6)===thisYm) outIds.push(id);
   });
-  document.getElementById('d-new').textContent = newCount;
-  document.getElementById('d-out').textContent = outCount;
+  document.getElementById('d-new').textContent = newIds.length;
+  document.getElementById('d-out').textContent = outIds.length;
+  _statLists = { declined:declinedIds, improved:improvedIds, new:newIds, out:outIds };
 
   // engagement bar: 이번달 신규 컨택 vs 이전부터 누적된 컨택(이번달엔 아직 없음)
   var thisMonthPrefix = now.getFullYear()+'-'+pad2(now.getMonth()+1);
@@ -559,6 +566,7 @@ function renderDashboard(){
   // today schedule
   var todayStr = now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate());
   var todayList = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===todayStr;});
+  todayList.sort(function(a,b){ return (a.time||'99:99').localeCompare(b.time||'99:99'); });
   var tsEl = document.getElementById('today-schedule');
   if(!todayList.length){ tsEl.innerHTML='<div class="empty">일정이 없어요.</div>'; }
   else {
@@ -567,7 +575,7 @@ function renderDashboard(){
       var t = s.type||'컨택';
       var clickAttr = s.empId ? " onclick=\"openProfile('"+s.empId+"')\" style=\"padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;\"" : " style=\"padding:7px 0;border-bottom:1px solid var(--bd);\"";
       return '<div'+clickAttr+'>'
-        +'<div style="font-size:13px;"><span class="badge neutral">'+t+'</span> '+(p?(p.name||'?'):'(대상자 없음)')+' <span style="font-size:11px;color:var(--muted);">'+(p&&p.branch?'· '+p.branch:'')+'</span></div>'
+        +'<div style="font-size:13px;">'+(s.time?'<span style="color:var(--muted);font-size:11px;margin-right:4px;">'+s.time+'</span>':'')+'<span class="badge neutral">'+t+'</span> '+(p?(p.name||'?'):'(대상자 없음)')+' <span style="font-size:11px;color:var(--muted);">'+(p&&p.branch?'· '+p.branch:'')+'</span></div>'
         + (s.location?'<div style="font-size:11px;color:var(--accent);margin-top:2px;">📍 '+s.location+'</div>':'')
         +'<div style="font-size:11px;color:var(--muted);margin-top:3px;">'+(s.memo||'')+'</div></div>';
     }).join('');
@@ -650,6 +658,42 @@ function goOrgFiltered(level, name, type){
   document.getElementById('org-filter-risk').value = type||'declined';
   if(level==='branch') document.getElementById('org-search').value = name;
   renderOrgList();
+}
+
+var _statLists = { declined:[], improved:[], new:[], out:[] };
+function showStatDetail(type){
+  var ids = _statLists[type]||[];
+  var titleMap = { declined:'📉 지난달 대비 하락', improved:'📈 지난달 대비 상승', new:'🆕 이번달 신규위촉', out:'👋 이번달 해촉' };
+  var overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+  var box=document.createElement('div');
+  box.className='modal-box'; box.style.position='relative'; box.style.maxWidth='420px';
+  var listHtml;
+  if(!ids.length){ listHtml = '<div class="empty">해당하는 사람이 없어요.</div>'; }
+  else {
+    listHtml = ids.map(function(id){
+      var p = people[id]; if(!p) return '';
+      var extra = '';
+      if(type==='declined'||type==='improved'){
+        var t = swTrend(id);
+        extra = '<span style="color:'+(type==='declined'?'var(--danger)':'var(--good)')+';font-weight:700;font-size:12px;">'+(t.deltaLastMonth>0?'+':'')+t.deltaLastMonth+'</span>';
+      } else if(type==='new'){
+        extra = '<span style="color:var(--muted);font-size:11px;">'+fmtDate8(p.joinDate)+'</span>';
+      } else if(type==='out'){
+        extra = '<span style="color:var(--muted);font-size:11px;">'+fmtDate8(p.rejoinDate)+'</span>';
+      }
+      return '<div class="row-clickable" style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="this.closest(\'.modal-overlay\').remove();openProfile(\''+id+'\')">'
+        +'<span style="font-size:13.5px;">'+(p.name||'')+' <span style="font-size:11px;color:var(--muted);">· '+(p.hq||'')+' '+(p.branch||'')+'</span></span>'
+        + extra
+        +'</div>';
+    }).join('');
+  }
+  box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
+    +'<div class="card-title">'+titleMap[type]+' ('+ids.length+'명)</div>'
+    +'<div style="max-height:60vh;overflow-y:auto;">'+listHtml+'</div>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 var _engageChart = null;
@@ -1176,9 +1220,10 @@ function renderCalendar(){
     var dateStr = calYear+'-'+pad2(calMonth+1)+'-'+pad2(d);
     var isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===d;
     var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
+    daySchedules.sort(function(a,b){ return (a.time||'99:99').localeCompare(b.time||'99:99'); });
     html += '<div class="cal-cell'+(isToday?' today':'')+'" onclick="openDayModal(\''+dateStr+'\')">'
       +'<div class="dnum">'+d+'</div>'
-      + daySchedules.slice(0,3).map(function(s){ var p=s.empId?people[s.empId]:null; var t=s.type||'컨택'; return '<div class="sched">['+t+'] '+(p?p.name:(s.location?'📍'+s.location:'ETC'))+'</div>'; }).join('')
+      + daySchedules.slice(0,3).map(function(s){ var p=s.empId?people[s.empId]:null; var t=s.type||'컨택'; var timeStr=s.time?s.time+' ':''; return '<div class="sched">'+timeStr+'['+t+'] '+(p?p.name:(s.location?'📍'+s.location:'ETC'))+'</div>'; }).join('')
       + (daySchedules.length>3? '<div style="font-size:9px;color:var(--muted);">+'+(daySchedules.length-3)+'</div>':'')
       +'</div>';
   }
@@ -1197,7 +1242,8 @@ function openDayModal(dateStr){
   var box=document.createElement('div');
   box.className='modal-box'; box.style.position='relative'; box.style.maxWidth='400px';
   var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
-  var typeBadgeColor = { 컨택:'var(--accent)', 코칭:'#0f9d67', 교육:'#c97a12', 행사:'#a24bd8', ETC:'var(--muted)' };
+  daySchedules.sort(function(a,b){ return (a.time||'99:99').localeCompare(b.time||'99:99'); });
+  var typeBadgeColor = { 컨택:'var(--accent)', 코칭:'#0f9d67', 교육:'#c97a12', 행사:'#a24bd8', 본사미팅:'#d8564b', ETC:'var(--muted)' };
   box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
     +'<div class="card-title">'+dateStr+' 일정</div>'
     +'<div id="day-sched-list">'+ (daySchedules.length? daySchedules.map(function(s){
@@ -1205,12 +1251,15 @@ function openDayModal(dateStr){
         var t = s.type||'컨택';
         var tCol = typeBadgeColor[t]||'var(--muted)';
         var nameLabel = p ? (p.name||'?') : '(대상자 없음)';
+        var timeLabel = s.time ? ('<span style="color:var(--muted);font-size:11px;margin-right:4px;">'+s.time+'</span>') : '';
         var locHtml = s.location ? ('<div class="note-text" style="margin-top:2px;"><a href="'+(/^https?:\/\//.test(s.location)?s.location:'#')+'" target="_blank" style="color:var(--accent);">📍 '+s.location+'</a></div>') : '';
-        return '<div class="note-item"><div class="note-date"><span><span style="color:'+tCol+';font-weight:700;">['+t+']</span> '+nameLabel+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div>'+locHtml+(p?'<button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button>':'')+'</div>';
+        return '<div class="note-item"><div class="note-date"><span>'+timeLabel+'<span style="color:'+tCol+';font-weight:700;">['+t+']</span> '+nameLabel+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div>'+locHtml+(p?'<button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button>':'')+'</div>';
       }).join('') : '<div class="empty">일정 없음</div>') + '</div>'
     +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:10px;">'
       +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">유형</label>'
-      +'<select id="sched-type"><option>컨택</option><option>코칭</option><option>교육</option><option>행사</option><option>ETC</option></select>'
+      +'<select id="sched-type"><option>컨택</option><option>코칭</option><option>교육</option><option>행사</option><option>본사미팅</option><option>ETC</option></select>'
+      +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">시간 (선택)</label>'
+      +'<input type="time" id="sched-time">'
       +'<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin:10px 0 4px;cursor:pointer;">'
         +'<input type="checkbox" id="sched-has-target" checked onchange="toggleSchedTargetFields()"> 특정 인원과의 일정'
       +'</label>'
@@ -1257,11 +1306,12 @@ function addSchedule(dateStr){
   var hasTarget = document.getElementById('sched-has-target').checked;
   var empId = hasTarget ? document.getElementById('sched-person').value : '';
   var type = document.getElementById('sched-type').value;
+  var time = document.getElementById('sched-time').value;
   var location = document.getElementById('sched-location').value.trim();
   var memo = document.getElementById('sched-memo').value.trim();
   if(hasTarget && !empId){ showToast('대상자를 선택하거나, "특정 인원과의 일정" 체크를 해제해주세요.'); return; }
   var id='s'+Date.now();
-  var entry={date:dateStr, empId:empId||null, type:type, location:location, memo:memo, done:false};
+  var entry={date:dateStr, time:time, empId:empId||null, type:type, location:location, memo:memo, done:false};
   fetch(FB_URL+ROOT+'/schedules/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   schedules[id]=entry;
   document.querySelector('.modal-overlay').remove();
