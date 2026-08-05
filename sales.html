@@ -41,7 +41,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
 .grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-@media(max-width:700px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-5{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+@media(max-width:700px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-5{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}.cal-cell{min-height:120px;}}
 .stat-card{background:var(--sf2);border-radius:10px;padding:12px 14px;}
 .stat-card.clickable{cursor:pointer;}
 .stat-card.clickable:hover{background:var(--sf3);}
@@ -93,9 +93,10 @@ tr.row-clickable:hover{background:var(--sf2);}
 .note-date{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;}
 .note-text{font-size:13px;margin-top:4px;white-space:pre-wrap;}
 .trash-icon{cursor:pointer;color:var(--muted);font-size:12px;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;}
 .cal-dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0;}
-.cal-cell{background:var(--sf2);border-radius:6px;min-height:64px;padding:4px;font-size:11px;position:relative;cursor:pointer;overflow:hidden;}
+.cal-cell{background:var(--sf2);border-radius:6px;min-height:170px;min-width:0;padding:4px;font-size:11px;position:relative;cursor:pointer;display:flex;flex-direction:column;overflow:hidden;}
+.cal-ampm-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-top:3px;}
 .cal-cell.today{border:1px solid var(--accent);}
 .cal-cell .dnum{font-size:11px;color:var(--muted);}
 .cal-cell .sched{font-size:10px;background:var(--a2);color:var(--accent);border-radius:4px;padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;display:block;}
@@ -1224,15 +1225,20 @@ function renderCalendar(){
     var isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===d;
     var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
     daySchedules.sort(function(a,b){ return (a.time||'99:99').localeCompare(b.time||'99:99'); });
+    var noTime = daySchedules.filter(function(s){ return !s.time; });
+    var amItems = daySchedules.filter(function(s){ return s.time && parseInt(s.time.slice(0,2))<12; });
+    var pmItems = daySchedules.filter(function(s){ return s.time && parseInt(s.time.slice(0,2))>=12; });
+    function pillHtml(s){
+      var p=s.empId?people[s.empId]:null; var t=s.type||'컨택'; var timeStr=s.time?s.time+' ':'';
+      var label = timeStr+'['+t+'] '+(p?p.name:(s.location?'📍'+s.location:'ETC'));
+      if(p) return '<div class="sched" onclick="event.stopPropagation();openProfile(\''+s.empId+'\')" style="cursor:pointer;">'+label+'</div>';
+      return '<div class="sched">'+label+'</div>';
+    }
     html += '<div class="cal-cell'+(isToday?' today':'')+'" onclick="openDayModal(\''+dateStr+'\')">'
       +'<div class="dnum">'+d+'</div>'
-      + daySchedules.slice(0,3).map(function(s){
-          var p=s.empId?people[s.empId]:null; var t=s.type||'컨택'; var timeStr=s.time?s.time+' ':'';
-          var label = timeStr+'['+t+'] '+(p?p.name:(s.location?'📍'+s.location:'ETC'));
-          if(p) return '<div class="sched" onclick="event.stopPropagation();openProfile(\''+s.empId+'\')" style="cursor:pointer;">'+label+'</div>';
-          return '<div class="sched">'+label+'</div>';
-        }).join('')
-      + (daySchedules.length>3? '<div style="font-size:9px;color:var(--muted);">+'+(daySchedules.length-3)+'</div>':'')
+      + noTime.map(pillHtml).join('')
+      + (amItems.length? '<div class="cal-ampm-label">오전</div>'+amItems.map(pillHtml).join('') : '')
+      + (pmItems.length? '<div class="cal-ampm-label">오후</div>'+pmItems.map(pillHtml).join('') : '')
       +'</div>';
   }
   cellsEl.innerHTML = html;
