@@ -138,7 +138,7 @@ tr.row-clickable:hover{background:var(--sf2);}
     <div class="view active" id="view-dashboard">
       <div class="grid-4" style="margin-bottom:16px;">
         <div class="stat-card"><div class="stat-label">전체 인원</div><div class="stat-val" id="d-total">-</div></div>
-        <div class="stat-card danger"><div class="stat-label">위험군</div><div class="stat-val" id="d-risk">-</div></div>
+        <div class="stat-card danger"><div class="stat-label">지난달 대비 하락</div><div class="stat-val" id="d-risk">-</div></div>
         <div class="stat-card"><div class="stat-label">이번달 신규위촉</div><div class="stat-val" id="d-new">-</div></div>
         <div class="stat-card"><div class="stat-label">이번달 해촉</div><div class="stat-val" id="d-out">-</div></div>
       </div>
@@ -161,12 +161,19 @@ tr.row-clickable:hover{background:var(--sf2);}
           <div id="today-schedule"><div class="empty">일정이 없어요.</div></div>
         </div>
         <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <div class="card-title" style="margin:0;">🚨 조직별 위험군 현황</div>
-            <select id="risk-org-level" onchange="renderRiskOrgList()" style="width:auto;font-size:12px;padding:6px 10px;">
-              <option value="hq">본부별</option>
-              <option value="branch">지점별</option>
-            </select>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px;">
+            <div class="card-title" style="margin:0;">📊 조직별 지표 변화 현황</div>
+            <div style="display:flex;gap:6px;">
+              <select id="risk-org-type" onchange="renderRiskOrgList()" style="width:auto;font-size:12px;padding:6px 10px;">
+                <option value="declined">📉 지난달 대비 하락</option>
+                <option value="improved">📈 지난달 대비 상승</option>
+                <option value="vsH1">🌟 상반기 대비 향상</option>
+              </select>
+              <select id="risk-org-level" onchange="renderRiskOrgList()" style="width:auto;font-size:12px;padding:6px 10px;">
+                <option value="hq">본부별</option>
+                <option value="branch">지점별</option>
+              </select>
+            </div>
           </div>
           <div id="risk-org-list"><div class="empty">-</div></div>
         </div>
@@ -211,7 +218,12 @@ tr.row-clickable:hover{background:var(--sf2);}
         <input type="text" id="org-search" placeholder="이름, 지점 검색" oninput="renderOrgList()">
         <select id="org-filter-hq" onchange="renderOrgList()"><option value="">전체 본부</option></select>
         <select id="org-filter-seg" onchange="renderOrgList()"><option value="">Seg 전체</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
-        <select id="org-filter-risk" onchange="renderOrgList()"><option value="">전체</option><option value="risk">위험군만</option></select>
+        <select id="org-filter-risk" onchange="renderOrgList()">
+          <option value="">전체</option>
+          <option value="declined">📉 지난달 대비 하락</option>
+          <option value="improved">📈 지난달 대비 상승</option>
+          <option value="vsH1">🌟 상반기 대비 향상</option>
+        </select>
         <button class="btn" onclick="exportOrgListExcel()">📥 엑셀 다운로드</button>
         <button class="btn primary" onclick="openGroupSmsModal()">📣 그룹 문자</button>
       </div>
@@ -461,35 +473,43 @@ function personSW(empId, ymKey){
   var v = snap[empId].sw;
   return (v===undefined||v===null||v==='') ? null : Number(v);
 }
-function isRisk(empId){
-  var p = people[empId];
-  if(!p) return false;
-  var keys = latestTwoSnapshotKeys();
+function getFirstHalfKeys(year){
+  return Object.keys(snapshots).filter(function(k){ return k.slice(0,4)===''+year && k.slice(4,6)<='06'; }).sort();
+}
+function swTrend(empId){
+  var keys = Object.keys(snapshots).sort();
   var latestKey = keys[keys.length-1];
-  var sw = latestKey ? personSW(empId, latestKey) : null;
-  if(sw!==null && sw < 30) return true; // S/W 150점 만점 중 30점 미만은 위험 신호로 우선 설정
-  var lastNoteDate = latestNoteDate(empId);
-  if(!lastNoteDate) return true; // 컨택 기록이 아예 없으면 위험군으로 표시
-  var days = (Date.now()-new Date(lastNoteDate).getTime())/86400000;
-  if(days > 90) return true; // 90일(3개월) 이상 미컨택
-  return false;
+  var prevKey = keys.length>1 ? keys[keys.length-2] : null;
+  var latestSw = latestKey ? personSW(empId, latestKey) : null;
+  var prevSw = prevKey ? personSW(empId, prevKey) : null;
+  var deltaLastMonth = (latestSw!==null && prevSw!==null) ? Math.round((latestSw-prevSw)*10)/10 : null;
+  var declined = deltaLastMonth!==null && deltaLastMonth<0;
+  var improved = deltaLastMonth!==null && deltaLastMonth>0;
+
+  var year = latestKey ? parseInt(latestKey.slice(0,4)) : new Date().getFullYear();
+  var h1Keys = getFirstHalfKeys(year).filter(function(k){ return k!==latestKey; });
+  var h1Vals = h1Keys.map(function(k){ return personSW(empId,k); }).filter(function(v){ return v!==null; });
+  var h1Avg = h1Vals.length ? h1Vals.reduce(function(s,v){return s+v;},0)/h1Vals.length : null;
+  var deltaVsH1 = (latestSw!==null && h1Avg!==null) ? Math.round((latestSw-h1Avg)*10)/10 : null;
+  var vsH1Improved = deltaVsH1!==null && deltaVsH1>0;
+
+  return { latestSw:latestSw, prevSw:prevSw, deltaLastMonth:deltaLastMonth, declined:declined, improved:improved,
+           h1Avg: h1Avg!==null?Math.round(h1Avg*10)/10:null, deltaVsH1:deltaVsH1, vsH1Improved:vsH1Improved };
+}
+function trendBadgeHtml(empId){
+  var t = swTrend(empId);
+  var parts = [];
+  if(t.declined) parts.push('<span class="badge risk">📉 전월대비 '+t.deltaLastMonth+'</span>');
+  if(t.improved) parts.push('<span class="badge ok">📈 전월대비 +'+t.deltaLastMonth+'</span>');
+  if(t.vsH1Improved) parts.push('<span class="badge neutral" style="color:var(--accent);">🌟 상반기대비 +'+t.deltaVsH1+'</span>');
+  if(!parts.length) return '<span class="badge neutral">변동없음</span>';
+  return parts.join(' ');
 }
 function latestNoteDate(empId){
   var n = notes[empId];
   if(!n) return null;
   var dates = Object.values(n).map(function(x){return x.date;}).filter(Boolean).sort();
   return dates.length ? dates[dates.length-1] : null;
-}
-function riskReason(empId){
-  var keys = latestTwoSnapshotKeys();
-  var latestKey = keys[keys.length-1];
-  var sw = latestKey ? personSW(empId, latestKey) : null;
-  if(sw!==null && sw < 30) return 'S/W 저조';
-  var lastNoteDate = latestNoteDate(empId);
-  if(!lastNoteDate) return '컨택기록 없음';
-  var days = (Date.now()-new Date(lastNoteDate).getTime())/86400000;
-  if(days > 90) return '장기 미컨택';
-  return '';
 }
 function branchColor(branch){
   var str = branch||'';
@@ -504,8 +524,8 @@ var segColorMap = { A:'#639922', B:'#97C459', C:'#EF9F27', D:'#D85A30', E:'#E24B
 function renderDashboard(){
   var ids = Object.keys(people);
   document.getElementById('d-total').textContent = ids.length;
-  var riskIds = ids.filter(isRisk);
-  document.getElementById('d-risk').textContent = riskIds.length;
+  var declinedIds = ids.filter(function(id){ return swTrend(id).declined; });
+  document.getElementById('d-risk').textContent = declinedIds.length;
 
   var now=new Date(); var thisYm = yyyymm(now.getFullYear(), now.getMonth());
   var newCount=0, outCount=0;
@@ -543,10 +563,12 @@ function renderDashboard(){
   if(!todayList.length){ tsEl.innerHTML='<div class="empty">일정이 없어요.</div>'; }
   else {
     tsEl.innerHTML = todayList.map(function(s){
-      var p = people[s.empId]||{};
+      var p = s.empId ? (people[s.empId]||{}) : null;
       var t = s.type||'컨택';
-      return '<div style="padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+s.empId+'\')">'
-        +'<div style="font-size:13px;"><span class="badge neutral">'+t+'</span> '+(p.name||'?')+' <span style="font-size:11px;color:var(--muted);">· '+(p.branch||'')+'</span></div>'
+      var clickAttr = s.empId ? " onclick=\"openProfile('"+s.empId+"')\" style=\"padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;\"" : " style=\"padding:7px 0;border-bottom:1px solid var(--bd);\"";
+      return '<div'+clickAttr+'>'
+        +'<div style="font-size:13px;"><span class="badge neutral">'+t+'</span> '+(p?(p.name||'?'):'(대상자 없음)')+' <span style="font-size:11px;color:var(--muted);">'+(p&&p.branch?'· '+p.branch:'')+'</span></div>'
+        + (s.location?'<div style="font-size:11px;color:var(--accent);margin-top:2px;">📍 '+s.location+'</div>':'')
         +'<div style="font-size:11px;color:var(--muted);margin-top:3px;">'+(s.memo||'')+'</div></div>';
     }).join('');
   }
@@ -589,38 +611,43 @@ function renderDashboard(){
 function renderRiskOrgList(){
   var levelEl = document.getElementById('risk-org-level');
   var level = levelEl ? levelEl.value : 'hq';
+  var typeEl = document.getElementById('risk-org-type');
+  var type = typeEl ? typeEl.value : 'declined';
+  var typeLabel = {declined:'하락', improved:'상승', vsH1:'상반기대비 향상'}[type];
   var groups = {};
   Object.keys(people).forEach(function(id){
     var p = people[id];
     var key = level==='hq' ? (p.hq||'미분류') : (p.branch||'미분류');
-    if(!groups[key]) groups[key] = { total:0, risk:0 };
+    if(!groups[key]) groups[key] = { total:0, hit:0 };
     groups[key].total++;
-    if(isRisk(id)) groups[key].risk++;
+    var t = swTrend(id);
+    var matched = type==='declined' ? t.declined : (type==='improved' ? t.improved : t.vsH1Improved);
+    if(matched) groups[key].hit++;
   });
   var rows = Object.keys(groups).map(function(k){
     var g = groups[k];
-    return { name:k, total:g.total, risk:g.risk, pct: g.total? Math.round(g.risk/g.total*100):0 };
+    return { name:k, total:g.total, hit:g.hit, pct: g.total? Math.round(g.hit/g.total*100):0 };
   });
   rows.sort(function(a,b){ return b.pct - a.pct; });
   var el = document.getElementById('risk-org-list');
   if(!rows.length){ el.innerHTML='<div class="empty">데이터 없음</div>'; return; }
   el.innerHTML = rows.map(function(r){
-    var col = r.pct>=50 ? 'var(--danger)' : (r.pct>=25 ? 'var(--warn)' : 'var(--good)');
-    return '<div style="padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="goOrgFiltered(\''+level+'\',\''+r.name.replace(/'/g,"\\'")+'\')">'
+    var col = type==='improved'||type==='vsH1' ? 'var(--good)' : (r.pct>=50 ? 'var(--danger)' : (r.pct>=25 ? 'var(--warn)' : 'var(--good)'));
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="goOrgFiltered(\''+level+'\',\''+r.name.replace(/'/g,"\\'")+'\',\''+type+'\')">'
       +'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">'
         +'<span>'+r.name+' <span style="color:var(--muted);font-size:11px;">('+r.total+'명)</span></span>'
-        +'<span style="color:'+col+';font-weight:700;">'+r.risk+'명 위험군 · '+r.pct+'%</span>'
+        +'<span style="color:'+col+';font-weight:700;">'+r.hit+'명 '+typeLabel+' · '+r.pct+'%</span>'
       +'</div>'
       +'<div style="background:var(--sf2);border-radius:6px;height:6px;overflow:hidden;"><div style="width:'+r.pct+'%;height:100%;background:'+col+';"></div></div>'
     +'</div>';
   }).join('');
 }
-function goOrgFiltered(level, name){
+function goOrgFiltered(level, name, type){
   switchTab('org');
   document.getElementById('org-search').value='';
   var hqSel = document.getElementById('org-filter-hq');
   hqSel.value = level==='hq' ? name : '';
-  document.getElementById('org-filter-risk').value = 'risk';
+  document.getElementById('org-filter-risk').value = type||'declined';
   if(level==='branch') document.getElementById('org-search').value = name;
   renderOrgList();
 }
@@ -702,7 +729,7 @@ function toggleOrgSort(key){
 }
 function _orgSortVal(row, key){
   if(key==='branch') return (row.hq||'')+' '+(row.branch||'');
-  if(key==='risk') return row.risk ? 1 : 0;
+  if(key==='risk') return row.trend.declined ? -1 : (row.trend.improved ? 1 : 0);
   if(key==='sw') return row.sw===undefined||row.sw===null||row.sw==='' ? -1 : Number(row.sw);
   if(key==='lastNote') return row.lastNote==='-' ? '' : row.lastNote;
   return row[key]||'';
@@ -718,13 +745,19 @@ function getOrgRows(){
     if(q && !((p.name||'').includes(q) || (p.branch||'').includes(q) || tagsStr.includes(q))) return false;
     if(fHq && p.hq!==fHq) return false;
     if(fSeg && p.seg!==fSeg) return false;
-    if(fRisk==='risk' && !isRisk(id)) return false;
+    if(fRisk){
+      var t = swTrend(id);
+      if(fRisk==='declined' && !t.declined) return false;
+      if(fRisk==='improved' && !t.improved) return false;
+      if(fRisk==='vsH1' && !t.vsH1Improved) return false;
+    }
     return true;
   });
   var rows = ids.map(function(id){
     var p = people[id];
+    var t = swTrend(id);
     return { id:id, name:p.name||'', hq:p.hq||'', branch:p.branch||'', seg:p.seg||'', cr:p.cr||'', efsr:p.efsr||'',
-      sw:p.sw, lastNote: latestNoteDate(id)||'-', risk: isRisk(id), riskReason: isRisk(id)?riskReason(id):'', fav:!!p.fav, tags:p.tags||[] };
+      sw:p.sw, lastNote: latestNoteDate(id)||'-', trend:t, fav:!!p.fav, tags:p.tags||[] };
   });
   rows.sort(function(a,b){
     var av=_orgSortVal(a,_orgSortKey), bv=_orgSortVal(b,_orgSortKey);
@@ -752,19 +785,22 @@ function renderOrgList(){
       +'<td>'+(r.efsr||'-')+'</td>'
       +'<td>'+(r.sw!==undefined&&r.sw!==null&&r.sw!==''?r.sw:'-')+'</td>'
       +'<td style="color:var(--muted);">'+r.lastNote+'</td>'
-      +'<td>'+(r.risk?'<span class="badge risk">'+r.riskReason+'</span>':'<span class="badge ok">정상</span>')+'</td>'
+      +'<td>'+trendBadgeHtml(r.id)+'</td>'
       +'</tr>';
   }).join('');
 }
 function exportOrgListExcel(){
   var rows = getOrgRows();
   if(!rows.length){ showToast('내보낼 데이터가 없어요.'); return; }
-  var aoa = [['이름','본부','지점','Seg','C/R','eFSR','S/W','최근 컨택','상태']];
+  var aoa = [['이름','본부','지점','Seg','C/R','eFSR','S/W','최근 컨택','전월대비','상반기대비']];
   rows.forEach(function(r){
-    aoa.push([r.name, r.hq, r.branch, r.seg, r.cr, r.efsr, (r.sw!==undefined&&r.sw!==null&&r.sw!==''?r.sw:''), r.lastNote, r.risk?('위험군: '+r.riskReason):'정상']);
+    var t=r.trend;
+    aoa.push([r.name, r.hq, r.branch, r.seg, r.cr, r.efsr, (r.sw!==undefined&&r.sw!==null&&r.sw!==''?r.sw:''), r.lastNote,
+      (t.deltaLastMonth!==null?(t.deltaLastMonth>0?'+':'')+t.deltaLastMonth:'-'),
+      (t.deltaVsH1!==null?(t.deltaVsH1>0?'+':'')+t.deltaVsH1:'-')]);
   });
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:10},{wch:10},{wch:14},{wch:6},{wch:6},{wch:10},{wch:6},{wch:12},{wch:16}];
+  ws['!cols'] = [{wch:10},{wch:10},{wch:14},{wch:6},{wch:6},{wch:10},{wch:6},{wch:12},{wch:10},{wch:10}];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '조직도');
   var now = new Date();
@@ -932,7 +968,6 @@ function openProfile(empId){
   setTimeout(function(){ renderProfileTrend(empId); }, 50);
 }
 function buildProfileHtml(empId, p){
-  var risk = isRisk(empId);
   return '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
   +'<div class="profile-header">'
     +'<div style="display:flex;align-items:center;gap:8px;">'
@@ -944,7 +979,7 @@ function buildProfileHtml(empId, p){
       +'<a href="tel:'+(p.phone||'')+'" onclick="logContact(\''+empId+'\',\'call\')" class="btn" style="text-decoration:none;">📞 전화</a>'
       +'<a href="sms:'+(p.phone||'')+'" onclick="logContact(\''+empId+'\',\'sms\')" class="btn" style="text-decoration:none;">💬 문자</a>'
     +'</div></div>'
-  + (risk ? '<div class="badge risk" style="margin-bottom:10px;">⚠ '+riskReason(empId)+'</div>' : '')
+  +'<div style="margin-bottom:10px;">'+trendBadgeHtml(empId)+'</div>'
   + buildContactDueBadge(empId)
   +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;" id="tags-'+empId+'">'+renderTagsHtml(empId)+'</div>'
   +'<table class="info-table">'
@@ -1143,7 +1178,7 @@ function renderCalendar(){
     var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
     html += '<div class="cal-cell'+(isToday?' today':'')+'" onclick="openDayModal(\''+dateStr+'\')">'
       +'<div class="dnum">'+d+'</div>'
-      + daySchedules.slice(0,3).map(function(s){ var p=people[s.empId]; var t=s.type||'컨택'; return '<div class="sched">['+t+'] '+(p?p.name:'?')+'</div>'; }).join('')
+      + daySchedules.slice(0,3).map(function(s){ var p=s.empId?people[s.empId]:null; var t=s.type||'컨택'; return '<div class="sched">['+t+'] '+(p?p.name:(s.location?'📍'+s.location:'ETC'))+'</div>'; }).join('')
       + (daySchedules.length>3? '<div style="font-size:9px;color:var(--muted);">+'+(daySchedules.length-3)+'</div>':'')
       +'</div>';
   }
@@ -1166,20 +1201,26 @@ function openDayModal(dateStr){
   box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
     +'<div class="card-title">'+dateStr+' 일정</div>'
     +'<div id="day-sched-list">'+ (daySchedules.length? daySchedules.map(function(s){
-        var p=people[s.empId]||{};
+        var p=s.empId?(people[s.empId]||{}):null;
         var t = s.type||'컨택';
         var tCol = typeBadgeColor[t]||'var(--muted)';
-        return '<div class="note-item"><div class="note-date"><span><span style="color:'+tCol+';font-weight:700;">['+t+']</span> '+(p.name||'?')+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div><button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button></div>';
+        var nameLabel = p ? (p.name||'?') : '(대상자 없음)';
+        var locHtml = s.location ? ('<div class="note-text" style="margin-top:2px;"><a href="'+(/^https?:\/\//.test(s.location)?s.location:'#')+'" target="_blank" style="color:var(--accent);">📍 '+s.location+'</a></div>') : '';
+        return '<div class="note-item"><div class="note-date"><span><span style="color:'+tCol+';font-weight:700;">['+t+']</span> '+nameLabel+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div>'+locHtml+(p?'<button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button>':'')+'</div>';
       }).join('') : '<div class="empty">일정 없음</div>') + '</div>'
     +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:10px;">'
       +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">유형</label>'
       +'<select id="sched-type"><option>컨택</option><option>코칭</option><option>교육</option><option>행사</option><option>ETC</option></select>'
-      +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">대상자</label>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
+      +'<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin:10px 0 4px;cursor:pointer;">'
+        +'<input type="checkbox" id="sched-has-target" checked onchange="toggleSchedTargetFields()"> 특정 인원과의 일정'
+      +'</label>'
+      +'<div id="sched-target-fields" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
         +'<select id="sched-hq" onchange="schedHqChanged()" style="font-size:12px;padding:8px 6px;"></select>'
         +'<select id="sched-branch" onchange="schedBranchChanged()" style="font-size:12px;padding:8px 6px;"></select>'
         +'<select id="sched-person" style="font-size:12px;padding:8px 6px;"></select>'
       +'</div>'
+      +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">장소 / 웹미팅 링크</label>'
+      +'<input type="text" id="sched-location" placeholder="예: 강남 사무실, 또는 https://zoom.us/...">'
       +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">메모</label>'
       +'<textarea id="sched-memo" rows="2" placeholder="목적, 확인할 것 등"></textarea>'
       +'<button class="btn primary" style="width:100%;margin-top:8px;" onclick="addSchedule(\''+dateStr+'\')">일정 추가</button>'
@@ -1187,6 +1228,10 @@ function openDayModal(dateStr){
   overlay.appendChild(box);
   document.body.appendChild(overlay);
   initSchedSelects();
+}
+function toggleSchedTargetFields(){
+  var checked = document.getElementById('sched-has-target').checked;
+  document.getElementById('sched-target-fields').style.display = checked ? 'grid' : 'none';
 }
 function initSchedSelects(){
   var hqs = [...new Set(Object.values(people).map(function(p){return p.hq;}).filter(Boolean))].sort();
@@ -1209,12 +1254,14 @@ function schedBranchChanged(){
   pEl.innerHTML = ids.map(function(id){return '<option value="'+id+'">'+people[id].name+'</option>';}).join('');
 }
 function addSchedule(dateStr){
-  var empId = document.getElementById('sched-person').value;
+  var hasTarget = document.getElementById('sched-has-target').checked;
+  var empId = hasTarget ? document.getElementById('sched-person').value : '';
   var type = document.getElementById('sched-type').value;
+  var location = document.getElementById('sched-location').value.trim();
   var memo = document.getElementById('sched-memo').value.trim();
-  if(!empId){ showToast('대상자를 선택해주세요.'); return; }
+  if(hasTarget && !empId){ showToast('대상자를 선택하거나, "특정 인원과의 일정" 체크를 해제해주세요.'); return; }
   var id='s'+Date.now();
-  var entry={date:dateStr, empId:empId, type:type, memo:memo, done:false};
+  var entry={date:dateStr, empId:empId||null, type:type, location:location, memo:memo, done:false};
   fetch(FB_URL+ROOT+'/schedules/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   schedules[id]=entry;
   document.querySelector('.modal-overlay').remove();
@@ -1339,24 +1386,29 @@ function generateReport(){
     });
   });
 
-  var riskByHq = {};
+  var trendByHq = {};
   Object.keys(people).forEach(function(id){
     var hq = people[id].hq||'미분류';
-    if(!riskByHq[hq]) riskByHq[hq]={total:0,risk:0};
-    riskByHq[hq].total++;
-    if(isRisk(id)) riskByHq[hq].risk++;
+    if(!trendByHq[hq]) trendByHq[hq]={total:0, declined:0, improved:0, vsH1:0};
+    trendByHq[hq].total++;
+    var t = swTrend(id);
+    if(t.declined) trendByHq[hq].declined++;
+    if(t.improved) trendByHq[hq].improved++;
+    if(t.vsH1Improved) trendByHq[hq].vsH1++;
   });
 
   function avg(arr){ return arr.length? Math.round(arr.reduce(function(s,v){return s+v;},0)/arr.length*10)/10 : 0; }
   var rows = Object.keys(hqAgg).sort().map(function(hq){
+    var tr = trendByHq[hq]||{total:0,declined:0,improved:0,vsH1:0};
     return {
       hq: hq,
       avgCount: avg(hqAgg[hq].avgCount),
       avgMip: Math.round(avg(hqAgg[hq].avgMip)),
       avgSp: Math.round(avg(hqAgg[hq].avgSp)),
-      riskPct: riskByHq[hq]? Math.round(riskByHq[hq].risk/riskByHq[hq].total*100) : 0,
-      riskCount: riskByHq[hq]? riskByHq[hq].risk : 0,
-      totalCount: riskByHq[hq]? riskByHq[hq].total : 0,
+      totalCount: tr.total,
+      declinedCount: tr.declined,
+      improvedCount: tr.improved,
+      vsH1Count: tr.vsH1,
       contactCount: contactCountByHq[hq]||0
     };
   });
@@ -1366,23 +1418,23 @@ function generateReport(){
 }
 function renderReportTable(rows, keysInRange){
   var el = document.getElementById('report-result');
-  var html = '<p style="font-size:11px;color:var(--muted);margin-bottom:10px;">포함된 스냅샷: '+keysInRange.join(', ')+' (위험군 비율은 현재 시점 기준)</p>';
-  html += '<table><thead><tr><th>본부</th><th>평균 건수</th><th>평균 MIP</th><th>평균 SP</th><th>위험군</th><th>기간 내 컨택건수</th></tr></thead><tbody>';
+  var html = '<p style="font-size:11px;color:var(--muted);margin-bottom:10px;">포함된 스냅샷: '+keysInRange.join(', ')+' (지표변화는 현재 최신 데이터 기준)</p>';
+  html += '<table><thead><tr><th>본부</th><th>평균 건수</th><th>평균 MIP</th><th>평균 SP</th><th>📉하락</th><th>📈상승</th><th>🌟상반기대비향상</th><th>기간 내 컨택건수</th></tr></thead><tbody>';
   rows.forEach(function(r){
     html += '<tr><td>'+r.hq+'</td><td>'+r.avgCount+'</td><td>'+r.avgMip.toLocaleString()+'</td><td>'+r.avgSp.toLocaleString()+'</td>'
-      +'<td>'+r.riskCount+'/'+r.totalCount+' ('+r.riskPct+'%)</td><td>'+r.contactCount+'</td></tr>';
+      +'<td>'+r.declinedCount+'/'+r.totalCount+'</td><td>'+r.improvedCount+'/'+r.totalCount+'</td><td>'+r.vsH1Count+'/'+r.totalCount+'</td><td>'+r.contactCount+'</td></tr>';
   });
   html += '</tbody></table>';
   el.innerHTML = html;
 }
 function exportReportExcel(){
   if(!_lastReportRows.length){ showToast('먼저 리포트를 생성해주세요.'); return; }
-  var aoa = [['본부','평균 건수','평균 MIP','평균 SP','위험군 수','전체 인원','위험군 비율(%)','기간 내 컨택건수']];
+  var aoa = [['본부','평균 건수','평균 MIP','평균 SP','전체 인원','지난달대비하락','지난달대비상승','상반기대비향상','기간 내 컨택건수']];
   _lastReportRows.forEach(function(r){
-    aoa.push([r.hq, r.avgCount, r.avgMip, r.avgSp, r.riskCount, r.totalCount, r.riskPct, r.contactCount]);
+    aoa.push([r.hq, r.avgCount, r.avgMip, r.avgSp, r.totalCount, r.declinedCount, r.improvedCount, r.vsH1Count, r.contactCount]);
   });
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14}];
+  ws['!cols'] = [{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:12},{wch:12},{wch:14},{wch:14}];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '리포트');
   XLSX.writeFile(wb, '실적리포트_'+_lastReportRange.startKey+'-'+_lastReportRange.endKey+'.xlsx');
