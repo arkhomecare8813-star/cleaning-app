@@ -48,6 +48,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);}
 .stat-card.danger{background:#fdeaee;}
 table{width:100%;border-collapse:collapse;font-size:12.5px;}
 th{text-align:left;padding:8px 10px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--bd);white-space:nowrap;}
+th.sortable{cursor:pointer;user-select:none;}
+th.sortable:hover{color:var(--text);}
+th.sortable .arrow{font-size:9px;margin-left:3px;color:var(--accent);}
 td{padding:8px 10px;border-bottom:1px solid var(--bd);white-space:nowrap;}
 tr.row-clickable{cursor:pointer;}
 tr.row-clickable:hover{background:var(--sf2);}
@@ -140,8 +143,14 @@ tr.row-clickable:hover{background:var(--sf2);}
 
       <div class="card">
         <div class="card-title">🔋 이번달 컨택 Engagement</div>
-        <div class="energy-bar-wrap"><div class="energy-bar-fill" id="engage-fill" style="width:0%;"></div></div>
-        <div style="font-size:12px;color:var(--muted);margin-top:8px;" id="engage-label">-</div>
+        <div class="energy-bar-wrap" style="display:flex;">
+          <div id="engage-fill-this" style="height:100%;background:var(--accent);width:0%;transition:width .3s;"></div>
+          <div id="engage-fill-before" style="height:100%;background:#b9c4f5;width:0%;transition:width .3s;"></div>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--muted);">
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--accent);margin-right:4px;"></span>이번달 컨택 <b id="engage-this-count" style="color:var(--text);">-</b></span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#b9c4f5;margin-right:4px;"></span>이전 누적 컨택 <b id="engage-before-count" style="color:var(--text);">-</b></span>
+        </div>
       </div>
 
       <div class="grid-2">
@@ -157,7 +166,8 @@ tr.row-clickable:hover{background:var(--sf2);}
 
       <div class="card">
         <div class="card-title">📈 컨택 효과 — S/W 변화량 비교</div>
-        <div style="position:relative;height:160px;"><canvas id="engageEffectChart"></canvas></div>
+        <div style="position:relative;height:160px;" id="engageEffectWrap"><canvas id="engageEffectChart"></canvas></div>
+        <div id="engageEffectEmpty" class="empty" style="display:none;">스냅샷이 2개월 이상 쌓이면 비교가 가능해요.</div>
         <p style="font-size:11px;color:var(--muted);margin-top:8px;">최근 두 달 스냅샷 기준, 이번달 컨택한 그룹과 안 한 그룹의 평균 S/W 증감을 비교합니다.</p>
       </div>
 
@@ -174,11 +184,19 @@ tr.row-clickable:hover{background:var(--sf2);}
         <select id="org-filter-hq" onchange="renderOrgList()"><option value="">전체 본부</option></select>
         <select id="org-filter-seg" onchange="renderOrgList()"><option value="">Seg 전체</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
         <select id="org-filter-risk" onchange="renderOrgList()"><option value="">전체</option><option value="risk">위험군만</option></select>
+        <button class="btn" onclick="exportOrgListExcel()">📥 엑셀 다운로드</button>
       </div>
       <div style="overflow-x:auto;">
         <table>
-          <thead><tr>
-            <th>이름</th><th>본부/지점</th><th>Seg</th><th>C/R</th><th>eFSR</th><th>S/W</th><th>최근 면담</th><th>상태</th>
+          <thead><tr id="org-thead-row">
+            <th class="sortable" onclick="toggleOrgSort('name')">이름<span class="arrow" id="arrow-name"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('branch')">본부/지점<span class="arrow" id="arrow-branch"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('seg')">Seg<span class="arrow" id="arrow-seg"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('cr')">C/R<span class="arrow" id="arrow-cr"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('efsr')">eFSR<span class="arrow" id="arrow-efsr"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('sw')">S/W<span class="arrow" id="arrow-sw"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('lastNote')">최근 면담<span class="arrow" id="arrow-lastNote"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('risk')">상태<span class="arrow" id="arrow-risk"></span></th>
           </tr></thead>
           <tbody id="org-rows"></tbody>
         </table>
@@ -405,15 +423,24 @@ function renderDashboard(){
   document.getElementById('d-new').textContent = newCount;
   document.getElementById('d-out').textContent = outCount;
 
-  // engagement bar
-  var contactedThisMonth = ids.filter(function(id){
+  // engagement bar: 이번달 신규 컨택 vs 이전부터 누적된 컨택(이번달엔 아직 없음)
+  var thisMonthPrefix = now.getFullYear()+'-'+pad2(now.getMonth()+1);
+  var contactedThisMonth = [], contactedBefore = [];
+  ids.forEach(function(id){
     var c = contacts[id];
-    if(!c) return false;
-    return Object.values(c).some(function(log){ return log.date && log.date.slice(0,7)===(now.getFullYear()+'-'+pad2(now.getMonth()+1)); });
+    if(!c) return;
+    var logs = Object.values(c);
+    var hasThis = logs.some(function(log){ return log.date && log.date.slice(0,7)===thisMonthPrefix; });
+    var hasBefore = logs.some(function(log){ return log.date && log.date.slice(0,7)<thisMonthPrefix; });
+    if(hasThis) contactedThisMonth.push(id);
+    else if(hasBefore) contactedBefore.push(id);
   });
-  var pct = ids.length ? Math.round(contactedThisMonth.length/ids.length*100) : 0;
-  document.getElementById('engage-fill').style.width = pct+'%';
-  document.getElementById('engage-label').textContent = contactedThisMonth.length+' / '+ids.length+'명 컨택 ('+pct+'%)';
+  var pctThis = ids.length ? Math.round(contactedThisMonth.length/ids.length*100) : 0;
+  var pctBefore = ids.length ? Math.round(contactedBefore.length/ids.length*100) : 0;
+  document.getElementById('engage-fill-this').style.width = pctThis+'%';
+  document.getElementById('engage-fill-before').style.width = pctBefore+'%';
+  document.getElementById('engage-this-count').textContent = contactedThisMonth.length+'명 ('+pctThis+'%)';
+  document.getElementById('engage-before-count').textContent = contactedBefore.length+'명 ('+pctBefore+'%)';
 
   // today schedule
   var todayStr = now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate());
@@ -446,13 +473,20 @@ function renderDashboard(){
   renderHqChart(ids);
 }
 
+var _engageChart = null;
+var _hqChartInstance = null;
 function renderEngageEffectChart(allIds, contactedIds){
   var keys = latestTwoSnapshotKeys();
-  var ctxEl = document.getElementById('engageEffectChart');
+  var canvas = document.getElementById('engageEffectChart');
+  var emptyEl = document.getElementById('engageEffectEmpty');
+  if(_engageChart){ _engageChart.destroy(); _engageChart=null; }
   if(keys.length<2){
-    ctxEl.parentElement.innerHTML='<div class="empty">스냅샷이 2개월 이상 쌓이면 비교가 가능해요.</div>';
+    canvas.style.display='none';
+    emptyEl.style.display='block';
     return;
   }
+  canvas.style.display='block';
+  emptyEl.style.display='none';
   var prevKey=keys[0], curKey=keys[1];
   function avgDelta(ids){
     var deltas=[];
@@ -467,7 +501,7 @@ function renderEngageEffectChart(allIds, contactedIds){
   var notContacted = allIds.filter(function(id){return !contactedSet[id];});
   var avgC = avgDelta(allIds.filter(function(id){return contactedSet[id];}));
   var avgN = avgDelta(notContacted);
-  new Chart(ctxEl.getContext('2d'), {
+  _engageChart = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels:['컨택한 그룹','컨택 안 한 그룹'], datasets:[{ data:[Math.round(avgC*10)/10, Math.round(avgN*10)/10], backgroundColor:['#4361ee','#c7cbd4'], borderRadius:6, maxBarThickness:60 }] },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(128,128,128,0.15)'},title:{display:true,text:'S/W 평균 증감'}} } }
@@ -486,8 +520,9 @@ function renderHqChart(ids){
     var arr=byHq[hq]; if(!arr.length) return 0;
     return Math.round(arr.reduce(function(s,v){return s+v;},0)/arr.length*10)/10;
   });
-  var ctxEl=document.getElementById('hqChart');
-  new Chart(ctxEl.getContext('2d'), {
+  var canvas=document.getElementById('hqChart');
+  if(_hqChartInstance){ _hqChartInstance.destroy(); _hqChartInstance=null; }
+  _hqChartInstance = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels:labels, datasets:[{ data:data, backgroundColor:'#4361ee', borderRadius:6, maxBarThickness:32 }] },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{font:{size:10}}}, y:{grid:{color:'rgba(128,128,128,0.15)'}} } }
@@ -500,7 +535,21 @@ function renderOrgFilters(){
   var sel = document.getElementById('org-filter-hq');
   sel.innerHTML = '<option value="">전체 본부</option>' + hqs.map(function(h){return '<option>'+h+'</option>';}).join('');
 }
-function renderOrgList(){
+var _orgSortKey = 'name';
+var _orgSortDir = 1; // 1 asc, -1 desc
+function toggleOrgSort(key){
+  if(_orgSortKey===key){ _orgSortDir *= -1; }
+  else { _orgSortKey = key; _orgSortDir = 1; }
+  renderOrgList();
+}
+function _orgSortVal(row, key){
+  if(key==='branch') return (row.hq||'')+' '+(row.branch||'');
+  if(key==='risk') return row.risk ? 1 : 0;
+  if(key==='sw') return row.sw===undefined||row.sw===null||row.sw==='' ? -1 : Number(row.sw);
+  if(key==='lastNote') return row.lastNote==='-' ? '' : row.lastNote;
+  return row[key]||'';
+}
+function getOrgRows(){
   var q = document.getElementById('org-search').value.trim();
   var fHq = document.getElementById('org-filter-hq').value;
   var fSeg = document.getElementById('org-filter-seg').value;
@@ -513,24 +562,54 @@ function renderOrgList(){
     if(fRisk==='risk' && !isRisk(id)) return false;
     return true;
   });
+  var rows = ids.map(function(id){
+    var p = people[id];
+    return { id:id, name:p.name||'', hq:p.hq||'', branch:p.branch||'', seg:p.seg||'', cr:p.cr||'', efsr:p.efsr||'',
+      sw:p.sw, lastNote: latestNoteDate(id)||'-', risk: isRisk(id), riskReason: isRisk(id)?riskReason(id):'' };
+  });
+  rows.sort(function(a,b){
+    var av=_orgSortVal(a,_orgSortKey), bv=_orgSortVal(b,_orgSortKey);
+    if(av<bv) return -1*_orgSortDir;
+    if(av>bv) return 1*_orgSortDir;
+    return 0;
+  });
+  return rows;
+}
+function renderOrgList(){
+  document.querySelectorAll('#org-thead-row .arrow').forEach(function(el){ el.textContent=''; });
+  var arrowEl = document.getElementById('arrow-'+_orgSortKey);
+  if(arrowEl) arrowEl.textContent = _orgSortDir===1?'▲':'▼';
+
+  var rows = getOrgRows();
   var tbody = document.getElementById('org-rows');
-  if(!ids.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty">결과 없음</div></td></tr>'; return; }
-  tbody.innerHTML = ids.map(function(id){
-    var p=people[id];
-    var risk = isRisk(id);
-    var segCol = segColorMap[p.seg]||'#777';
-    var lastNote = latestNoteDate(id) || '-';
-    return '<tr class="row-clickable" onclick="openProfile(\''+id+'\')">'
-      +'<td>'+(p.name||'')+'</td>'
-      +'<td style="color:var(--muted);">'+(p.hq||'')+' · '+(p.branch||'')+'</td>'
-      +'<td><span style="color:'+segCol+';font-weight:700;">'+(p.seg||'-')+'</span></td>'
-      +'<td>'+(p.cr||'-')+'</td>'
-      +'<td>'+(p.efsr||'-')+'</td>'
-      +'<td>'+(p.sw!==undefined?p.sw:'-')+'</td>'
-      +'<td style="color:var(--muted);">'+lastNote+'</td>'
-      +'<td>'+(risk?'<span class="badge risk">'+riskReason(id)+'</span>':'<span class="badge ok">정상</span>')+'</td>'
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty">결과 없음</div></td></tr>'; return; }
+  tbody.innerHTML = rows.map(function(r){
+    var segCol = segColorMap[r.seg]||'#777';
+    return '<tr class="row-clickable" onclick="openProfile(\''+r.id+'\')">'
+      +'<td>'+r.name+'</td>'
+      +'<td style="color:var(--muted);">'+r.hq+' · '+r.branch+'</td>'
+      +'<td><span style="color:'+segCol+';font-weight:700;">'+(r.seg||'-')+'</span></td>'
+      +'<td>'+(r.cr||'-')+'</td>'
+      +'<td>'+(r.efsr||'-')+'</td>'
+      +'<td>'+(r.sw!==undefined&&r.sw!==null&&r.sw!==''?r.sw:'-')+'</td>'
+      +'<td style="color:var(--muted);">'+r.lastNote+'</td>'
+      +'<td>'+(r.risk?'<span class="badge risk">'+r.riskReason+'</span>':'<span class="badge ok">정상</span>')+'</td>'
       +'</tr>';
   }).join('');
+}
+function exportOrgListExcel(){
+  var rows = getOrgRows();
+  if(!rows.length){ showToast('내보낼 데이터가 없어요.'); return; }
+  var aoa = [['이름','본부','지점','Seg','C/R','eFSR','S/W','최근 면담','상태']];
+  rows.forEach(function(r){
+    aoa.push([r.name, r.hq, r.branch, r.seg, r.cr, r.efsr, (r.sw!==undefined&&r.sw!==null&&r.sw!==''?r.sw:''), r.lastNote, r.risk?('위험군: '+r.riskReason):'정상']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:10},{wch:10},{wch:14},{wch:6},{wch:6},{wch:10},{wch:6},{wch:12},{wch:16}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '조직도');
+  var now = new Date();
+  XLSX.writeFile(wb, '조직도_'+now.getFullYear()+pad2(now.getMonth()+1)+pad2(now.getDate())+'.xlsx');
 }
 
 /* ---------- PROFILE ---------- */
