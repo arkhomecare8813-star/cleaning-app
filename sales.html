@@ -128,6 +128,7 @@ tr.row-clickable:hover{background:var(--sf2);}
     <button class="tab" data-tab="calendar" onclick="switchTab('calendar')">📅 캘린더</button>
     <button class="tab" data-tab="map" onclick="switchTab('map')">🗺 지도</button>
     <button class="tab" data-tab="staff" onclick="switchTab('staff')">🏢 본사</button>
+    <button class="tab" data-tab="report" onclick="switchTab('report')">📄 리포트</button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ 조직설정</button>
   </div>
 
@@ -168,6 +169,17 @@ tr.row-clickable:hover{background:var(--sf2);}
             </select>
           </div>
           <div id="risk-org-list"><div class="empty">-</div></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">★ 즐겨찾기</div>
+          <div id="fav-list"><div class="empty">즐겨찾기한 사람이 없어요. 프로필에서 ★을 눌러보세요.</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🔔 컨택 예정일 지난 인원</div>
+          <div id="contact-due-list"><div class="empty">-</div></div>
         </div>
       </div>
 
@@ -248,6 +260,23 @@ tr.row-clickable:hover{background:var(--sf2);}
       </div>
     </div>
 
+    <!-- REPORT -->
+    <div class="view" id="view-report">
+      <div class="card">
+        <div class="card-title">📄 실적 리포트</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <select id="report-start-year" style="max-width:100px;"></select>
+          <select id="report-start-month" style="max-width:90px;"></select>
+          <span style="color:var(--muted);">~</span>
+          <select id="report-end-year" style="max-width:100px;"></select>
+          <select id="report-end-month" style="max-width:90px;"></select>
+          <button class="btn primary" onclick="generateReport()">리포트 생성</button>
+          <button class="btn" onclick="exportReportExcel()">📥 엑셀 다운로드</button>
+        </div>
+        <div id="report-result"><div class="empty">기간을 선택하고 "리포트 생성"을 눌러주세요.</div></div>
+      </div>
+    </div>
+
     <!-- SETTINGS -->
     <div class="view" id="view-settings">
       <div class="card">
@@ -286,6 +315,22 @@ tr.row-clickable:hover{background:var(--sf2);}
         <button class="btn primary" onclick="addStaff()">스탭 추가</button>
         <div id="staff-rows" style="margin-top:12px;"></div>
       </div>
+
+      <div class="card">
+        <div class="card-title">🔔 컨택 주기 설정</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">마지막 컨택(메모/전화/문자) 이후 이 일수가 지나면 "곧 컨택 필요"로 표시돼요.</p>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="number" id="cfg-cycle-days" style="max-width:120px;" min="1">
+          <span style="font-size:12px;color:var(--muted);">일</span>
+          <button class="btn" onclick="saveConfig()">저장</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💾 전체 데이터 백업</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">프로필/스냅샷/메모/일정/컨택기록 등 전체를 JSON 파일 하나로 내려받아요. 만약을 대비해 가끔 받아두시는 걸 추천해요.</p>
+        <button class="btn primary" onclick="backupAllData()">전체 백업 다운로드</button>
+      </div>
     </div>
 
   </main>
@@ -311,6 +356,7 @@ var contacts = {};    // empId -> { logId: {...} }
 var orgMap = { hq:{}, branch:{} };
 var schedules = {};   // scheduleId -> {...}
 var hqStaff = {};     // staffId -> {dept, name, phone}
+var appConfig = { contactCycleDays: 90 };
 var calYear, calMonth; // 0-indexed month
 
 function showToast(msg){
@@ -356,7 +402,8 @@ function boot(){
     fetch(FB_URL+ROOT+'/contacts.json').then(function(r){return r.json();}),
     fetch(FB_URL+ROOT+'/orgMap.json').then(function(r){return r.json();}),
     fetch(FB_URL+ROOT+'/schedules.json').then(function(r){return r.json();}),
-    fetch(FB_URL+ROOT+'/hqStaff.json').then(function(r){return r.json();})
+    fetch(FB_URL+ROOT+'/hqStaff.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/config.json').then(function(r){return r.json();})
   ]).then(function(res){
     people = res[0]||{};
     snapshots = res[1]||{};
@@ -367,6 +414,7 @@ function boot(){
     if(!orgMap.branch) orgMap.branch={};
     schedules = res[5]||{};
     hqStaff = res[6]||{};
+    appConfig = Object.assign({contactCycleDays:90}, res[7]||{});
     var now=new Date(); calYear=now.getFullYear(); calMonth=now.getMonth();
     initUploadPeriod();
     renderAll();
@@ -381,6 +429,7 @@ function renderAll(){
   renderOrgMapSettings();
   renderStaffSettings();
   renderStaffQuickList();
+  renderConfigSettings();
 }
 
 /* ---------- TABS ---------- */
@@ -389,6 +438,7 @@ function switchTab(name){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.getElementById('view-'+name).classList.add('active');
   if(name==='map') renderMap();
+  if(name==='report') initReportPeriod();
 }
 
 /* ---------- HELPERS ---------- */
@@ -498,6 +548,34 @@ function renderDashboard(){
       return '<div style="padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+s.empId+'\')">'
         +'<div style="font-size:13px;"><span class="badge neutral">'+t+'</span> '+(p.name||'?')+' <span style="font-size:11px;color:var(--muted);">· '+(p.branch||'')+'</span></div>'
         +'<div style="font-size:11px;color:var(--muted);margin-top:3px;">'+(s.memo||'')+'</div></div>';
+    }).join('');
+  }
+
+  // 즐겨찾기
+  var favEl = document.getElementById('fav-list');
+  var favIds = ids.filter(function(id){ return people[id].fav; });
+  if(!favIds.length){ favEl.innerHTML='<div class="empty">즐겨찾기한 사람이 없어요. 프로필에서 ★을 눌러보세요.</div>'; }
+  else {
+    favEl.innerHTML = favIds.map(function(id){
+      var p=people[id];
+      return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+id+'\')">'
+        +'<span style="font-size:13px;">★ '+p.name+' <span style="font-size:11px;color:var(--muted);">· '+p.branch+'</span></span></div>';
+    }).join('');
+  }
+
+  // 컨택 예정일 지난 인원
+  var dueEl = document.getElementById('contact-due-list');
+  var cycle = appConfig.contactCycleDays||90;
+  var dueList = ids.map(function(id){ return {id:id, days:daysSinceLastContact(id)}; })
+    .filter(function(x){ return x.days===null || x.days>=cycle; })
+    .sort(function(a,b){ return (b.days===null?99999:b.days)-(a.days===null?99999:a.days); });
+  if(!dueList.length){ dueEl.innerHTML='<div class="empty">모두 최근에 컨택했어요.</div>'; }
+  else {
+    dueEl.innerHTML = dueList.slice(0,6).map(function(x){
+      var p=people[x.id];
+      return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+x.id+'\')">'
+        +'<span style="font-size:13px;">'+p.name+' <span style="font-size:11px;color:var(--muted);">· '+p.branch+'</span></span>'
+        +'<span class="badge risk">'+(x.days===null?'기록없음':x.days+'일 전')+'</span></div>';
     }).join('');
   }
 
@@ -636,7 +714,8 @@ function getOrgRows(){
   var fRisk = document.getElementById('org-filter-risk').value;
   var ids = Object.keys(people).filter(function(id){
     var p = people[id];
-    if(q && !((p.name||'').includes(q) || (p.branch||'').includes(q))) return false;
+    var tagsStr = (p.tags||[]).join(' ');
+    if(q && !((p.name||'').includes(q) || (p.branch||'').includes(q) || tagsStr.includes(q))) return false;
     if(fHq && p.hq!==fHq) return false;
     if(fSeg && p.seg!==fSeg) return false;
     if(fRisk==='risk' && !isRisk(id)) return false;
@@ -645,7 +724,7 @@ function getOrgRows(){
   var rows = ids.map(function(id){
     var p = people[id];
     return { id:id, name:p.name||'', hq:p.hq||'', branch:p.branch||'', seg:p.seg||'', cr:p.cr||'', efsr:p.efsr||'',
-      sw:p.sw, lastNote: latestNoteDate(id)||'-', risk: isRisk(id), riskReason: isRisk(id)?riskReason(id):'' };
+      sw:p.sw, lastNote: latestNoteDate(id)||'-', risk: isRisk(id), riskReason: isRisk(id)?riskReason(id):'', fav:!!p.fav, tags:p.tags||[] };
   });
   rows.sort(function(a,b){
     var av=_orgSortVal(a,_orgSortKey), bv=_orgSortVal(b,_orgSortKey);
@@ -666,7 +745,7 @@ function renderOrgList(){
   tbody.innerHTML = rows.map(function(r){
     var segCol = segColorMap[r.seg]||'#777';
     return '<tr class="row-clickable" onclick="openProfile(\''+r.id+'\')">'
-      +'<td>'+r.name+'</td>'
+      +'<td>'+(r.fav?'<span style="color:var(--warn);">★</span> ':'')+r.name+'</td>'
       +'<td style="color:var(--muted);">'+r.hq+' · '+r.branch+'</td>'
       +'<td><span style="color:'+segCol+';font-weight:700;">'+(r.seg||'-')+'</span></td>'
       +'<td>'+(r.cr||'-')+'</td>'
@@ -856,13 +935,18 @@ function buildProfileHtml(empId, p){
   var risk = isRisk(empId);
   return '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
   +'<div class="profile-header">'
-    +'<div><div class="profile-name">'+p.name+' <span style="font-size:12px;color:var(--muted);">'+(p.position||'')+'</span></div>'
-    +'<div class="profile-sub">'+(p.hq||'')+' · '+(p.branch||'')+' <span style="color:'+branchColor(p.branch)+';">●</span></div></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;">'
+      +'<span onclick="toggleFav(\''+empId+'\')" style="cursor:pointer;font-size:20px;color:'+(p.fav?'var(--warn)':'var(--bd)')+';">★</span>'
+      +'<div><div class="profile-name">'+p.name+' <span style="font-size:12px;color:var(--muted);">'+(p.position||'')+'</span></div>'
+      +'<div class="profile-sub">'+(p.hq||'')+' · '+(p.branch||'')+' <span style="color:'+branchColor(p.branch)+';">●</span></div></div>'
+    +'</div>'
     +'<div style="display:flex;gap:6px;">'
       +'<a href="tel:'+(p.phone||'')+'" onclick="logContact(\''+empId+'\',\'call\')" class="btn" style="text-decoration:none;">📞 전화</a>'
       +'<a href="sms:'+(p.phone||'')+'" onclick="logContact(\''+empId+'\',\'sms\')" class="btn" style="text-decoration:none;">💬 문자</a>'
     +'</div></div>'
   + (risk ? '<div class="badge risk" style="margin-bottom:10px;">⚠ '+riskReason(empId)+'</div>' : '')
+  + buildContactDueBadge(empId)
+  +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;" id="tags-'+empId+'">'+renderTagsHtml(empId)+'</div>'
   +'<table class="info-table">'
     +'<tr><td class="k">사번</td><td>'+(p.empId||empId)+'</td><td class="k">담당FM</td><td>'+(p.fm||'-')+'</td></tr>'
     +'<tr><td class="k">담당AM</td><td>'+(orgMap.branch[p.branch]||'-')+'</td><td class="k">담당MD</td><td>'+(orgMap.hq[p.hq]||'-')+'</td></tr>'
@@ -900,6 +984,61 @@ function buildProfileHtml(empId, p){
 }
 function metricCell(k,v){
   return '<div class="metric-cell"><div class="k">'+k+'</div><div class="v">'+((v===undefined||v===null||v==='')?'-':v)+'</div></div>';
+}
+function renderTagsHtml(empId){
+  var p = people[empId];
+  var tags = (p&&p.tags)||[];
+  var html = tags.map(function(t,i){
+    return '<span class="badge neutral" style="cursor:pointer;" onclick="removeTag(\''+empId+'\','+i+')">'+t+' ✕</span>';
+  }).join('');
+  html += '<span class="badge" style="cursor:pointer;border:1px dashed var(--bd);color:var(--muted);" onclick="addTag(\''+empId+'\')">+ 태그</span>';
+  return html;
+}
+function addTag(empId){
+  var t = prompt('추가할 태그 (예: 차기리더, VIP, 이직조짐)');
+  if(!t) return;
+  var p = people[empId];
+  if(!p.tags) p.tags=[];
+  p.tags.push(t.trim());
+  fetch(FB_URL+ROOT+'/people/'+empId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({tags:p.tags})});
+  document.getElementById('tags-'+empId).innerHTML = renderTagsHtml(empId);
+}
+function removeTag(empId, idx){
+  var p = people[empId];
+  p.tags.splice(idx,1);
+  fetch(FB_URL+ROOT+'/people/'+empId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({tags:p.tags})});
+  document.getElementById('tags-'+empId).innerHTML = renderTagsHtml(empId);
+}
+function toggleFav(empId){
+  var p = people[empId];
+  p.fav = !p.fav;
+  fetch(FB_URL+ROOT+'/people/'+empId+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({fav:p.fav})});
+  document.querySelector('.modal-overlay').remove();
+  openProfile(empId);
+  renderDashboard();
+}
+function daysSinceLastContact(empId){
+  var lastNote = latestNoteDate(empId);
+  var lastContactLog = null;
+  var c = contacts[empId];
+  if(c){
+    var dates = Object.values(c).map(function(x){return x.date?x.date.slice(0,10):null;}).filter(Boolean).sort();
+    if(dates.length) lastContactLog = dates[dates.length-1];
+  }
+  var latest = [lastNote, lastContactLog].filter(Boolean).sort().pop();
+  if(!latest) return null;
+  return Math.floor((Date.now()-new Date(latest).getTime())/86400000);
+}
+function buildContactDueBadge(empId){
+  var days = daysSinceLastContact(empId);
+  var cycle = appConfig.contactCycleDays||90;
+  if(days===null){
+    return '<div class="badge neutral" style="margin-bottom:10px;">🔔 컨택 기록 없음</div>';
+  }
+  if(days>=cycle){
+    return '<div class="badge risk" style="margin-bottom:10px;">🔔 컨택 예정일 지남 (마지막 컨택 '+days+'일 전)</div>';
+  }
+  return '<div class="badge ok" style="margin-bottom:10px;">🔔 다음 컨택까지 '+(cycle-days)+'일 (마지막 컨택 '+days+'일 전)</div>';
 }
 function renderNotesHtml(empId){
   var n = notes[empId]||{};
@@ -1092,12 +1231,161 @@ function deleteSchedule(id, dateStr){
   openDayModal(dateStr);
 }
 
-/* ---------- SETTINGS: EXCEL UPLOAD ---------- */
+/* ---------- 월별 변동 요약 (업로드 직후) ---------- */
+var SEG_ORDER = ['A','B','C','D','E']; // 앞쪽일수록 좋음
+function showMonthlyDiffModal(prevKey, curKey, prevSnap, curSnap){
+  var segUp=[], segDown=[], crChanged=[], swDropped=[], swImproved=[];
+  Object.keys(curSnap).forEach(function(id){
+    var prev = prevSnap[id];
+    if(!prev) return; // 이 사람은 이전 달엔 없었음 (신규 등)
+    var cur = curSnap[id];
+    var name = cur.name||id;
+    if(prev.seg && cur.seg && prev.seg!==cur.seg){
+      var pi=SEG_ORDER.indexOf(prev.seg), ci=SEG_ORDER.indexOf(cur.seg);
+      if(pi>-1 && ci>-1){
+        if(ci<pi) segUp.push(name+' ('+prev.seg+'→'+cur.seg+')');
+        else if(ci>pi) segDown.push(name+' ('+prev.seg+'→'+cur.seg+')');
+      }
+    }
+    if(prev.cr && cur.cr && prev.cr!==cur.cr){ crChanged.push(name+' ('+prev.cr+'→'+cur.cr+')'); }
+    var pSw = prev.sw!==undefined&&prev.sw!==''?Number(prev.sw):null;
+    var cSw = cur.sw!==undefined&&cur.sw!==''?Number(cur.sw):null;
+    if(pSw!==null && cSw!==null){
+      var delta = cSw-pSw;
+      if(delta<=-20) swDropped.push(name+' ('+pSw+'→'+cSw+')');
+      else if(delta>=20) swImproved.push(name+' ('+pSw+'→'+cSw+')');
+    }
+  });
+
+  var overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+  var box=document.createElement('div');
+  box.className='modal-box'; box.style.position='relative';
+  function section(title, arr, cls){
+    if(!arr.length) return '';
+    return '<div style="margin-bottom:12px;"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px;" class="'+(cls||'')+'">'+title+' ('+arr.length+'명)</div>'
+      +'<div style="font-size:12px;color:var(--text-secondary,var(--muted));line-height:1.7;">'+arr.join(', ')+'</div></div>';
+  }
+  var body = section('📈 Seg 상승', segUp) + section('📉 Seg 하락', segDown) + section('🔀 C/R 변경', crChanged)
+    + section('🚨 S/W 20점 이상 하락', swDropped) + section('✨ S/W 20점 이상 상승', swImproved);
+  if(!body) body = '<div class="empty">'+prevKey+' → '+curKey+' 사이 큰 변동은 없었어요.</div>';
+  box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
+    +'<div class="card-title">📊 변동 요약 ('+prevKey+' → '+curKey+')</div>'
+    + body;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+
 function initUploadPeriod(){
   var yEl=document.getElementById('upload-year'), mEl=document.getElementById('upload-month');
   var now=new Date();
   for(var y=now.getFullYear()-1;y<=now.getFullYear()+1;y++){ var o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===now.getFullYear())o.selected=true; yEl.appendChild(o); }
   for(var m=1;m<=12;m++){ var o2=document.createElement('option'); o2.value=m; o2.textContent=m+'월'; if(m===now.getMonth()+1)o2.selected=true; mEl.appendChild(o2); }
+}
+
+/* ---------- 리포트 ---------- */
+var _lastReportRows = [];
+var _lastReportRange = null;
+function initReportPeriod(){
+  var sy=document.getElementById('report-start-year');
+  if(sy.options.length>0) return; // 이미 초기화됨
+  var ey=document.getElementById('report-end-year');
+  var sm=document.getElementById('report-start-month');
+  var em=document.getElementById('report-end-month');
+  var now=new Date();
+  [sy,ey].forEach(function(sel){
+    for(var y=now.getFullYear()-1;y<=now.getFullYear()+1;y++){ var o=document.createElement('option'); o.value=y; o.textContent=y+'년'; if(y===now.getFullYear())o.selected=true; sel.appendChild(o); }
+  });
+  [sm,em].forEach(function(sel){
+    for(var m=1;m<=12;m++){ var o=document.createElement('option'); o.value=m; o.textContent=m+'월'; sel.appendChild(o); }
+  });
+  sm.value = 1;
+  em.value = now.getMonth()+1;
+}
+function generateReport(){
+  var sy=+document.getElementById('report-start-year').value;
+  var sm=+document.getElementById('report-start-month').value;
+  var ey=+document.getElementById('report-end-year').value;
+  var em=+document.getElementById('report-end-month').value;
+  var startKey = ''+sy+pad2(sm);
+  var endKey = ''+ey+pad2(em);
+  if(startKey>endKey){ showToast('시작월이 종료월보다 늦어요.'); return; }
+  var keysInRange = Object.keys(snapshots).filter(function(k){ return k>=startKey && k<=endKey; }).sort();
+  if(!keysInRange.length){ showToast('해당 기간에 업로드된 스냅샷이 없어요.'); document.getElementById('report-result').innerHTML='<div class="empty">해당 기간에 데이터가 없어요.</div>'; return; }
+
+  var hqAgg = {};
+  keysInRange.forEach(function(k){
+    var snap = snapshots[k];
+    Object.keys(snap).forEach(function(id){
+      var s = snap[id]; var hq = s.hq||'미분류';
+      if(!hqAgg[hq]) hqAgg[hq] = {avgCount:[], avgMip:[], avgSp:[]};
+      if(s.avgCount!==undefined&&s.avgCount!=='') hqAgg[hq].avgCount.push(Number(s.avgCount));
+      if(s.avgMip!==undefined&&s.avgMip!=='') hqAgg[hq].avgMip.push(Number(s.avgMip));
+      if(s.avgSp!==undefined&&s.avgSp!=='') hqAgg[hq].avgSp.push(Number(s.avgSp));
+    });
+  });
+
+  var startDate = sy+'-'+pad2(sm)+'-01';
+  var endDate = ey+'-'+pad2(em)+'-31';
+  var contactCountByHq = {};
+  Object.keys(contacts).forEach(function(id){
+    var p=people[id]; if(!p) return;
+    var hq=p.hq||'미분류';
+    Object.values(contacts[id]).forEach(function(log){
+      var d = log.date?log.date.slice(0,10):null;
+      if(d && d>=startDate && d<=endDate) contactCountByHq[hq]=(contactCountByHq[hq]||0)+1;
+    });
+  });
+
+  var riskByHq = {};
+  Object.keys(people).forEach(function(id){
+    var hq = people[id].hq||'미분류';
+    if(!riskByHq[hq]) riskByHq[hq]={total:0,risk:0};
+    riskByHq[hq].total++;
+    if(isRisk(id)) riskByHq[hq].risk++;
+  });
+
+  function avg(arr){ return arr.length? Math.round(arr.reduce(function(s,v){return s+v;},0)/arr.length*10)/10 : 0; }
+  var rows = Object.keys(hqAgg).sort().map(function(hq){
+    return {
+      hq: hq,
+      avgCount: avg(hqAgg[hq].avgCount),
+      avgMip: Math.round(avg(hqAgg[hq].avgMip)),
+      avgSp: Math.round(avg(hqAgg[hq].avgSp)),
+      riskPct: riskByHq[hq]? Math.round(riskByHq[hq].risk/riskByHq[hq].total*100) : 0,
+      riskCount: riskByHq[hq]? riskByHq[hq].risk : 0,
+      totalCount: riskByHq[hq]? riskByHq[hq].total : 0,
+      contactCount: contactCountByHq[hq]||0
+    };
+  });
+  _lastReportRows = rows;
+  _lastReportRange = {startKey:startKey, endKey:endKey};
+  renderReportTable(rows, keysInRange);
+}
+function renderReportTable(rows, keysInRange){
+  var el = document.getElementById('report-result');
+  var html = '<p style="font-size:11px;color:var(--muted);margin-bottom:10px;">포함된 스냅샷: '+keysInRange.join(', ')+' (위험군 비율은 현재 시점 기준)</p>';
+  html += '<table><thead><tr><th>본부</th><th>평균 건수</th><th>평균 MIP</th><th>평균 SP</th><th>위험군</th><th>기간 내 컨택건수</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    html += '<tr><td>'+r.hq+'</td><td>'+r.avgCount+'</td><td>'+r.avgMip.toLocaleString()+'</td><td>'+r.avgSp.toLocaleString()+'</td>'
+      +'<td>'+r.riskCount+'/'+r.totalCount+' ('+r.riskPct+'%)</td><td>'+r.contactCount+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+function exportReportExcel(){
+  if(!_lastReportRows.length){ showToast('먼저 리포트를 생성해주세요.'); return; }
+  var aoa = [['본부','평균 건수','평균 MIP','평균 SP','위험군 수','전체 인원','위험군 비율(%)','기간 내 컨택건수']];
+  _lastReportRows.forEach(function(r){
+    aoa.push([r.hq, r.avgCount, r.avgMip, r.avgSp, r.riskCount, r.totalCount, r.riskPct, r.contactCount]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:12},{wch:14}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '리포트');
+  XLSX.writeFile(wb, '실적리포트_'+_lastReportRange.startKey+'-'+_lastReportRange.endKey+'.xlsx');
 }
 var COL_MAP = [
   'phone','hq','branch','empId','name','position','fm','gender','birth','joinDate','rejoinDate','repIndep',
@@ -1121,13 +1409,22 @@ function handleExcelUpload(){
       var dataRows = rows.slice(4); // 5행부터 데이터
       var count=0;
       var batchPeople={}, batchSnap={};
+      // 변동 요약용: 이번 업로드로 덮어쓰기 전, 이 달보다 이전인 가장 최근 스냅샷을 미리 잡아둠
+      var priorKeys = Object.keys(snapshots).filter(function(k){ return k<ymKey; }).sort();
+      var priorKey = priorKeys.length ? priorKeys[priorKeys.length-1] : null;
+      var priorSnap = priorKey ? Object.assign({}, snapshots[priorKey]) : null;
       dataRows.forEach(function(row){
         if(!row || !row[3]) return; // 8자리사번 없으면 스킵
-        var obj={};
-        COL_MAP.forEach(function(key, idx){ obj[key]=row[idx]!==undefined?row[idx]:''; });
-        var empId=String(obj.empId);
-        batchPeople[empId]=obj;
-        batchSnap[empId]=obj;
+        var excelFields={};
+        COL_MAP.forEach(function(key, idx){ excelFields[key]=row[idx]!==undefined?row[idx]:''; });
+        var empId=String(excelFields.empId);
+        // ⚠ 데이터 무결성: 기존에 저장된 정보(사무실주소/지도좌표/태그 등 엑셀엔 없는 수기입력 필드)를
+        // 절대 지우지 않도록, 기존 people[empId] 위에 이번 달 엑셀 필드만 덮어씌우는 방식으로 병합함.
+        // (엑셀 필드만 담은 객체를 그대로 PATCH하면 Firebase가 해당 사람 레코드 전체를 교체해버려서
+        //  수기입력 필드가 사라지는 버그가 있었음 — 2026-08 확인 후 수정)
+        var merged = Object.assign({}, people[empId]||{}, excelFields);
+        batchPeople[empId]=merged;
+        batchSnap[empId]=excelFields; // 스냅샷은 그 달 엑셀 원본 그대로 보관 (이력 왜곡 방지)
         count++;
       });
       Promise.all([
@@ -1140,6 +1437,7 @@ function handleExcelUpload(){
         statusEl.textContent = count+'명 반영 완료 ('+ymKey+')';
         showToast('업로드 완료: '+count+'명');
         renderAll();
+        if(priorSnap) showMonthlyDiffModal(priorKey, ymKey, priorSnap, batchSnap);
       }).catch(function(err){ statusEl.textContent='저장 실패: '+err; });
     }catch(err){ statusEl.textContent='파일 읽기 실패: '+err; }
   };
@@ -1221,6 +1519,37 @@ function renderStaffQuickList(){
         +'<a href="sms:'+s.phone+'" class="btn" style="text-decoration:none;font-size:12px;padding:6px 10px;">💬</a>'
       +'</div></div>';
   }).join('');
+}
+
+/* ---------- 앱 설정(컨택 주기) ---------- */
+function renderConfigSettings(){
+  var el = document.getElementById('cfg-cycle-days');
+  if(el) el.value = appConfig.contactCycleDays;
+}
+function saveConfig(){
+  var v = parseInt(document.getElementById('cfg-cycle-days').value) || 90;
+  appConfig.contactCycleDays = v;
+  fetch(FB_URL+ROOT+'/config.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(appConfig)});
+  showToast('저장됐어요.');
+  renderDashboard();
+}
+
+/* ---------- 전체 백업 ---------- */
+function backupAllData(){
+  showToast('백업 파일 준비 중...');
+  fetch(FB_URL+ROOT+'.json').then(function(r){return r.json();}).then(function(data){
+    var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var now = new Date();
+    a.href = url;
+    a.download = 'salesData_백업_'+now.getFullYear()+pad2(now.getMonth()+1)+pad2(now.getDate())+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('백업 완료!');
+  }).catch(function(e){ showToast('백업 실패: '+e); });
 }
 
 /* ---------- MAP (Kakao) ---------- */
