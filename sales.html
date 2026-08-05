@@ -127,6 +127,7 @@ tr.row-clickable:hover{background:var(--sf2);}
     <button class="tab" data-tab="org" onclick="switchTab('org')">🗂 조직도</button>
     <button class="tab" data-tab="calendar" onclick="switchTab('calendar')">📅 캘린더</button>
     <button class="tab" data-tab="map" onclick="switchTab('map')">🗺 지도</button>
+    <button class="tab" data-tab="staff" onclick="switchTab('staff')">🏢 본사</button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ 조직설정</button>
   </div>
 
@@ -155,12 +156,18 @@ tr.row-clickable:hover{background:var(--sf2);}
 
       <div class="grid-2">
         <div class="card">
-          <div class="card-title">📅 오늘 면담 일정</div>
+          <div class="card-title">📅 오늘 컨택 일정</div>
           <div id="today-schedule"><div class="empty">일정이 없어요.</div></div>
         </div>
         <div class="card">
-          <div class="card-title">🚨 이탈 위험군 상위</div>
-          <div id="risk-list"><div class="empty">-</div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="card-title" style="margin:0;">🚨 조직별 위험군 현황</div>
+            <select id="risk-org-level" onchange="renderRiskOrgList()" style="width:auto;font-size:12px;padding:6px 10px;">
+              <option value="hq">본부별</option>
+              <option value="branch">지점별</option>
+            </select>
+          </div>
+          <div id="risk-org-list"><div class="empty">-</div></div>
         </div>
       </div>
 
@@ -172,7 +179,16 @@ tr.row-clickable:hover{background:var(--sf2);}
       </div>
 
       <div class="card">
-        <div class="card-title">🏢 본부별 실적 요약 (2026.1~5월 업적평균 건수)</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">🏢 본부별 실적 요약 (2026.1~5월 업적평균)</div>
+          <select id="hq-metric-select" onchange="renderHqChart(Object.keys(people))" style="width:auto;font-size:12px;padding:6px 10px;">
+            <option value="avgCount">건수</option>
+            <option value="avgMip">MIP</option>
+            <option value="avgSp">SP</option>
+            <option value="perMip">건당MIP</option>
+            <option value="perSp">건당SP</option>
+          </select>
+        </div>
         <div style="position:relative;height:180px;"><canvas id="hqChart"></canvas></div>
       </div>
     </div>
@@ -185,6 +201,7 @@ tr.row-clickable:hover{background:var(--sf2);}
         <select id="org-filter-seg" onchange="renderOrgList()"><option value="">Seg 전체</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
         <select id="org-filter-risk" onchange="renderOrgList()"><option value="">전체</option><option value="risk">위험군만</option></select>
         <button class="btn" onclick="exportOrgListExcel()">📥 엑셀 다운로드</button>
+        <button class="btn primary" onclick="openGroupSmsModal()">📣 그룹 문자</button>
       </div>
       <div style="overflow-x:auto;">
         <table>
@@ -195,7 +212,7 @@ tr.row-clickable:hover{background:var(--sf2);}
             <th class="sortable" onclick="toggleOrgSort('cr')">C/R<span class="arrow" id="arrow-cr"></span></th>
             <th class="sortable" onclick="toggleOrgSort('efsr')">eFSR<span class="arrow" id="arrow-efsr"></span></th>
             <th class="sortable" onclick="toggleOrgSort('sw')">S/W<span class="arrow" id="arrow-sw"></span></th>
-            <th class="sortable" onclick="toggleOrgSort('lastNote')">최근 면담<span class="arrow" id="arrow-lastNote"></span></th>
+            <th class="sortable" onclick="toggleOrgSort('lastNote')">최근 컨택<span class="arrow" id="arrow-lastNote"></span></th>
             <th class="sortable" onclick="toggleOrgSort('risk')">상태<span class="arrow" id="arrow-risk"></span></th>
           </tr></thead>
           <tbody id="org-rows"></tbody>
@@ -221,6 +238,14 @@ tr.row-clickable:hover{background:var(--sf2);}
         <span id="map-geo-status" style="font-size:12px;color:var(--muted);align-self:center;"></span>
       </div>
       <div id="sales-map" style="width:100%;height:520px;border-radius:12px;border:1px solid var(--bd);background:var(--sf2);"></div>
+    </div>
+
+    <!-- STAFF -->
+    <div class="view" id="view-staff">
+      <div class="card">
+        <div class="card-title">🏢 본사 스탭 빠른 연락</div>
+        <div id="staff-quick-list"><div class="empty">조직설정 탭에서 스탭을 등록해주세요.</div></div>
+      </div>
     </div>
 
     <!-- SETTINGS -->
@@ -250,6 +275,17 @@ tr.row-clickable:hover{background:var(--sf2);}
         <div id="branch-map-rows"></div>
         <button class="btn" style="margin-top:8px;" onclick="saveOrgMap()">저장</button>
       </div>
+
+      <div class="card">
+        <div class="card-title">📇 본사 스탭 전화번호부</div>
+        <div class="grid-2" style="margin-bottom:8px;">
+          <input type="text" id="staff-dept" placeholder="부서명 (예: 경영지원팀)">
+          <input type="text" id="staff-name" placeholder="담당자명">
+        </div>
+        <input type="text" id="staff-phone" placeholder="전화번호 (예: 01092925782)" style="margin-bottom:8px;">
+        <button class="btn primary" onclick="addStaff()">스탭 추가</button>
+        <div id="staff-rows" style="margin-top:12px;"></div>
+      </div>
     </div>
 
   </main>
@@ -261,6 +297,9 @@ tr.row-clickable:hover{background:var(--sf2);}
 /* ============ CONFIG — 정훈님이 채워주셔야 하는 부분 ============ */
 var FB_URL = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
 var APP_PASSWORD = 'arkmembers2026'; // 여기 원하는 비밀번호로 바꿔주세요. 페이지 소스보기하면 그대로 보이니, 남한테 공유 안 하는 링크에서만 쓰는 걸 권장드려요.
+var SOLAPI_API_KEY = 'NCS8HYGUCLJBXZU0';
+var SOLAPI_API_SECRET = 'SPTCPSWBN4DTCBKTVYBVI8URHNCOVEGC'; // ⚠ 브라우저 소스에 그대로 노출됩니다 (정훈님 동의하에 반영)
+var SOLAPI_FROM = '01092925782'; // 세일즈 전용 발신번호 (청소앱은 1551-1143을 씀, 이 계정에 등록된 발신번호여야 발송됩니다)
 /* ================================================================ */
 
 var ROOT = '/salesData';
@@ -271,6 +310,7 @@ var notes = {};       // empId -> { noteId: {...} }
 var contacts = {};    // empId -> { logId: {...} }
 var orgMap = { hq:{}, branch:{} };
 var schedules = {};   // scheduleId -> {...}
+var hqStaff = {};     // staffId -> {dept, name, phone}
 var calYear, calMonth; // 0-indexed month
 
 function showToast(msg){
@@ -315,7 +355,8 @@ function boot(){
     fetch(FB_URL+ROOT+'/notes.json').then(function(r){return r.json();}),
     fetch(FB_URL+ROOT+'/contacts.json').then(function(r){return r.json();}),
     fetch(FB_URL+ROOT+'/orgMap.json').then(function(r){return r.json();}),
-    fetch(FB_URL+ROOT+'/schedules.json').then(function(r){return r.json();})
+    fetch(FB_URL+ROOT+'/schedules.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/hqStaff.json').then(function(r){return r.json();})
   ]).then(function(res){
     people = res[0]||{};
     snapshots = res[1]||{};
@@ -325,6 +366,7 @@ function boot(){
     if(!orgMap.hq) orgMap.hq={};
     if(!orgMap.branch) orgMap.branch={};
     schedules = res[5]||{};
+    hqStaff = res[6]||{};
     var now=new Date(); calYear=now.getFullYear(); calMonth=now.getMonth();
     initUploadPeriod();
     renderAll();
@@ -337,6 +379,8 @@ function renderAll(){
   renderOrgList();
   renderCalendar();
   renderOrgMapSettings();
+  renderStaffSettings();
+  renderStaffQuickList();
 }
 
 /* ---------- TABS ---------- */
@@ -375,9 +419,9 @@ function isRisk(empId){
   var sw = latestKey ? personSW(empId, latestKey) : null;
   if(sw!==null && sw < 30) return true; // S/W 150점 만점 중 30점 미만은 위험 신호로 우선 설정
   var lastNoteDate = latestNoteDate(empId);
-  if(!lastNoteDate) return true; // 면담 기록이 아예 없으면 위험군으로 표시
+  if(!lastNoteDate) return true; // 컨택 기록이 아예 없으면 위험군으로 표시
   var days = (Date.now()-new Date(lastNoteDate).getTime())/86400000;
-  if(days > 90) return true; // 90일(3개월) 이상 미면담
+  if(days > 90) return true; // 90일(3개월) 이상 미컨택
   return false;
 }
 function latestNoteDate(empId){
@@ -392,9 +436,9 @@ function riskReason(empId){
   var sw = latestKey ? personSW(empId, latestKey) : null;
   if(sw!==null && sw < 30) return 'S/W 저조';
   var lastNoteDate = latestNoteDate(empId);
-  if(!lastNoteDate) return '면담기록 없음';
+  if(!lastNoteDate) return '컨택기록 없음';
   var days = (Date.now()-new Date(lastNoteDate).getTime())/86400000;
-  if(days > 90) return '장기 미면담';
+  if(days > 90) return '장기 미컨택';
   return '';
 }
 function branchColor(branch){
@@ -450,27 +494,57 @@ function renderDashboard(){
   else {
     tsEl.innerHTML = todayList.map(function(s){
       var p = people[s.empId]||{};
+      var t = s.type||'컨택';
       return '<div style="padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+s.empId+'\')">'
-        +'<div style="font-size:13px;">'+(p.name||'?')+' <span style="font-size:11px;color:var(--muted);">· '+(p.branch||'')+'</span></div>'
-        +'<div style="font-size:11px;color:var(--muted);">'+(s.memo||'')+'</div></div>';
+        +'<div style="font-size:13px;"><span class="badge neutral">'+t+'</span> '+(p.name||'?')+' <span style="font-size:11px;color:var(--muted);">· '+(p.branch||'')+'</span></div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-top:3px;">'+(s.memo||'')+'</div></div>';
     }).join('');
   }
 
-  // risk list top
-  var riskEl = document.getElementById('risk-list');
-  var topRisk = riskIds.slice(0,6);
-  if(!topRisk.length){ riskEl.innerHTML='<div class="empty">위험군 없음</div>'; }
-  else {
-    riskEl.innerHTML = topRisk.map(function(id){
-      var p=people[id];
-      return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="openProfile(\''+id+'\')">'
-        +'<span style="font-size:13px;">'+p.name+' <span style="font-size:11px;color:var(--muted);">· '+p.branch+'</span></span>'
-        +'<span class="badge risk">'+riskReason(id)+'</span></div>';
-    }).join('');
-  }
+  // 조직별(본부/지점) 위험군 현황
+  renderRiskOrgList();
 
   renderEngageEffectChart(ids, contactedThisMonth.map(function(x){return x;}));
   renderHqChart(ids);
+}
+
+function renderRiskOrgList(){
+  var levelEl = document.getElementById('risk-org-level');
+  var level = levelEl ? levelEl.value : 'hq';
+  var groups = {};
+  Object.keys(people).forEach(function(id){
+    var p = people[id];
+    var key = level==='hq' ? (p.hq||'미분류') : (p.branch||'미분류');
+    if(!groups[key]) groups[key] = { total:0, risk:0 };
+    groups[key].total++;
+    if(isRisk(id)) groups[key].risk++;
+  });
+  var rows = Object.keys(groups).map(function(k){
+    var g = groups[k];
+    return { name:k, total:g.total, risk:g.risk, pct: g.total? Math.round(g.risk/g.total*100):0 };
+  });
+  rows.sort(function(a,b){ return b.pct - a.pct; });
+  var el = document.getElementById('risk-org-list');
+  if(!rows.length){ el.innerHTML='<div class="empty">데이터 없음</div>'; return; }
+  el.innerHTML = rows.map(function(r){
+    var col = r.pct>=50 ? 'var(--danger)' : (r.pct>=25 ? 'var(--warn)' : 'var(--good)');
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer;" onclick="goOrgFiltered(\''+level+'\',\''+r.name.replace(/'/g,"\\'")+'\')">'
+      +'<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">'
+        +'<span>'+r.name+' <span style="color:var(--muted);font-size:11px;">('+r.total+'명)</span></span>'
+        +'<span style="color:'+col+';font-weight:700;">'+r.risk+'명 위험군 · '+r.pct+'%</span>'
+      +'</div>'
+      +'<div style="background:var(--sf2);border-radius:6px;height:6px;overflow:hidden;"><div style="width:'+r.pct+'%;height:100%;background:'+col+';"></div></div>'
+    +'</div>';
+  }).join('');
+}
+function goOrgFiltered(level, name){
+  switchTab('org');
+  document.getElementById('org-search').value='';
+  var hqSel = document.getElementById('org-filter-hq');
+  hqSel.value = level==='hq' ? name : '';
+  document.getElementById('org-filter-risk').value = 'risk';
+  if(level==='branch') document.getElementById('org-search').value = name;
+  renderOrgList();
 }
 
 var _engageChart = null;
@@ -508,24 +582,30 @@ function renderEngageEffectChart(allIds, contactedIds){
   });
 }
 
+var HQ_METRIC_LABELS = { avgCount:'건수', avgMip:'MIP', avgSp:'SP', perMip:'건당MIP', perSp:'건당SP' };
 function renderHqChart(ids){
+  var metricEl = document.getElementById('hq-metric-select');
+  var metric = metricEl ? metricEl.value : 'avgCount';
+  var isMoney = metric!=='avgCount';
   var byHq = {};
   ids.forEach(function(id){
     var p=people[id]; var hq=p.hq||'미분류';
     if(!byHq[hq]) byHq[hq]=[];
-    if(p.avgCount!==undefined && p.avgCount!==null && p.avgCount!=='') byHq[hq].push(Number(p.avgCount));
+    var v = p[metric];
+    if(v!==undefined && v!==null && v!==''){ var n=Number(v); if(!isNaN(n)) byHq[hq].push(n); }
   });
   var labels = Object.keys(byHq);
   var data = labels.map(function(hq){
     var arr=byHq[hq]; if(!arr.length) return 0;
-    return Math.round(arr.reduce(function(s,v){return s+v;},0)/arr.length*10)/10;
+    var avg = arr.reduce(function(s,v){return s+v;},0)/arr.length;
+    return isMoney ? Math.round(avg) : Math.round(avg*10)/10;
   });
   var canvas=document.getElementById('hqChart');
   if(_hqChartInstance){ _hqChartInstance.destroy(); _hqChartInstance=null; }
   _hqChartInstance = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels:labels, datasets:[{ data:data, backgroundColor:'#4361ee', borderRadius:6, maxBarThickness:32 }] },
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{font:{size:10}}}, y:{grid:{color:'rgba(128,128,128,0.15)'}} } }
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:function(ctx){ return HQ_METRIC_LABELS[metric]+': '+ctx.parsed.y.toLocaleString(); }}}}, scales:{ x:{grid:{display:false},ticks:{font:{size:10}}}, y:{grid:{color:'rgba(128,128,128,0.15)'},ticks:{callback:function(v){return isMoney? v.toLocaleString() : v;}}} } }
   });
 }
 
@@ -600,7 +680,7 @@ function renderOrgList(){
 function exportOrgListExcel(){
   var rows = getOrgRows();
   if(!rows.length){ showToast('내보낼 데이터가 없어요.'); return; }
-  var aoa = [['이름','본부','지점','Seg','C/R','eFSR','S/W','최근 면담','상태']];
+  var aoa = [['이름','본부','지점','Seg','C/R','eFSR','S/W','최근 컨택','상태']];
   rows.forEach(function(r){
     aoa.push([r.name, r.hq, r.branch, r.seg, r.cr, r.efsr, (r.sw!==undefined&&r.sw!==null&&r.sw!==''?r.sw:''), r.lastNote, r.risk?('위험군: '+r.riskReason):'정상']);
   });
@@ -610,6 +690,151 @@ function exportOrgListExcel(){
   XLSX.utils.book_append_sheet(wb, ws, '조직도');
   var now = new Date();
   XLSX.writeFile(wb, '조직도_'+now.getFullYear()+pad2(now.getMonth()+1)+pad2(now.getDate())+'.xlsx');
+}
+
+/* ---------- GROUP SMS ---------- */
+function openGroupSmsModal(){
+  var overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+  var box=document.createElement('div');
+  box.className='modal-box'; box.style.position='relative';
+  box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
+    +'<div class="card-title">📣 그룹 문자보내기</div>'
+    +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">기준</label>'
+    +'<select id="gsms-basis" onchange="renderGsmsBasisOptions()" style="margin-bottom:10px;">'
+      +'<option value="all">전체</option>'
+      +'<option value="hq">본부별</option>'
+      +'<option value="branch">지점별</option>'
+      +'<option value="position">직책별</option>'
+      +'<option value="currentFilter">지금 조직도에 필터된 목록</option>'
+      +'<option value="staffDept">본사 스탭(부서별)</option>'
+    +'</select>'
+    +'<div id="gsms-basis-options" style="max-height:160px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;padding:8px;margin-bottom:10px;"></div>'
+    +'<div id="gsms-preview" style="font-size:12px;color:var(--muted);margin-bottom:10px;">대상자: -</div>'
+    +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">메시지</label>'
+    +'<textarea id="gsms-text" rows="4" placeholder="보낼 문자 내용을 입력하세요"></textarea>'
+    +'<div style="display:flex;gap:6px;margin-top:10px;">'
+      +'<button class="btn" style="flex:1;" onclick="copyGsmsNumbers()">번호만 복사</button>'
+      +'<button class="btn" style="flex:1;" onclick="copyGsmsFull()">번호+내용 복사</button>'
+    +'</div>'
+    +'<button class="btn" style="width:100%;margin-top:8px;" onclick="openGsmsSmsApp()">문자 앱 열기 (50명 이하 권장)</button>'
+    +'<button class="btn primary" style="width:100%;margin-top:8px;" onclick="sendGroupSmsViaSolapi()">🚀 지금 바로 발송 (Solapi)</button>'
+    +'<div id="gsms-send-status" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  renderGsmsBasisOptions();
+}
+function renderGsmsBasisOptions(){
+  var basis = document.getElementById('gsms-basis').value;
+  var el = document.getElementById('gsms-basis-options');
+  if(basis==='all'){ el.innerHTML='<div style="font-size:12px;color:var(--muted);">전체 '+Object.keys(people).length+'명 대상</div>'; updateGsmsPreview(); return; }
+  if(basis==='currentFilter'){ el.innerHTML='<div style="font-size:12px;color:var(--muted);">지금 조직도 탭 필터 결과 '+getOrgRows().length+'명 대상</div>'; updateGsmsPreview(); return; }
+  if(basis==='staffDept'){
+    var dcounts = {};
+    Object.values(hqStaff).forEach(function(s){ var v=s.dept||'미지정'; dcounts[v]=(dcounts[v]||0)+1; });
+    var dkeys = Object.keys(dcounts).sort();
+    el.innerHTML = dkeys.length ? dkeys.map(function(k){
+      return '<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 0;"><input type="checkbox" value="'+k+'" onchange="updateGsmsPreview()"> '+k+' ('+dcounts[k]+'명)</label>';
+    }).join('') : '<div style="font-size:12px;color:var(--muted);">등록된 스탭이 없어요. 조직설정에서 추가해주세요.</div>';
+    updateGsmsPreview();
+    return;
+  }
+  var counts = {};
+  Object.values(people).forEach(function(p){ var v=p[basis]; if(!v) return; counts[v]=(counts[v]||0)+1; });
+  var keys = Object.keys(counts).sort();
+  el.innerHTML = keys.map(function(k){
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 0;"><input type="checkbox" value="'+k+'" onchange="updateGsmsPreview()"> '+k+' ('+counts[k]+'명)</label>';
+  }).join('');
+  updateGsmsPreview();
+}
+function getGsmsTargetIds(){
+  var basis = document.getElementById('gsms-basis').value;
+  if(basis==='all') return Object.keys(people);
+  if(basis==='currentFilter') return getOrgRows().map(function(r){return r.id;});
+  var checked = Array.from(document.querySelectorAll('#gsms-basis-options input[type=checkbox]:checked')).map(function(el){return el.value;});
+  if(!checked.length) return [];
+  if(basis==='staffDept') return Object.keys(hqStaff).filter(function(id){ return checked.indexOf(hqStaff[id].dept||'미지정')>-1; });
+  return Object.keys(people).filter(function(id){ return checked.indexOf(people[id][basis])>-1; });
+}
+function _gsmsPerson(id){
+  if(hqStaff[id]) return { name:hqStaff[id].name, phone:hqStaff[id].phone };
+  if(people[id]) return { name:people[id].name, phone:people[id].phone };
+  return { name:'?', phone:'' };
+}
+function updateGsmsPreview(){
+  var ids = getGsmsTargetIds();
+  var previewEl = document.getElementById('gsms-preview');
+  var names = ids.slice(0,5).map(function(id){return _gsmsPerson(id).name;}).join(', ');
+  previewEl.textContent = '대상자: '+ids.length+'명'+(ids.length? ' ('+names+(ids.length>5?' 외 '+(ids.length-5)+'명':'')+')' : '');
+}
+function copyGsmsNumbers(){
+  var ids = getGsmsTargetIds();
+  var nums = ids.map(function(id){return _gsmsPerson(id).phone;}).filter(Boolean);
+  if(!nums.length){ showToast('대상자가 없어요.'); return; }
+  navigator.clipboard.writeText(nums.join(', ')).then(function(){ showToast(nums.length+'명 번호 복사됐어요.'); ids.forEach(function(id){ logContact(id,'sms'); }); });
+}
+function copyGsmsFull(){
+  var ids = getGsmsTargetIds();
+  var nums = ids.map(function(id){return _gsmsPerson(id).phone;}).filter(Boolean);
+  var text = document.getElementById('gsms-text').value;
+  if(!nums.length){ showToast('대상자가 없어요.'); return; }
+  navigator.clipboard.writeText('['+nums.length+'명]\n'+nums.join(', ')+'\n\n메시지:\n'+text).then(function(){ showToast('복사됐어요.'); ids.forEach(function(id){ logContact(id,'sms'); }); });
+}
+function openGsmsSmsApp(){
+  var ids = getGsmsTargetIds();
+  var nums = ids.map(function(id){return _gsmsPerson(id).phone;}).filter(Boolean);
+  if(!nums.length){ showToast('대상자가 없어요.'); return; }
+  if(nums.length>50){ showToast('50명이 넘으면 문자 앱이 안 열릴 수 있어요. 번호 복사를 이용해주세요.'); return; }
+  var text = encodeURIComponent(document.getElementById('gsms-text').value);
+  window.location.href = 'sms:'+nums.join(',')+'?body='+text;
+  ids.forEach(function(id){ logContact(id,'sms'); });
+}
+function _solapiRandomSalt(){
+  var arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+async function _solapiSign(dateTime, salt){
+  var enc = new TextEncoder();
+  var key = await crypto.subtle.importKey('raw', enc.encode(SOLAPI_API_SECRET), {name:'HMAC', hash:'SHA-256'}, false, ['sign']);
+  var sigBuf = await crypto.subtle.sign('HMAC', key, enc.encode(dateTime+salt));
+  return Array.from(new Uint8Array(sigBuf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+async function sendGroupSmsViaSolapi(){
+  var ids = getGsmsTargetIds();
+  var text = document.getElementById('gsms-text').value.trim();
+  var statusEl = document.getElementById('gsms-send-status');
+  if(!ids.length){ showToast('대상자가 없어요.'); return; }
+  if(!text){ showToast('메시지를 입력해주세요.'); return; }
+  var messages = ids.map(function(id){
+    return { to: (_gsmsPerson(id).phone||'').replace(/[^0-9]/g,''), from: SOLAPI_FROM, text: text };
+  }).filter(function(m){ return m.to; });
+  if(!messages.length){ showToast('전화번호가 있는 대상자가 없어요.'); return; }
+  var confirmMsg = messages.length+'명에게 문자를 발송합니다.\n\n[메시지 미리보기]\n'+text+'\n\n정말 보낼까요?';
+  if(!confirm(confirmMsg)) return;
+  statusEl.textContent = '발송 준비 중... ('+messages.length+'건)';
+  try{
+    var dateTime = new Date().toISOString();
+    var salt = _solapiRandomSalt();
+    var signature = await _solapiSign(dateTime, salt);
+    var authHeader = 'HMAC-SHA256 apiKey='+SOLAPI_API_KEY+', date='+dateTime+', salt='+salt+', signature='+signature;
+    var res = await fetch('https://api.solapi.com/messages/v4/send-many', {
+      method:'POST',
+      headers:{ 'Authorization':authHeader, 'Content-Type':'application/json' },
+      body: JSON.stringify({ messages: messages })
+    });
+    var data = await res.json();
+    if(res.ok){
+      statusEl.textContent = '✅ 발송 완료: '+messages.length+'건';
+      showToast('발송 완료: '+messages.length+'건');
+      ids.forEach(function(id){ logContact(id,'sms'); });
+    } else {
+      statusEl.textContent = '❌ 발송 실패: '+(data.errorMessage||JSON.stringify(data));
+    }
+  }catch(err){
+    statusEl.textContent = '❌ 요청 실패 (CORS 차단일 수 있어요): '+err;
+  }
 }
 
 /* ---------- PROFILE ---------- */
@@ -667,7 +892,7 @@ function buildProfileHtml(empId, p){
   +'</div>'
   +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:8px;">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
-      +'<div class="card-title" style="margin:0;">면담 메모 · 액션플랜</div>'
+      +'<div class="card-title" style="margin:0;">컨택 메모 · 액션플랜</div>'
       +'<button class="btn" onclick="addNote(\''+empId+'\')">+ 추가</button>'
     +'</div>'
     +'<div id="notes-'+empId+'">'+renderNotesHtml(empId)+'</div>'
@@ -679,14 +904,14 @@ function metricCell(k,v){
 function renderNotesHtml(empId){
   var n = notes[empId]||{};
   var keys = Object.keys(n).sort(function(a,b){ return (n[b].date||'').localeCompare(n[a].date||''); });
-  if(!keys.length) return '<div class="empty">면담 기록이 없어요.</div>';
+  if(!keys.length) return '<div class="empty">컨택 기록이 없어요.</div>';
   return keys.map(function(k){
     var item=n[k];
     return '<div class="note-item"><div class="note-date"><span>'+item.date+'</span><span class="trash-icon" onclick="deleteNote(\''+empId+'\',\''+k+'\')">삭제</span></div><div class="note-text">'+(item.text||'')+'</div></div>';
   }).join('');
 }
 function addNote(empId){
-  var text = prompt('면담 메모를 입력해주세요.');
+  var text = prompt('컨택 메모를 입력해주세요.');
   if(!text) return;
   var id = 'n'+Date.now();
   var date = new Date().toISOString().slice(0,10);
@@ -779,7 +1004,7 @@ function renderCalendar(){
     var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
     html += '<div class="cal-cell'+(isToday?' today':'')+'" onclick="openDayModal(\''+dateStr+'\')">'
       +'<div class="dnum">'+d+'</div>'
-      + daySchedules.slice(0,3).map(function(s){ var p=people[s.empId]; return '<div class="sched">'+(p?p.name:'?')+'</div>'; }).join('')
+      + daySchedules.slice(0,3).map(function(s){ var p=people[s.empId]; var t=s.type||'컨택'; return '<div class="sched">['+t+'] '+(p?p.name:'?')+'</div>'; }).join('')
       + (daySchedules.length>3? '<div style="font-size:9px;color:var(--muted);">+'+(daySchedules.length-3)+'</div>':'')
       +'</div>';
   }
@@ -798,29 +1023,59 @@ function openDayModal(dateStr){
   var box=document.createElement('div');
   box.className='modal-box'; box.style.position='relative'; box.style.maxWidth='400px';
   var daySchedules = Object.keys(schedules).map(function(k){return Object.assign({id:k},schedules[k]);}).filter(function(s){return s.date===dateStr;});
-  var peopleOptions = Object.keys(people).map(function(id){ return '<option value="'+id+'">'+people[id].name+' ('+people[id].branch+')</option>'; }).join('');
+  var typeBadgeColor = { 컨택:'var(--accent)', 코칭:'#0f9d67', 교육:'#c97a12', 행사:'#a24bd8', ETC:'var(--muted)' };
   box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
     +'<div class="card-title">'+dateStr+' 일정</div>'
     +'<div id="day-sched-list">'+ (daySchedules.length? daySchedules.map(function(s){
         var p=people[s.empId]||{};
-        return '<div class="note-item"><div class="note-date"><span>'+(p.name||'?')+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div><button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button></div>';
+        var t = s.type||'컨택';
+        var tCol = typeBadgeColor[t]||'var(--muted)';
+        return '<div class="note-item"><div class="note-date"><span><span style="color:'+tCol+';font-weight:700;">['+t+']</span> '+(p.name||'?')+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div><button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button></div>';
       }).join('') : '<div class="empty">일정 없음</div>') + '</div>'
     +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:10px;">'
-      +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">대상자</label>'
-      +'<select id="sched-person">'+peopleOptions+'</select>'
+      +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">유형</label>'
+      +'<select id="sched-type"><option>컨택</option><option>코칭</option><option>교육</option><option>행사</option><option>ETC</option></select>'
+      +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">대상자</label>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
+        +'<select id="sched-hq" onchange="schedHqChanged()" style="font-size:12px;padding:8px 6px;"></select>'
+        +'<select id="sched-branch" onchange="schedBranchChanged()" style="font-size:12px;padding:8px 6px;"></select>'
+        +'<select id="sched-person" style="font-size:12px;padding:8px 6px;"></select>'
+      +'</div>'
       +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">메모</label>'
-      +'<textarea id="sched-memo" rows="2" placeholder="면담 목적, 확인할 것 등"></textarea>'
+      +'<textarea id="sched-memo" rows="2" placeholder="목적, 확인할 것 등"></textarea>'
       +'<button class="btn primary" style="width:100%;margin-top:8px;" onclick="addSchedule(\''+dateStr+'\')">일정 추가</button>'
     +'</div>';
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  initSchedSelects();
+}
+function initSchedSelects(){
+  var hqs = [...new Set(Object.values(people).map(function(p){return p.hq;}).filter(Boolean))].sort();
+  var hqEl = document.getElementById('sched-hq');
+  hqEl.innerHTML = hqs.map(function(h){return '<option value="'+h+'">'+h+'</option>';}).join('');
+  schedHqChanged();
+}
+function schedHqChanged(){
+  var hq = document.getElementById('sched-hq').value;
+  var branches = [...new Set(Object.keys(people).filter(function(id){return people[id].hq===hq;}).map(function(id){return people[id].branch;}).filter(Boolean))].sort();
+  var brEl = document.getElementById('sched-branch');
+  brEl.innerHTML = branches.map(function(b){return '<option value="'+b+'">'+b+'</option>';}).join('');
+  schedBranchChanged();
+}
+function schedBranchChanged(){
+  var hq = document.getElementById('sched-hq').value;
+  var branch = document.getElementById('sched-branch').value;
+  var ids = Object.keys(people).filter(function(id){ return people[id].hq===hq && people[id].branch===branch; }).sort(function(a,b){ return (people[a].name||'').localeCompare(people[b].name||''); });
+  var pEl = document.getElementById('sched-person');
+  pEl.innerHTML = ids.map(function(id){return '<option value="'+id+'">'+people[id].name+'</option>';}).join('');
 }
 function addSchedule(dateStr){
   var empId = document.getElementById('sched-person').value;
+  var type = document.getElementById('sched-type').value;
   var memo = document.getElementById('sched-memo').value.trim();
   if(!empId){ showToast('대상자를 선택해주세요.'); return; }
   var id='s'+Date.now();
-  var entry={date:dateStr, empId:empId, memo:memo, done:false};
+  var entry={date:dateStr, empId:empId, type:type, memo:memo, done:false};
   fetch(FB_URL+ROOT+'/schedules/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   schedules[id]=entry;
   document.querySelector('.modal-overlay').remove();
@@ -913,6 +1168,59 @@ function saveOrgMap(){
   document.querySelectorAll('[data-branch]').forEach(function(el){ orgMap.branch[el.dataset.branch]=el.value.trim(); });
   fetch(FB_URL+ROOT+'/orgMap.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(orgMap)});
   showToast('저장됐어요.');
+}
+
+/* ---------- 본사 스탭 전화번호부 ---------- */
+function addStaff(){
+  var dept = document.getElementById('staff-dept').value.trim();
+  var name = document.getElementById('staff-name').value.trim();
+  var phone = document.getElementById('staff-phone').value.trim().replace(/[^0-9]/g,'');
+  if(!name){ showToast('담당자명을 입력해주세요.'); return; }
+  if(!phone){ showToast('전화번호를 입력해주세요.'); return; }
+  var id='st'+Date.now();
+  var entry={dept:dept, name:name, phone:phone};
+  fetch(FB_URL+ROOT+'/hqStaff/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
+  hqStaff[id]=entry;
+  document.getElementById('staff-dept').value='';
+  document.getElementById('staff-name').value='';
+  document.getElementById('staff-phone').value='';
+  renderStaffSettings();
+  renderStaffQuickList();
+  showToast('스탭이 추가됐어요.');
+}
+function deleteStaff(id){
+  if(!confirm('이 스탭을 삭제할까요?')) return;
+  fetch(FB_URL+ROOT+'/hqStaff/'+id+'.json',{method:'DELETE'});
+  delete hqStaff[id];
+  renderStaffSettings();
+  renderStaffQuickList();
+}
+function renderStaffSettings(){
+  var el = document.getElementById('staff-rows');
+  if(!el) return;
+  var ids = Object.keys(hqStaff).sort(function(a,b){ return (hqStaff[a].dept||'').localeCompare(hqStaff[b].dept||''); });
+  if(!ids.length){ el.innerHTML='<div class="empty">등록된 스탭이 없어요.</div>'; return; }
+  el.innerHTML = ids.map(function(id){
+    var s = hqStaff[id];
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12.5px;">'
+      +'<span>'+(s.dept?('<span style="color:var(--muted);">['+s.dept+']</span> '):'')+s.name+' <span style="color:var(--muted);">'+s.phone+'</span></span>'
+      +'<span class="trash-icon" onclick="deleteStaff(\''+id+'\')">삭제</span></div>';
+  }).join('');
+}
+function renderStaffQuickList(){
+  var el = document.getElementById('staff-quick-list');
+  if(!el) return;
+  var ids = Object.keys(hqStaff).sort(function(a,b){ return (hqStaff[a].dept||'').localeCompare(hqStaff[b].dept||''); });
+  if(!ids.length){ el.innerHTML='<div class="empty">조직설정 탭에서 스탭을 등록해주세요.</div>'; return; }
+  el.innerHTML = ids.map(function(id){
+    var s = hqStaff[id];
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd);">'
+      +'<div><div style="font-size:13px;">'+s.name+'</div><div style="font-size:11px;color:var(--muted);">'+(s.dept||'')+' · '+s.phone+'</div></div>'
+      +'<div style="display:flex;gap:6px;">'
+        +'<a href="tel:'+s.phone+'" class="btn" style="text-decoration:none;font-size:12px;padding:6px 10px;">📞</a>'
+        +'<a href="sms:'+s.phone+'" class="btn" style="text-decoration:none;font-size:12px;padding:6px 10px;">💬</a>'
+      +'</div></div>';
+  }).join('');
 }
 
 /* ---------- MAP (Kakao) ---------- */
