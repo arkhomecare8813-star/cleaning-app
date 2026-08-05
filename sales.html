@@ -95,10 +95,10 @@ tr.row-clickable:hover{background:var(--sf2);}
 .trash-icon{cursor:pointer;color:var(--muted);font-size:12px;}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
 .cal-dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0;}
-.cal-cell{background:var(--sf2);border-radius:6px;min-height:64px;padding:4px;font-size:11px;position:relative;cursor:pointer;}
+.cal-cell{background:var(--sf2);border-radius:6px;min-height:64px;padding:4px;font-size:11px;position:relative;cursor:pointer;overflow:hidden;}
 .cal-cell.today{border:1px solid var(--accent);}
 .cal-cell .dnum{font-size:11px;color:var(--muted);}
-.cal-cell .sched{font-size:10px;background:var(--a2);color:var(--accent);border-radius:4px;padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-cell .sched{font-size:10px;background:var(--a2);color:var(--accent);border-radius:4px;padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;display:block;}
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--sf3);color:var(--text);padding:10px 18px;border-radius:10px;font-size:13px;z-index:900;opacity:0;transition:opacity .2s;pointer-events:none;}
 .toast.show{opacity:1;}
 </style>
@@ -575,8 +575,11 @@ function renderDashboard(){
       var t = s.type||'컨택';
       var clickAttr = s.empId ? " onclick=\"openProfile('"+s.empId+"')\" style=\"padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer;\"" : " style=\"padding:7px 0;border-bottom:1px solid var(--bd);\"";
       return '<div'+clickAttr+'>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;">'
         +'<div style="font-size:13px;">'+(s.time?'<span style="color:var(--muted);font-size:11px;margin-right:4px;">'+s.time+'</span>':'')+'<span class="badge neutral">'+t+'</span> '+(p?(p.name||'?'):'(대상자 없음)')+' <span style="font-size:11px;color:var(--muted);">'+(p&&p.branch?'· '+p.branch:'')+'</span></div>'
-        + (s.location?'<div style="font-size:11px;color:var(--accent);margin-top:2px;">📍 '+s.location+'</div>':'')
+        + (p?'<span style="color:var(--muted);font-size:13px;">›</span>':'')
+        +'</div>'
+        + (s.location?'<div style="font-size:11px;color:var(--accent);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 '+s.location+'</div>':'')
         +'<div style="font-size:11px;color:var(--muted);margin-top:3px;">'+(s.memo||'')+'</div></div>';
     }).join('');
   }
@@ -1223,7 +1226,12 @@ function renderCalendar(){
     daySchedules.sort(function(a,b){ return (a.time||'99:99').localeCompare(b.time||'99:99'); });
     html += '<div class="cal-cell'+(isToday?' today':'')+'" onclick="openDayModal(\''+dateStr+'\')">'
       +'<div class="dnum">'+d+'</div>'
-      + daySchedules.slice(0,3).map(function(s){ var p=s.empId?people[s.empId]:null; var t=s.type||'컨택'; var timeStr=s.time?s.time+' ':''; return '<div class="sched">'+timeStr+'['+t+'] '+(p?p.name:(s.location?'📍'+s.location:'ETC'))+'</div>'; }).join('')
+      + daySchedules.slice(0,3).map(function(s){
+          var p=s.empId?people[s.empId]:null; var t=s.type||'컨택'; var timeStr=s.time?s.time+' ':'';
+          var label = timeStr+'['+t+'] '+(p?p.name:(s.location?'📍'+s.location:'ETC'));
+          if(p) return '<div class="sched" onclick="event.stopPropagation();openProfile(\''+s.empId+'\')" style="cursor:pointer;">'+label+'</div>';
+          return '<div class="sched">'+label+'</div>';
+        }).join('')
       + (daySchedules.length>3? '<div style="font-size:9px;color:var(--muted);">+'+(daySchedules.length-3)+'</div>':'')
       +'</div>';
   }
@@ -1235,7 +1243,24 @@ function calShift(dir){
   if(calMonth>11){calMonth=0;calYear++;}
   renderCalendar();
 }
+var _lastSchedHasTarget = true;
+var _editingScheduleId = null;
+function extractFirstUrl(str){
+  if(!str) return null;
+  var m = String(str).match(/https?:\/\/\S+/);
+  return m ? m[0] : null;
+}
+function locationHtml(location){
+  if(!location) return '';
+  var url = extractFirstUrl(location);
+  var html = '<div class="note-text" style="margin-top:2px;">📍 '+location+'</div>';
+  if(url){
+    html += '<a href="'+url+'" target="_blank" class="btn" style="display:inline-block;margin-top:4px;font-size:11px;padding:5px 10px;text-decoration:none;">🔗 링크 열기</a>';
+  }
+  return html;
+}
 function openDayModal(dateStr){
+  _editingScheduleId = null;
   var overlay=document.createElement('div');
   overlay.className='modal-overlay';
   overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
@@ -1252,16 +1277,24 @@ function openDayModal(dateStr){
         var tCol = typeBadgeColor[t]||'var(--muted)';
         var nameLabel = p ? (p.name||'?') : '(대상자 없음)';
         var timeLabel = s.time ? ('<span style="color:var(--muted);font-size:11px;margin-right:4px;">'+s.time+'</span>') : '';
-        var locHtml = s.location ? ('<div class="note-text" style="margin-top:2px;"><a href="'+(/^https?:\/\//.test(s.location)?s.location:'#')+'" target="_blank" style="color:var(--accent);">📍 '+s.location+'</a></div>') : '';
-        return '<div class="note-item"><div class="note-date"><span>'+timeLabel+'<span style="color:'+tCol+';font-weight:700;">['+t+']</span> '+nameLabel+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div>'+locHtml+(p?'<button class="btn" style="margin-top:6px;font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button>':'')+'</div>';
+        var locHtml = locationHtml(s.location);
+        return '<div class="note-item"><div class="note-date"><span>'+timeLabel+'<span style="color:'+tCol+';font-weight:700;">['+t+']</span> '+nameLabel+'</span><span class="trash-icon" onclick="deleteSchedule(\''+s.id+'\',\''+dateStr+'\')">삭제</span></div><div class="note-text">'+(s.memo||'')+'</div>'+locHtml
+          +'<div style="display:flex;gap:6px;margin-top:6px;">'
+          +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="editSchedule(\''+s.id+'\',\''+dateStr+'\')">✏️ 수정</button>'
+          +(p?'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openProfile(\''+s.empId+'\')">프로필 보기</button>':'')
+          +'</div></div>';
       }).join('') : '<div class="empty">일정 없음</div>') + '</div>'
     +'<div style="border-top:1px solid var(--bd);padding-top:12px;margin-top:10px;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+        +'<div id="sched-form-title" style="font-size:13px;font-weight:700;color:var(--accent);">+ 새 일정 추가</div>'
+        +'<button id="sched-cancel-edit" class="btn" style="display:none;font-size:11px;padding:4px 8px;" onclick="cancelEditSchedule()">수정 취소</button>'
+      +'</div>'
       +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">유형</label>'
       +'<select id="sched-type"><option>컨택</option><option>코칭</option><option>교육</option><option>행사</option><option>본사미팅</option><option>ETC</option></select>'
       +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">시간 (선택)</label>'
       +'<input type="time" id="sched-time">'
-      +'<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin:10px 0 4px;cursor:pointer;">'
-        +'<input type="checkbox" id="sched-has-target" checked onchange="toggleSchedTargetFields()"> 특정 인원과의 일정'
+      +'<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin:10px 0 4px;cursor:pointer;white-space:nowrap;">'
+        +'<input type="checkbox" id="sched-has-target"'+(_lastSchedHasTarget?' checked':'')+' onchange="toggleSchedTargetFields()"> 대상자 지정'
       +'</label>'
       +'<div id="sched-target-fields" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
         +'<select id="sched-hq" onchange="schedHqChanged()" style="font-size:12px;padding:8px 6px;"></select>'
@@ -1272,11 +1305,12 @@ function openDayModal(dateStr){
       +'<input type="text" id="sched-location" placeholder="예: 강남 사무실, 또는 https://zoom.us/...">'
       +'<label style="font-size:11px;color:var(--muted);display:block;margin:8px 0 4px;">메모</label>'
       +'<textarea id="sched-memo" rows="2" placeholder="목적, 확인할 것 등"></textarea>'
-      +'<button class="btn primary" style="width:100%;margin-top:8px;" onclick="addSchedule(\''+dateStr+'\')">일정 추가</button>'
+      +'<button id="sched-submit-btn" class="btn primary" style="width:100%;margin-top:8px;" onclick="saveSchedule(\''+dateStr+'\')">일정 추가</button>'
     +'</div>';
   overlay.appendChild(box);
   document.body.appendChild(overlay);
   initSchedSelects();
+  toggleSchedTargetFields();
 }
 function toggleSchedTargetFields(){
   var checked = document.getElementById('sched-has-target').checked;
@@ -1302,22 +1336,61 @@ function schedBranchChanged(){
   var pEl = document.getElementById('sched-person');
   pEl.innerHTML = ids.map(function(id){return '<option value="'+id+'">'+people[id].name+'</option>';}).join('');
 }
-function addSchedule(dateStr){
+function saveSchedule(dateStr){
   var hasTarget = document.getElementById('sched-has-target').checked;
   var empId = hasTarget ? document.getElementById('sched-person').value : '';
   var type = document.getElementById('sched-type').value;
   var time = document.getElementById('sched-time').value;
   var location = document.getElementById('sched-location').value.trim();
   var memo = document.getElementById('sched-memo').value.trim();
-  if(hasTarget && !empId){ showToast('대상자를 선택하거나, "특정 인원과의 일정" 체크를 해제해주세요.'); return; }
-  var id='s'+Date.now();
+  if(hasTarget && !empId){ showToast('대상자를 선택하거나, "대상자 지정" 체크를 해제해주세요.'); return; }
+  _lastSchedHasTarget = hasTarget;
+  var wasEditing = !!_editingScheduleId;
+  var id = _editingScheduleId || ('s'+Date.now());
   var entry={date:dateStr, time:time, empId:empId||null, type:type, location:location, memo:memo, done:false};
   fetch(FB_URL+ROOT+'/schedules/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   schedules[id]=entry;
+  _editingScheduleId = null;
   document.querySelector('.modal-overlay').remove();
   renderCalendar();
   renderDashboard();
-  showToast('일정이 추가됐어요.');
+  showToast(wasEditing ? '일정이 수정됐어요.' : '일정이 추가됐어요.');
+}
+function editSchedule(id, dateStr){
+  var s = schedules[id];
+  if(!s) return;
+  _editingScheduleId = id;
+  document.getElementById('sched-type').value = s.type||'컨택';
+  document.getElementById('sched-time').value = s.time||'';
+  document.getElementById('sched-location').value = s.location||'';
+  document.getElementById('sched-memo').value = s.memo||'';
+  var hasTarget = !!s.empId;
+  document.getElementById('sched-has-target').checked = hasTarget;
+  toggleSchedTargetFields();
+  if(hasTarget && people[s.empId]){
+    var p = people[s.empId];
+    document.getElementById('sched-hq').value = p.hq;
+    schedHqChanged();
+    document.getElementById('sched-branch').value = p.branch;
+    schedBranchChanged();
+    document.getElementById('sched-person').value = s.empId;
+  }
+  document.getElementById('sched-submit-btn').textContent = '수정 저장';
+  document.getElementById('sched-cancel-edit').style.display = 'inline-block';
+  document.getElementById('sched-form-title').textContent = '✏️ 일정 수정';
+  document.getElementById('sched-form-title').scrollIntoView({behavior:'smooth', block:'center'});
+}
+function cancelEditSchedule(){
+  _editingScheduleId = null;
+  document.getElementById('sched-type').value = '컨택';
+  document.getElementById('sched-time').value = '';
+  document.getElementById('sched-location').value = '';
+  document.getElementById('sched-memo').value = '';
+  document.getElementById('sched-has-target').checked = _lastSchedHasTarget;
+  toggleSchedTargetFields();
+  document.getElementById('sched-submit-btn').textContent = '일정 추가';
+  document.getElementById('sched-cancel-edit').style.display = 'none';
+  document.getElementById('sched-form-title').textContent = '+ 새 일정 추가';
 }
 function deleteSchedule(id, dateStr){
   if(!confirm('이 일정을 삭제할까요?')) return;
