@@ -346,22 +346,28 @@ tr.row-clickable:hover{background:var(--sf2);}
       </div>
 
       <div class="card">
-        <div class="card-title">🧑‍💼 본부별 담당 MD</div>
-        <div id="hq-map-rows"></div>
-        <button class="btn" style="margin-top:8px;" onclick="saveOrgMap()">저장</button>
+        <div class="card-title" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="toggleCollapse('hq-map-body')">🧑‍💼 본부별 담당 MD <span id="hq-map-body-arrow" style="color:var(--muted);">▸</span></div>
+        <div id="hq-map-body" style="display:none;margin-top:10px;">
+          <div id="hq-map-rows"></div>
+          <button class="btn" style="margin-top:8px;" onclick="saveOrgMap()">저장</button>
+        </div>
       </div>
 
       <div class="card">
-        <div class="card-title">🧑‍💼 지점별 담당 AM</div>
-        <div id="branch-map-rows"></div>
-        <button class="btn" style="margin-top:8px;" onclick="saveOrgMap()">저장</button>
+        <div class="card-title" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="toggleCollapse('branch-map-body')">🧑‍💼 지점별 담당 AM <span id="branch-map-body-arrow" style="color:var(--muted);">▸</span></div>
+        <div id="branch-map-body" style="display:none;margin-top:10px;">
+          <div id="branch-map-rows"></div>
+          <button class="btn" style="margin-top:8px;" onclick="saveOrgMap()">저장</button>
+        </div>
       </div>
 
       <div class="card">
-        <div class="card-title">🧑‍💼 담당FM 전화번호부</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">엑셀엔 담당FM 이름만 있어서, 연락처는 여기서 한 번 입력해두면 프로필에서 바로 전화·문자 걸 수 있어요.</p>
-        <div id="fm-map-rows"></div>
-        <button class="btn" style="margin-top:8px;" onclick="saveFmMap()">저장</button>
+        <div class="card-title" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="toggleCollapse('fm-map-body')">🧑‍💼 담당FM 전화번호부 <span id="fm-map-body-arrow" style="color:var(--muted);">▸</span></div>
+        <div id="fm-map-body" style="display:none;margin-top:10px;">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">엑셀엔 담당FM 이름만 있어서, 연락처는 여기서 한 번 입력해두면 프로필에서 바로 전화·문자 걸 수 있어요.</p>
+          <div id="fm-map-rows"></div>
+          <button class="btn" style="margin-top:8px;" onclick="saveFmMap()">저장</button>
+        </div>
       </div>
 
       <div class="card">
@@ -591,6 +597,14 @@ function renderAll(){
 }
 
 /* ---------- TABS ---------- */
+function toggleCollapse(id){
+  var el = document.getElementById(id);
+  var arrow = document.getElementById(id+'-arrow');
+  if(!el) return;
+  var opening = el.style.display==='none';
+  el.style.display = opening ? 'block' : 'none';
+  if(arrow) arrow.textContent = opening ? '▾' : '▸';
+}
 function switchTab(name){
   document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active', t.dataset.tab===name);});
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
@@ -1464,79 +1478,110 @@ async function sendSolapiMessages(messages){
     body: JSON.stringify({ messages: messages })
   });
   var data = await res.json();
-  return { ok: res.ok, data: data };
+  var failedList = data.failedMessageList || [];
+  var failedNumbers = failedList.map(function(f){ return (f.to||'').replace(/[^0-9]/g,''); });
+  var count = (data.groupInfo && data.groupInfo.count) || null;
+  return { ok: res.ok, data: data, failedNumbers: failedNumbers, count: count };
+}
+/* ---------- 카드형 발송 진행 모달 (청소앱과 동일한 UX) ---------- */
+function openSendReviewModal(items){
+  // items: [{id, name, phone, text}]
+  var overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  var box=document.createElement('div');
+  box.className='modal-box'; box.style.position='relative'; box.style.maxWidth='480px';
+  var previewText = items.length ? items[0].text : '';
+  var sameTextForAll = items.every(function(it){ return it.text===previewText; });
+  box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
+    +'<div class="card-title">🚀 문자 발송</div>'
+    +'<div style="font-size:13px;margin-bottom:10px;"><b style="font-size:18px;color:var(--accent);">'+items.length+'명</b>에게 발송합니다.</div>'
+    +'<div style="background:var(--sf2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:100px;overflow-y:auto;margin-bottom:12px;">'
+      + (sameTextForAll ? previewText : previewText+'\n(외 각자 다른 내용 포함)')
+    +'</div>'
+    +'<div id="send-review-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:260px;overflow-y:auto;margin-bottom:12px;padding:2px;">'
+      + items.map(function(it){
+          return '<div id="send-card-'+it.id+'" style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:8px 6px;text-align:center;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all .3s;">'+it.name+'</div>';
+        }).join('')
+    +'</div>'
+    +'<div id="send-review-status" style="font-size:12.5px;color:var(--muted);margin-bottom:10px;"></div>'
+    +'<button id="send-review-btn" class="btn primary" style="width:100%;">🚀 발송하기</button>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  document.getElementById('send-review-btn').onclick = async function(){
+    var btn = document.getElementById('send-review-btn');
+    var statusEl = document.getElementById('send-review-status');
+    btn.disabled = true;
+    btn.textContent = '전송중..';
+    statusEl.textContent = '전송중.. 잠시만 기다려주세요.';
+    var idPhoneMap = {};
+    var messages = items.map(function(it){
+      var phone = (it.phone||'').replace(/[^0-9]/g,'');
+      if(phone) idPhoneMap[phone] = it.id;
+      return { to: phone, from: SOLAPI_FROM, text: it.text };
+    }).filter(function(m){ return m.to; });
+    try{
+      var result = await sendSolapiMessages(messages);
+      if(result.ok){
+        var failedSet = {}; result.failedNumbers.forEach(function(n){ failedSet[n]=true; });
+        var successCount = 0, failCount = 0;
+        messages.forEach(function(m){
+          var cardEl = document.getElementById('send-card-'+idPhoneMap[m.to]);
+          if(failedSet[m.to]){
+            failCount++;
+            if(cardEl){ cardEl.style.background='#fdeaee'; cardEl.style.borderColor='#f2b8c6'; cardEl.style.color='var(--danger)'; cardEl.textContent='❌ 실패'; }
+          } else {
+            successCount++;
+            if(idPhoneMap[m.to]) logContact(idPhoneMap[m.to], 'sms');
+            if(cardEl){ cardEl.style.background='#e5f7ee'; cardEl.style.borderColor='#a8e0c2'; cardEl.style.color='var(--good)'; cardEl.textContent='✅ 전송완료'; }
+          }
+        });
+        statusEl.textContent = '접수 완료 ✓ 성공 '+successCount+'건 / 실패 '+failCount+'건 — 실제 발송(도착) 최종 결과는 Solapi 콘솔에서 확인해주세요.';
+        btn.style.display = 'none';
+        showToast('전송완료: '+successCount+'건');
+      } else {
+        statusEl.textContent = '❌ 발송 실패: '+(result.data.errorMessage||JSON.stringify(result.data));
+        btn.disabled = false; btn.textContent = '🚀 다시 시도';
+      }
+    }catch(err){
+      statusEl.textContent = '❌ 요청 실패 (CORS 차단일 수 있어요): '+err;
+      btn.disabled = false; btn.textContent = '🚀 다시 시도';
+    }
+  };
 }
 async function sendSingleSms(empId, phone, text){
   if(!phone){ showToast('전화번호가 없어요.'); return; }
-  var confirmMsg = '문자를 발송할까요?\n\n[메시지 미리보기]\n'+text;
-  if(!confirm(confirmMsg)) return;
-  showToast('발송 중...');
-  try{
-    var result = await sendSolapiMessages([{ to: phone.replace(/[^0-9]/g,''), from: SOLAPI_FROM, text: text }]);
-    if(result.ok){
-      showToast('문자가 발송됐어요.');
-      if(empId) logContact(empId, 'sms');
-    } else {
-      showToast('발송 실패: '+(result.data.errorMessage||JSON.stringify(result.data)));
-    }
-  }catch(err){
-    showToast('발송 실패 (CORS 차단일 수 있어요): '+err);
-  }
+  var name = '';
+  if(empId && people[empId]) name = people[empId].name;
+  else if(empId && hqStaff[empId]) name = hqStaff[empId].name;
+  openSendReviewModal([{ id: empId||('tmp'+Date.now()), name: name||'수신자', phone: phone, text: text }]);
 }
 async function sendGroupSmsViaSolapi(){
   var ids = getGsmsTargetIds();
   var text = document.getElementById('gsms-text').value.trim();
-  var statusEl = document.getElementById('gsms-send-status');
   if(!ids.length){ showToast('대상자가 없어요.'); return; }
   if(!text){ showToast('메시지를 입력해주세요.'); return; }
-  var messages = ids.map(function(id){
-    return { to: (_gsmsPerson(id).phone||'').replace(/[^0-9]/g,''), from: SOLAPI_FROM, text: text };
-  }).filter(function(m){ return m.to; });
-  if(!messages.length){ showToast('전화번호가 있는 대상자가 없어요.'); return; }
-  var confirmMsg = messages.length+'명에게 문자를 발송합니다.\n\n[메시지 미리보기]\n'+text+'\n\n정말 보낼까요?';
-  if(!confirm(confirmMsg)) return;
-  statusEl.textContent = '발송 준비 중... ('+messages.length+'건)';
-  try{
-    var result = await sendSolapiMessages(messages);
-    if(result.ok){
-      statusEl.textContent = '✅ 발송 완료: '+messages.length+'건';
-      showToast('발송 완료: '+messages.length+'건');
-      ids.forEach(function(id){ logContact(id,'sms'); });
-    } else {
-      statusEl.textContent = '❌ 발송 실패: '+(result.data.errorMessage||JSON.stringify(result.data));
-    }
-  }catch(err){
-    statusEl.textContent = '❌ 요청 실패 (CORS 차단일 수 있어요): '+err;
-  }
+  var items = ids.map(function(id){
+    var p = _gsmsPerson(id);
+    return { id:id, name:p.name||'?', phone:p.phone||'', text:text };
+  }).filter(function(it){ return it.phone; });
+  if(!items.length){ showToast('전화번호가 있는 대상자가 없어요.'); return; }
+  document.querySelector('.modal-overlay').remove();
+  openSendReviewModal(items);
 }
 async function sendGroupSurveyLinksViaSolapi(){
   var rawIds = getGsmsTargetIds();
   var ids = rawIds.filter(function(id){ return people[id]; }); // 실제 FSR만 (본사스탭 제외)
-  var statusEl = document.getElementById('gsms-send-status');
   if(!ids.length){ showToast('대상자 중 서베이를 보낼 수 있는 FSR이 없어요.'); return; }
   var basePath = location.pathname.replace(/[^/]*$/, '');
-  var messages = ids.map(function(id){
+  var items = ids.map(function(id){
     var p = people[id];
     var url = location.origin + basePath + 'survey.html?id=' + id;
     var text = fillTemplate(appConfig.messageTemplates.surveyLink, {name:p.name, url:url});
-    return { to:(p.phone||'').replace(/[^0-9]/g,''), from:SOLAPI_FROM, text:text };
-  }).filter(function(m){ return m.to; });
-  if(!messages.length){ showToast('전화번호가 있는 대상자가 없어요.'); return; }
-  var confirmMsg = messages.length+'명에게 각자의 개인 서베이 링크를 발송합니다.\n\n정말 보낼까요?';
-  if(!confirm(confirmMsg)) return;
-  statusEl.textContent = '발송 준비 중... ('+messages.length+'건)';
-  try{
-    var result = await sendSolapiMessages(messages);
-    if(result.ok){
-      statusEl.textContent = '✅ 서베이 링크 발송 완료: '+messages.length+'건';
-      showToast('서베이 링크 발송 완료: '+messages.length+'건');
-      ids.forEach(function(id){ logContact(id,'sms'); });
-    } else {
-      statusEl.textContent = '❌ 발송 실패: '+(result.data.errorMessage||JSON.stringify(result.data));
-    }
-  }catch(err){
-    statusEl.textContent = '❌ 요청 실패 (CORS 차단일 수 있어요): '+err;
-  }
+    return { id:id, name:p.name||'?', phone:p.phone||'', text:text };
+  }).filter(function(it){ return it.phone; });
+  if(!items.length){ showToast('전화번호가 있는 대상자가 없어요.'); return; }
+  document.querySelector('.modal-overlay').remove();
+  openSendReviewModal(items);
 }
 
 /* ---------- PROFILE ---------- */
