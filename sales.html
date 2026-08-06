@@ -82,7 +82,7 @@ tr.row-clickable:hover{background:var(--sf2);}
 .profile-col-left{min-width:0;}
 @media(max-width:760px){.profile-col-right{border-left:none;border-top:1px solid var(--bd);padding-left:0;padding-top:16px;margin-top:6px;}}
 .modal-close{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:50%;border:1px solid var(--bd);background:var(--sf2);color:var(--muted);cursor:pointer;font-size:14px;}
-.profile-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.profile-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-right:38px;flex-wrap:wrap;gap:8px;}
 .profile-name{font-size:17px;font-weight:900;}
 .profile-sub{font-size:12px;color:var(--muted);margin-top:2px;}
 .info-table td{border:none;padding:4px 8px 4px 0;font-size:12.5px;}
@@ -156,7 +156,16 @@ tr.row-clickable:hover{background:var(--sf2);}
       </div>
 
       <div class="card">
-        <div class="card-title">🔋 On-going Engagement</div>
+        <div class="card-title">🔁 상시 체크 루틴 (Success Wheel Quick Win)</div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:12px;">한 주에 한 번이 아니라, 한 달 내내 수시로 확인하고 필요할 때마다 보내는 리스트예요. TIP은 새 영상 나올 때마다, esMAP·S/W는 편하실 때 체크해서 보내세요.</p>
+        <div id="weekly-routine-list"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div class="card-title" style="margin:0;">🔋 On-going Engagement</div>
+          <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openActivityLogModal()">📜 Activity Log 보기</button>
+        </div>
         <div style="display:flex;gap:24px;margin-bottom:14px;">
           <div><div style="font-size:11px;color:var(--muted);">Engagement 누적</div><div style="font-size:24px;font-weight:900;color:var(--accent);" id="engage-total-big">-</div></div>
           <div><div style="font-size:11px;color:var(--muted);">Reach Point 누적</div><div style="font-size:24px;font-weight:900;color:#a24bd8;" id="reach-total-big">-</div></div>
@@ -256,7 +265,7 @@ tr.row-clickable:hover{background:var(--sf2);}
           <option value="vsH1">🌟 상반기 대비 향상</option>
         </select>
         <button class="btn" onclick="exportOrgListExcel()">📥 엑셀 다운로드</button>
-        <button class="btn primary" onclick="openGroupSmsModal()">📣 그룹 문자</button>
+        <button class="btn primary" onclick="openGroupSmsModal()">🚀 Reach</button>
       </div>
       <div style="overflow-x:auto;">
         <table>
@@ -380,8 +389,37 @@ tr.row-clickable:hover{background:var(--sf2);}
         <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">"🔗 링크 문자보내기"(개별·그룹문자 내 서베이 링크 단체발송 포함)에서 자동으로 쓰이는 문구예요. <b>{name}</b>은 받는 사람 이름, <b>{url}</b>은 그 사람 전용 서베이 링크로 자동 치환됩니다.</p>
         <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">서베이 링크 문자</label>
         <textarea id="cfg-tmpl-surveyLink" rows="3" style="width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:9px 12px;color:var(--text);font-family:inherit;font-size:13px;"></textarea>
-        <button class="btn" style="margin-top:8px;" onclick="saveMessageTemplates()">저장</button>
-        <button class="btn" style="margin-top:8px;" onclick="resetMessageTemplate('surveyLink')">기본값으로</button>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn" onclick="saveMessageTemplates()">저장</button>
+          <button class="btn" onclick="resetMessageTemplate('surveyLink')">기본값으로</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📚 TIP 교육영상 링크 관리</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">여기에 등록해두면, 대시보드 "TIP 영상수료 저조자"에서 Reach 누를 때 가장 최근 등록한 영상 제목+링크가 자동으로 문자에 채워져요.</p>
+        <div class="grid-2" style="margin-bottom:8px;">
+          <input type="text" id="tip-title" placeholder="영상 제목">
+          <input type="text" id="tip-url" placeholder="링크 (https://...)">
+        </div>
+        <button class="btn primary" onclick="addTipLink()">링크 추가</button>
+        <div id="tip-link-rows" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 활동 저조 기준 설정</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">대시보드 "상시 체크 루틴" 카드에서 이 기준 미만이면 "저조자"로 잡아요.</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">esMAP 로그인횟수 미만</label>
+            <input type="number" id="cfg-esmap-th" style="max-width:100px;" min="0">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">TIP 영상수료 미만</label>
+            <input type="number" id="cfg-tip-th" style="max-width:100px;" min="0">
+          </div>
+        </div>
+        <button class="btn" style="margin-top:10px;" onclick="saveConfig()">저장</button>
       </div>
 
       <div class="card">
@@ -425,10 +463,12 @@ var orgMap = { hq:{}, branch:{} };
 var schedules = {};   // scheduleId -> {...}
 var hqStaff = {};     // staffId -> {dept, name, phone}
 var fmMap = {};        // FM이름 -> {phone}
+var tipLinks = {};     // linkId -> {title, url, createdAt}
 var DEFAULT_MESSAGE_TEMPLATES = {
-  surveyLink: '{name}님, eFSR 프로파일링을 위한 짧은 서베이입니다. 아래 링크에서 편하실 때 작성해주세요.\n{url}'
+  surveyLink: '{name}님, eFSR 프로파일링을 위한 짧은 서베이입니다. 아래 링크에서 편하실 때 작성해주세요.\n{url}',
+  tipNotice: '안녕하세요, 이번 교육영상 공유드립니다.\n\n[{title}]\n{url}\n\n편하실 때 시청 부탁드려요 :)'
 };
-var appConfig = { contactCycleDays: 90, messageTemplates: Object.assign({}, DEFAULT_MESSAGE_TEMPLATES) };
+var appConfig = { contactCycleDays: 90, esmapThreshold: 5, tipThreshold: 3, messageTemplates: Object.assign({}, DEFAULT_MESSAGE_TEMPLATES) };
 function fillTemplate(str, vars){
   return str.replace(/\{(\w+)\}/g, function(m, key){ return vars[key]!==undefined ? vars[key] : m; });
 }
@@ -507,7 +547,8 @@ function boot(){
     fetch(FB_URL+ROOT+'/config.json').then(function(r){return r.json();}),
     fetch(FB_URL+ROOT+'/surveyTemplate.json').then(function(r){return r.json();}),
     fetch(FB_URL+ROOT+'/surveyResponses.json').then(function(r){return r.json();}),
-    fetch(FB_URL+ROOT+'/fmMap.json').then(function(r){return r.json();})
+    fetch(FB_URL+ROOT+'/fmMap.json').then(function(r){return r.json();}),
+    fetch(FB_URL+ROOT+'/tipLinks.json').then(function(r){return r.json();})
   ]).then(function(res){
     people = res[0]||{};
     snapshots = res[1]||{};
@@ -518,10 +559,11 @@ function boot(){
     if(!orgMap.branch) orgMap.branch={};
     schedules = res[5]||{};
     hqStaff = res[6]||{};
-    appConfig = Object.assign({contactCycleDays:90, messageTemplates:Object.assign({},DEFAULT_MESSAGE_TEMPLATES)}, res[7]||{});
+    appConfig = Object.assign({contactCycleDays:90, esmapThreshold:5, tipThreshold:3, messageTemplates:Object.assign({},DEFAULT_MESSAGE_TEMPLATES)}, res[7]||{});
     appConfig.messageTemplates = Object.assign({}, DEFAULT_MESSAGE_TEMPLATES, appConfig.messageTemplates||{});
     surveyResponses = res[9]||{};
     fmMap = res[10]||{};
+    tipLinks = res[11]||{};
     if(res[8]){
       surveyTemplate = res[8];
     } else {
@@ -545,6 +587,7 @@ function renderAll(){
   renderStaffQuickList();
   renderConfigSettings();
   renderSurveySettings();
+  renderTipLinksSettings();
 }
 
 /* ---------- TABS ---------- */
@@ -725,12 +768,80 @@ function renderDashboard(){
 
   // 조직별(본부/지점) 위험군 현황
   renderRiskOrgList();
+  renderWeeklyRoutine(ids);
 
   renderEngageEffectChart(ids, contactedThisMonthIds);
   renderSurveyRate(ids);
   renderHqChart(ids);
 }
 
+function computeRoutineGroups(ids){
+  var esmapTh = appConfig.esmapThreshold!==undefined ? appConfig.esmapThreshold : 5;
+  var tipTh = appConfig.tipThreshold!==undefined ? appConfig.tipThreshold : 3;
+  var esmapLow = ids.filter(function(id){
+    var v = people[id].esmapLogin;
+    var n = (v===undefined||v===null||v==='') ? 0 : Number(v);
+    return !isNaN(n) && n < esmapTh;
+  });
+  var tipLow = ids.filter(function(id){
+    var v = people[id].tipVideo;
+    var n = (v===undefined||v===null||v==='') ? 0 : Number(v);
+    return !isNaN(n) && n < tipTh;
+  });
+  var swVals = ids.map(function(id){ var v=people[id].sw; return (v!==undefined&&v!==null&&v!=='')?Number(v):null; }).filter(function(v){ return v!==null && !isNaN(v); }).sort(function(a,b){return a-b;});
+  var cutoffIdx = Math.floor(swVals.length*0.3);
+  var swCutoff = swVals.length ? swVals[Math.max(0,cutoffIdx-1)] : null;
+  var swLow = swCutoff===null ? [] : ids.filter(function(id){ var v=people[id].sw; var n=(v!==undefined&&v!==null&&v!=='')?Number(v):null; return n!==null && !isNaN(n) && n<=swCutoff; });
+  return { esmapLow:esmapLow, tipLow:tipLow, swLow:swLow };
+}
+function renderWeeklyRoutine(ids){
+  var el = document.getElementById('weekly-routine-list');
+  if(!el) return;
+  var g = computeRoutineGroups(ids);
+  var esmapTh = appConfig.esmapThreshold!==undefined ? appConfig.esmapThreshold : 5;
+  var tipTh = appConfig.tipThreshold!==undefined ? appConfig.tipThreshold : 3;
+  function section(key, icon, label, list, color){
+    var names = list.slice(0,4).map(function(id){ return people[id].name; }).join(', ') + (list.length>4?' 외 '+(list.length-4)+'명':'');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);gap:10px;">'
+      +'<div style="min-width:0;">'
+        +'<div style="font-size:13px;font-weight:700;">'+icon+' '+label+' <span style="color:'+color+';">'+list.length+'명</span></div>'
+        +'<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(list.length?names:'해당자 없음')+'</div>'
+      +'</div>'
+      +(list.length?'<button class="btn" style="flex-shrink:0;font-size:11px;padding:6px 10px;" onclick="startRoutineGroupSms(\''+key+'\')">🚀 Reach</button>':'')
+    +'</div>';
+  }
+  el.innerHTML =
+    section('goal', '🎯', '이번달 목표수립 입력하기!', ids, 'var(--accent)')
+    + section('esmap', '📶', 'esMAP 로그인 '+esmapTh+'회 미만', g.esmapLow, 'var(--danger)')
+    + section('tip', '🎬', 'TIP 영상수료 '+tipTh+'건 미만', g.tipLow, 'var(--warn)')
+    + section('sw', '🎡', 'S/W 하위 30%', g.swLow, 'var(--danger)');
+}
+function startRoutineGroupSms(key){
+  var ids = Object.keys(people);
+  var g = computeRoutineGroups(ids);
+  var targetIds, label, message;
+  if(key==='goal'){
+    targetIds = ids; label = '이번달 목표수립 입력하기';
+    message = '안녕하세요, 이번달 목표수립 아직이시면 지금 편하실 때 세팅 부탁드려요. 목표수립 완료가 Wheeler 점수 달성율에 중요해요!';
+  } else if(key==='esmap'){
+    targetIds = g.esmapLow; label = 'esMAP 로그인 저조자';
+    message = '안녕하세요, esMAP 접속만 하루 한 번 해주셔도 Success Wheel 점수에 도움이 돼요. 편하실 때 한 번씩 접속 부탁드려요 :)';
+  } else if(key==='tip'){
+    targetIds = g.tipLow; label = 'TIP 영상수료 저조자';
+    var tipIds = Object.keys(tipLinks);
+    if(tipIds.length){
+      var latestId = tipIds.sort(function(a,b){ return (tipLinks[b].createdAt||'').localeCompare(tipLinks[a].createdAt||''); })[0];
+      var latest = tipLinks[latestId];
+      message = fillTemplate(DEFAULT_MESSAGE_TEMPLATES.tipNotice, {title:latest.title, url:latest.url});
+    } else {
+      message = '안녕하세요, TIP 교육영상 이수가 Success Wheel 점수에 반영돼요. 편하실 때 시청 부탁드려요!\n(설정 탭에서 TIP 링크를 등록해두시면 다음부터는 여기 자동으로 채워져요)';
+    }
+  } else {
+    targetIds = g.swLow; label = 'S/W 하위 30%';
+    message = '안녕하세요, 요즘 어떻게 지내시는지 궁금해서 연락드려요. 편하실 때 통화 가능하실까요?';
+  }
+  openGroupSmsModal(targetIds, label, message);
+}
 function renderRiskOrgList(){
   var levelEl = document.getElementById('risk-org-level');
   var level = levelEl ? levelEl.value : 'hq';
@@ -812,6 +923,67 @@ function showStatDetail(type){
   document.body.appendChild(overlay);
 }
 
+function buildActivityLog(){
+  var log = [];
+  Object.keys(contacts).forEach(function(id){
+    var p = people[id]; if(!p) return;
+    Object.values(contacts[id]).forEach(function(c){
+      log.push({ dt:c.date, type:(c.type==='call'?'전화':'문자'), icon:(c.type==='call'?'📞':'💬'), empId:id, name:p.name, branch:(p.hq||'')+' '+(p.branch||''), engage:false, reach:true });
+    });
+  });
+  Object.keys(notes).forEach(function(id){
+    var p = people[id]; if(!p) return;
+    Object.values(notes[id]).forEach(function(n){
+      log.push({ dt:n.date, type:'만남(컨택메모)', icon:'📝', empId:id, name:p.name, branch:(p.hq||'')+' '+(p.branch||''), engage:false, reach:true, note:n.text });
+    });
+  });
+  Object.keys(surveyResponses).forEach(function(id){
+    var p = people[id]; if(!p) return;
+    Object.values(surveyResponses[id]).forEach(function(r){
+      log.push({ dt:r.submittedAt, type:'서베이 응답', icon:'📋', empId:id, name:p.name, branch:(p.hq||'')+' '+(p.branch||''), engage:true, reach:true });
+    });
+  });
+  log.sort(function(a,b){ return (b.dt||'').localeCompare(a.dt||''); });
+  return log;
+}
+function openActivityLogModal(){
+  var overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+  var box=document.createElement('div');
+  box.className='modal-box'; box.style.position='relative'; box.style.maxWidth='520px';
+  box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
+    +'<div class="card-title">📜 Activity Log</div>'
+    +'<select id="activity-log-filter" onchange="renderActivityLogList()" style="margin-bottom:10px;">'
+      +'<option value="">전체 유형</option>'
+      +'<option value="전화">📞 전화</option>'
+      +'<option value="문자">💬 문자</option>'
+      +'<option value="만남(컨택메모)">📝 만남(컨택메모)</option>'
+      +'<option value="서베이 응답">📋 서베이 응답</option>'
+    +'</select>'
+    +'<div id="activity-log-list" style="max-height:60vh;overflow-y:auto;"></div>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  renderActivityLogList();
+}
+function renderActivityLogList(){
+  var el = document.getElementById('activity-log-list');
+  if(!el) return;
+  var filter = document.getElementById('activity-log-filter').value;
+  var log = buildActivityLog();
+  if(filter) log = log.filter(function(l){ return l.type===filter; });
+  if(!log.length){ el.innerHTML='<div class="empty">기록이 없어요.</div>'; return; }
+  el.innerHTML = log.map(function(l){
+    var dtStr = l.dt ? (l.dt.length>10 ? l.dt.slice(0,16).replace('T',' ') : l.dt) : '-';
+    var tags = (l.engage?'<span class="badge" style="background:var(--a2);color:var(--accent);">Engagement</span>':'')
+      + (l.reach?' <span class="badge" style="background:#ede0f5;color:#a24bd8;">Reach</span>':'');
+    return '<div class="note-item" style="cursor:pointer;" onclick="this.closest(\'.modal-overlay\').remove();openProfile(\''+l.empId+'\')">'
+      +'<div class="note-date"><span>'+l.icon+' <b>'+l.type+'</b> · '+l.name+' <span style="color:var(--muted);font-size:11px;">'+l.branch+'</span></span><span style="font-size:11px;color:var(--muted);">'+dtStr+'</span></div>'
+      + (l.note?'<div class="note-text">'+l.note+'</div>':'')
+      +'<div style="margin-top:4px;">'+tags+'</div>'
+    +'</div>';
+  }).join('');
+}
 var _engageMonthlyChartInstance = null;
 function renderEngagementMonthlyChart(engageByMonth, reachByMonth){
   var months = [...new Set(Object.keys(engageByMonth).concat(Object.keys(reachByMonth)))].sort();
@@ -1104,42 +1276,92 @@ function exportOrgListExcel(){
 }
 
 /* ---------- GROUP SMS ---------- */
-function openGroupSmsModal(){
+var _gsmsPresetIds = null;
+function openGroupSmsModal(presetIds, presetLabel, presetMessage){
+  _gsmsPresetIds = presetIds || null;
   var overlay=document.createElement('div');
   overlay.className='modal-overlay';
   overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
   var box=document.createElement('div');
   box.className='modal-box'; box.style.position='relative';
+  var basisBlock = _gsmsPresetIds
+    ? '<div id="gsms-preset-count-wrap" style="font-size:12px;color:var(--muted);margin-bottom:10px;background:var(--sf2);border-radius:8px;padding:8px 10px;">🎯 '+(presetLabel||'지정된 대상자')+' — <b id="gsms-preset-count" style="color:var(--text);">'+_gsmsPresetIds.length+'명</b></div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">'
+        +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="addAllToGsmsPreset()">+ eFSR 전원 추가</button>'
+        +'<select id="gsms-add-hq-select" style="width:auto;font-size:11px;padding:5px 8px;"></select>'
+        +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="addHqToGsmsPreset()">+ 본부 추가</button>'
+        +'<select id="gsms-add-branch-select" style="width:auto;font-size:11px;padding:5px 8px;"></select>'
+        +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="addBranchToGsmsPreset()">+ 지점 추가</button>'
+      +'</div>'
+    : '<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">기준</label>'
+      +'<select id="gsms-basis" onchange="renderGsmsBasisOptions()" style="margin-bottom:10px;">'
+        +'<option value="all">전체</option>'
+        +'<option value="hq">본부별</option>'
+        +'<option value="branch">지점별</option>'
+        +'<option value="position">직책별</option>'
+        +'<option value="currentFilter">지금 조직도에 필터된 목록</option>'
+        +'<option value="staffDept">본사 스탭(부서별)</option>'
+      +'</select>'
+      +'<div id="gsms-basis-options" style="max-height:220px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;padding:8px;margin-bottom:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:2px 8px;"></div>'
+      +'<div id="gsms-select-all-wrap" style="display:none;gap:8px;margin-bottom:10px;">'
+        +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="gsmsSelectAll(true)">전체선택</button>'
+        +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="gsmsSelectAll(false)">전체해제</button>'
+      +'</div>'
+      +'<div id="gsms-preview" style="font-size:12px;color:var(--muted);margin-bottom:10px;">대상자: -</div>';
   box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
-    +'<div class="card-title">📣 그룹 문자보내기</div>'
-    +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">기준</label>'
-    +'<select id="gsms-basis" onchange="renderGsmsBasisOptions()" style="margin-bottom:10px;">'
-      +'<option value="all">전체</option>'
-      +'<option value="hq">본부별</option>'
-      +'<option value="branch">지점별</option>'
-      +'<option value="position">직책별</option>'
-      +'<option value="currentFilter">지금 조직도에 필터된 목록</option>'
-      +'<option value="staffDept">본사 스탭(부서별)</option>'
-    +'</select>'
-    +'<div id="gsms-basis-options" style="max-height:220px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;padding:8px;margin-bottom:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:2px 8px;"></div>'
-    +'<div id="gsms-select-all-wrap" style="display:none;gap:8px;margin-bottom:10px;">'
-      +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="gsmsSelectAll(true)">전체선택</button>'
-      +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="gsmsSelectAll(false)">전체해제</button>'
-    +'</div>'
-    +'<div id="gsms-preview" style="font-size:12px;color:var(--muted);margin-bottom:10px;">대상자: -</div>'
+    +'<div class="card-title">🚀 Reach 보내기</div>'
+    + basisBlock
     +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">메시지</label>'
-    +'<textarea id="gsms-text" rows="4" placeholder="보낼 문자 내용을 입력하세요"></textarea>'
+    +'<textarea id="gsms-text" rows="4" placeholder="보낼 문자 내용을 입력하세요">'+(presetMessage||'')+'</textarea>'
     +'<div style="display:flex;gap:6px;margin-top:10px;">'
       +'<button class="btn" style="flex:1;" onclick="copyGsmsNumbers()">번호만 복사</button>'
       +'<button class="btn" style="flex:1;" onclick="copyGsmsFull()">번호+내용 복사</button>'
     +'</div>'
     +'<button class="btn" style="width:100%;margin-top:8px;" onclick="openGsmsSmsApp()">문자 앱 열기 (50명 이하 권장)</button>'
     +'<button class="btn primary" style="width:100%;margin-top:8px;" onclick="sendGroupSmsViaSolapi()">🚀 지금 바로 발송 (Solapi)</button>'
-    +'<button class="btn" style="width:100%;margin-top:8px;" onclick="sendGroupSurveyLinksViaSolapi()">📋 eFSR 서베이 링크 단체발송</button>'
+    + (_gsmsPresetIds ? '' : '<button class="btn" style="width:100%;margin-top:8px;" onclick="sendGroupSurveyLinksViaSolapi()">📋 eFSR 서베이 링크 단체발송</button>')
     +'<div id="gsms-send-status" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>';
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  renderGsmsBasisOptions();
+  if(!_gsmsPresetIds) renderGsmsBasisOptions();
+  else initGsmsAddSelects();
+}
+function initGsmsAddSelects(){
+  var hqs = [...new Set(Object.values(people).map(function(p){return p.hq;}).filter(Boolean))].sort();
+  var branches = [...new Set(Object.values(people).map(function(p){return p.branch;}).filter(Boolean))].sort();
+  var hqSel = document.getElementById('gsms-add-hq-select');
+  var brSel = document.getElementById('gsms-add-branch-select');
+  if(hqSel) hqSel.innerHTML = hqs.map(function(h){return '<option>'+h+'</option>';}).join('');
+  if(brSel) brSel.innerHTML = branches.map(function(b){return '<option>'+b+'</option>';}).join('');
+}
+function refreshGsmsPresetCount(){
+  var el = document.getElementById('gsms-preset-count');
+  if(el) el.textContent = _gsmsPresetIds.length+'명';
+}
+function addAllToGsmsPreset(){
+  var set = new Set(_gsmsPresetIds||[]);
+  Object.keys(people).forEach(function(id){ set.add(id); });
+  _gsmsPresetIds = Array.from(set);
+  refreshGsmsPresetCount();
+  showToast('전원이 추가됐어요 (겹치는 인원은 자동으로 한 번만 포함).');
+}
+function addHqToGsmsPreset(){
+  var hq = document.getElementById('gsms-add-hq-select').value;
+  if(!hq) return;
+  var set = new Set(_gsmsPresetIds||[]);
+  Object.keys(people).filter(function(id){ return people[id].hq===hq; }).forEach(function(id){ set.add(id); });
+  _gsmsPresetIds = Array.from(set);
+  refreshGsmsPresetCount();
+  showToast(hq+' 전체가 추가됐어요.');
+}
+function addBranchToGsmsPreset(){
+  var branch = document.getElementById('gsms-add-branch-select').value;
+  if(!branch) return;
+  var set = new Set(_gsmsPresetIds||[]);
+  Object.keys(people).filter(function(id){ return people[id].branch===branch; }).forEach(function(id){ set.add(id); });
+  _gsmsPresetIds = Array.from(set);
+  refreshGsmsPresetCount();
+  showToast(branch+' 전체가 추가됐어요.');
 }
 function renderGsmsBasisOptions(){
   var basis = document.getElementById('gsms-basis').value;
@@ -1172,6 +1394,7 @@ function gsmsSelectAll(checked){
   updateGsmsPreview();
 }
 function getGsmsTargetIds(){
+  if(_gsmsPresetIds) return _gsmsPresetIds;
   var basis = document.getElementById('gsms-basis').value;
   if(basis==='all') return Object.keys(people);
   if(basis==='currentFilter') return getOrgRows().map(function(r){return r.id;});
@@ -1367,7 +1590,7 @@ function buildProfileHtml(empId, p){
   +'</div>'
   +'<p style="font-size:10.5px;color:var(--muted);margin:10px 0 4px;">2026.1~5월 업적평균 (단위: 건, 천원)</p>'
   +'<div class="metric-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));">'
-    +metricCell('건수', fmtNum(p.avgCount))+metricCell('MIP', fmtNum(p.avgMip),true)+metricCell('SP', fmtNum(p.avgSp),true)+metricCell('건당MIP', fmtNum(p.perMip),true)+metricCell('건당SP', fmtNum(p.perSp),true)
+    +metricCell('건수', fmtNum(p.avgCount))+metricCell('MIP', fmtMoney(p.avgMip),true)+metricCell('SP', fmtMoney(p.avgSp),true)+metricCell('건당MIP', fmtMoney(p.perMip),true)+metricCell('건당SP', fmtMoney(p.perSp),true)
   +'</div>'
   +'<p style="font-size:10.5px;color:var(--muted);margin:10px 0 4px;">활동 지표</p>'
   +'<div class="metric-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">'
@@ -1536,6 +1759,12 @@ function fmtNum(v){
   if(isNaN(n)) return v;
   var rounded = Math.round(n*100)/100;
   return rounded.toLocaleString();
+}
+function fmtMoney(v){
+  if(v===undefined||v===null||v==='') return v;
+  var n = Number(v);
+  if(isNaN(n)) return v;
+  return Math.round(n).toLocaleString();
 }
 function metricCell(k,v,isMoney){
   return '<div class="metric-cell"><div class="k">'+k+'</div><div class="v'+(isMoney?' money':'')+'">'+((v===undefined||v===null||v==='')?'-':v)+'</div></div>';
@@ -2252,7 +2481,7 @@ function renderOrgMapSettings(){
       +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
         +'<div style="width:80px;font-size:12.5px;color:var(--muted);">'+hq+'</div>'
         +'<input type="text" data-hq="'+hq+'" value="'+omName(orgMap.hq[hq])+'" placeholder="담당 MD 이름" style="font-size:12.5px;padding:7px 10px;flex:1;min-width:100px;">'
-        +'<span onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';" style="cursor:pointer;font-size:11px;color:var(--accent);white-space:nowrap;">📞 연락처</span>'
+        +'<span onclick="toggleContactPhoneInput(this)" style="cursor:pointer;font-size:11px;color:var(--accent);white-space:nowrap;">📞 연락처</span>'
       +'</div>'
       +'<input type="text" data-hq-phone="'+hq+'" value="'+omPhone(orgMap.hq[hq])+'" placeholder="연락처" style="display:none;font-size:12.5px;padding:7px 10px;margin-top:4px;width:100%;">'
       +'</div>';
@@ -2262,11 +2491,17 @@ function renderOrgMapSettings(){
       +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
         +'<div style="width:80px;font-size:12.5px;color:var(--muted);">'+br+'</div>'
         +'<input type="text" data-branch="'+br+'" value="'+omName(orgMap.branch[br])+'" placeholder="담당 AM 이름" style="font-size:12.5px;padding:7px 10px;flex:1;min-width:100px;">'
-        +'<span onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';" style="cursor:pointer;font-size:11px;color:var(--accent);white-space:nowrap;">📞 연락처</span>'
+        +'<span onclick="toggleContactPhoneInput(this)" style="cursor:pointer;font-size:11px;color:var(--accent);white-space:nowrap;">📞 연락처</span>'
       +'</div>'
       +'<input type="text" data-branch-phone="'+br+'" value="'+omPhone(orgMap.branch[br])+'" placeholder="연락처" style="display:none;font-size:12.5px;padding:7px 10px;margin-top:4px;width:100%;">'
       +'</div>';
   }).join('');
+}
+function toggleContactPhoneInput(spanEl){
+  var phoneInput = spanEl.parentElement.nextElementSibling;
+  if(!phoneInput) return;
+  phoneInput.style.display = phoneInput.style.display==='none' ? 'block' : 'none';
+  if(phoneInput.style.display==='block') phoneInput.focus();
 }
 function saveOrgMap(){
   document.querySelectorAll('[data-hq]').forEach(function(el){
@@ -2441,6 +2676,10 @@ function renderConfigSettings(){
   if(el) el.value = appConfig.contactCycleDays;
   var tEl = document.getElementById('cfg-tmpl-surveyLink');
   if(tEl) tEl.value = appConfig.messageTemplates.surveyLink;
+  var esEl = document.getElementById('cfg-esmap-th');
+  if(esEl) esEl.value = appConfig.esmapThreshold;
+  var tipThEl = document.getElementById('cfg-tip-th');
+  if(tipThEl) tipThEl.value = appConfig.tipThreshold;
 }
 function saveMessageTemplates(){
   appConfig.messageTemplates.surveyLink = document.getElementById('cfg-tmpl-surveyLink').value;
@@ -2455,9 +2694,46 @@ function resetMessageTemplate(key){
 function saveConfig(){
   var v = parseInt(document.getElementById('cfg-cycle-days').value) || 90;
   appConfig.contactCycleDays = v;
+  appConfig.esmapThreshold = parseInt(document.getElementById('cfg-esmap-th').value);
+  if(isNaN(appConfig.esmapThreshold)) appConfig.esmapThreshold = 5;
+  appConfig.tipThreshold = parseInt(document.getElementById('cfg-tip-th').value);
+  if(isNaN(appConfig.tipThreshold)) appConfig.tipThreshold = 3;
   fetch(FB_URL+ROOT+'/config.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(appConfig)});
   showToast('저장됐어요.');
   renderDashboard();
+}
+
+/* ---------- TIP 교육영상 링크 관리 ---------- */
+function addTipLink(){
+  var title = document.getElementById('tip-title').value.trim();
+  var url = document.getElementById('tip-url').value.trim();
+  if(!title || !url){ showToast('제목과 링크를 모두 입력해주세요.'); return; }
+  var id = 'tip'+Date.now();
+  var entry = { title:title, url:url, createdAt:new Date().toISOString() };
+  fetch(FB_URL+ROOT+'/tipLinks/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
+  tipLinks[id] = entry;
+  document.getElementById('tip-title').value='';
+  document.getElementById('tip-url').value='';
+  renderTipLinksSettings();
+  showToast('TIP 링크가 추가됐어요.');
+}
+function deleteTipLink(id){
+  if(!confirm('이 TIP 링크를 삭제할까요?')) return;
+  fetch(FB_URL+ROOT+'/tipLinks/'+id+'.json',{method:'DELETE'});
+  delete tipLinks[id];
+  renderTipLinksSettings();
+}
+function renderTipLinksSettings(){
+  var el = document.getElementById('tip-link-rows');
+  if(!el) return;
+  var ids = Object.keys(tipLinks).sort(function(a,b){ return (tipLinks[b].createdAt||'').localeCompare(tipLinks[a].createdAt||''); });
+  if(!ids.length){ el.innerHTML='<div class="empty">등록된 링크가 없어요.</div>'; return; }
+  el.innerHTML = ids.map(function(id){
+    var t = tipLinks[id];
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);">'
+      +'<div style="min-width:0;overflow:hidden;"><div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+t.title+'</div><a href="'+t.url+'" target="_blank" style="font-size:11px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">'+t.url+'</a></div>'
+      +'<span class="trash-icon" style="flex-shrink:0;margin-left:8px;" onclick="deleteTipLink(\''+id+'\')">삭제</span></div>';
+  }).join('');
 }
 
 /* ---------- 전체 백업 ---------- */
