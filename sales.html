@@ -43,6 +43,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);}
 .grid-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
 @media(max-width:700px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-5{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}.cal-cell{min-height:120px;}}
 .stat-card{background:var(--sf2);border-radius:10px;padding:12px 14px;}
+.org-chip{background:var(--sf2);border-radius:10px;padding:12px;cursor:pointer;transition:transform .15s;min-width:0;}
+.org-chip:hover{background:var(--sf3);transform:translateY(-2px);}
+.org-chip .oc-title{font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px;}
+.org-chip .oc-sub{font-size:10.5px;color:var(--muted);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.org-chip .oc-count{font-size:22px;font-weight:900;color:var(--accent);}
+.org-chip .oc-stats{font-size:10.5px;color:var(--muted);margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;}
 .stat-card.clickable{cursor:pointer;}
 .stat-card.clickable:hover{background:var(--sf3);}
 .stat-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
@@ -149,10 +155,10 @@ tr.row-clickable:hover{background:var(--sf2);}
     <div class="view active" id="view-dashboard">
       <div class="grid-5" style="margin-bottom:16px;">
         <div class="stat-card"><div class="stat-label">전체 인원</div><div class="stat-val" id="d-total">-</div></div>
-        <div class="stat-card clickable" onclick="showStatDetail('improved')" style="background:#e5f7ee;"><div class="stat-label" style="color:var(--good);">지난달 대비 상승</div><div class="stat-val" id="d-improved" style="color:var(--good);">-</div></div>
-        <div class="stat-card danger clickable" onclick="showStatDetail('declined')"><div class="stat-label">지난달 대비 하락</div><div class="stat-val" id="d-declined">-</div></div>
-        <div class="stat-card clickable" onclick="showStatDetail('new')"><div class="stat-label">이번달 신규위촉</div><div class="stat-val" id="d-new">-</div></div>
-        <div class="stat-card clickable" onclick="showStatDetail('out')"><div class="stat-label">이번달 해촉</div><div class="stat-val" id="d-out">-</div></div>
+        <div class="stat-card clickable" onclick="showStatDetail('improved')" style="background:#e5f7ee;"><div class="stat-label" style="color:var(--good);">지표상승인원</div><div class="stat-val" id="d-improved" style="color:var(--good);">-</div></div>
+        <div class="stat-card danger clickable" onclick="showStatDetail('declined')"><div class="stat-label">지표하락인원</div><div class="stat-val" id="d-declined">-</div></div>
+        <div class="stat-card clickable" onclick="showStatDetail('new')" style="background:#e5f7ee;"><div class="stat-label" style="color:var(--good);">이번달 신규위촉</div><div class="stat-val" id="d-new" style="color:var(--good);">-</div></div>
+        <div class="stat-card danger clickable" onclick="showStatDetail('out')"><div class="stat-label">이번달 해촉</div><div class="stat-val" id="d-out">-</div></div>
       </div>
 
       <div class="card">
@@ -180,7 +186,7 @@ tr.row-clickable:hover{background:var(--sf2);}
 
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="card-title" style="margin:0;">📋 서베이 응답률</div>
+          <div class="card-title" style="margin:0;">📋 프로파일링 현황</div>
           <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="showSurveyPending()">미응답자 보기</button>
         </div>
         <div class="energy-bar-wrap"><div class="energy-bar-fill" id="survey-rate-fill" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--good));height:100%;transition:width .3s;"></div></div>
@@ -197,8 +203,8 @@ tr.row-clickable:hover{background:var(--sf2);}
             <div class="card-title" style="margin:0;">📊 조직별 지표 변화 현황</div>
             <div style="display:flex;gap:6px;">
               <select id="risk-org-type" onchange="renderRiskOrgList()" style="width:auto;font-size:12px;padding:6px 10px;">
-                <option value="improved">📈 지난달 대비 상승</option>
-                <option value="declined">📉 지난달 대비 하락</option>
+                <option value="improved">📈 지표상승인원</option>
+                <option value="declined">📉 지표하락인원</option>
                 <option value="vsH1">🌟 상반기 대비 향상</option>
               </select>
               <select id="risk-org-level" onchange="renderRiskOrgList()" style="width:auto;font-size:12px;padding:6px 10px;">
@@ -253,6 +259,10 @@ tr.row-clickable:hover{background:var(--sf2);}
 
     <!-- ORG -->
     <div class="view" id="view-org">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title" style="margin-bottom:10px;">🏢 조직도 요약</div>
+        <div id="org-chart-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;"></div>
+      </div>
       <div class="filter-row">
         <input type="text" id="org-search" placeholder="이름, 지점 검색" oninput="renderOrgList()">
         <select id="org-filter-hq" onchange="orgFilterHqChanged()"><option value="">전체 본부</option></select>
@@ -260,12 +270,12 @@ tr.row-clickable:hover{background:var(--sf2);}
         <select id="org-filter-seg" onchange="renderOrgList()"><option value="">Seg 전체</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
         <select id="org-filter-risk" onchange="renderOrgList()">
           <option value="">전체</option>
-          <option value="improved">📈 지난달 대비 상승</option>
-          <option value="declined">📉 지난달 대비 하락</option>
+          <option value="improved">📈 지표상승인원</option>
+          <option value="declined">📉 지표하락인원</option>
           <option value="vsH1">🌟 상반기 대비 향상</option>
         </select>
         <button class="btn" onclick="exportOrgListExcel()">📥 엑셀 다운로드</button>
-        <button class="btn primary" onclick="openGroupSmsModal()">🚀 Reach</button>
+        <button class="btn primary" onclick="openGroupSmsModal(getOrgRows().map(function(r){return r.id;}), '현재 화면에 보이는 대상자')">🚀 Reach</button>
       </div>
       <div style="overflow-x:auto;">
         <table>
@@ -904,7 +914,7 @@ function goOrgFiltered(level, name, type){
 var _statLists = { declined:[], improved:[], new:[], out:[] };
 function showStatDetail(type){
   var ids = _statLists[type]||[];
-  var titleMap = { declined:'📉 지난달 대비 하락', improved:'📈 지난달 대비 상승', new:'🆕 이번달 신규위촉', out:'👋 이번달 해촉' };
+  var titleMap = { declined:'📉 지표하락인원', improved:'📈 지표상승인원', new:'🆕 이번달 신규위촉', out:'👋 이번달 해촉' };
   var overlay=document.createElement('div');
   overlay.className='modal-overlay';
   overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
@@ -1214,6 +1224,86 @@ function _orgSortVal(row, key){
   if(key==='lastNote') return row.lastNote==='-' ? '' : row.lastNote;
   return row[key]||'';
 }
+function renderOrgChartSummary(){
+  var el = document.getElementById('org-chart-summary');
+  if(!el) return;
+  var rows = getOrgRows();
+  var fHq = document.getElementById('org-filter-hq').value;
+  var fBranch = document.getElementById('org-filter-branch').value;
+
+  function statsFor(ids){
+    var swVals = ids.map(function(id){ var v=people[id].sw; return (v!==undefined&&v!==null&&v!=='')?Number(v):null; }).filter(function(v){ return v!==null && !isNaN(v); });
+    var avgSw = swVals.length ? (swVals.reduce(function(s,v){return s+v;},0)/swVals.length).toFixed(1) : '-';
+    var up = ids.filter(function(id){ return swTrend(id).improved; }).length;
+    var down = ids.filter(function(id){ return swTrend(id).declined; }).length;
+    return { avgSw:avgSw, up:up, down:down };
+  }
+
+  if(fBranch){
+    // 지점까지 필터된 상태 — 그 지점 하나만 요약 카드로
+    var ids = rows.map(function(r){return r.id;});
+    var st = statsFor(ids);
+    var amName = omName(orgMap.branch[fBranch]);
+    el.innerHTML = '<div class="org-chip" onclick="drillOrgChart(\'branch\',\'\')" style="grid-column:1/-1;max-width:220px;">'
+      +'<div class="oc-title">◀ '+fHq+' 전체로</div>'
+    +'</div>'
+    +'<div class="org-chip" style="cursor:default;">'
+      +'<div class="oc-title">'+fBranch+'</div>'
+      +'<div class="oc-sub">AM '+(amName||'-')+'</div>'
+      +'<div class="oc-count">'+ids.length+'명</div>'
+      +'<div class="oc-stats"><span>평균S/W '+st.avgSw+'</span><span style="color:var(--good);">▲'+st.up+'</span><span style="color:var(--danger);">▼'+st.down+'</span></div>'
+    +'</div>';
+    return;
+  }
+
+  if(fHq){
+    // 본부 하나 드릴다운 — 그 본부의 지점별 카드
+    var byBranch = {};
+    rows.forEach(function(r){ var b=people[r.id].branch||'미지정'; if(!byBranch[b]) byBranch[b]=[]; byBranch[b].push(r.id); });
+    var branches = Object.keys(byBranch).sort();
+    el.innerHTML = '<div class="org-chip" onclick="drillOrgChart(\'hq\',\'\')" style="max-width:150px;">'
+      +'<div class="oc-title">◀ 전체 본부로</div>'
+    +'</div>'
+    + branches.map(function(br){
+        var ids = byBranch[br];
+        var st = statsFor(ids);
+        var amName = omName(orgMap.branch[br]);
+        return '<div class="org-chip" onclick="drillOrgChart(\'branch\',\''+br+'\')">'
+          +'<div class="oc-title">'+br+'</div>'
+          +'<div class="oc-sub">AM '+(amName||'-')+'</div>'
+          +'<div class="oc-count">'+ids.length+'명</div>'
+          +'<div class="oc-stats"><span>S/W '+st.avgSw+'</span><span style="color:var(--good);">▲'+st.up+'</span><span style="color:var(--danger);">▼'+st.down+'</span></div>'
+        +'</div>';
+      }).join('');
+    return;
+  }
+
+  // 최상위 — 본부별 카드
+  var byHq = {};
+  rows.forEach(function(r){ var h=people[r.id].hq||'미지정'; if(!byHq[h]) byHq[h]=[]; byHq[h].push(r.id); });
+  var hqs = Object.keys(byHq).sort();
+  el.innerHTML = hqs.map(function(hq){
+    var ids = byHq[hq];
+    var st = statsFor(ids);
+    var mdName = omName(orgMap.hq[hq]);
+    return '<div class="org-chip" onclick="drillOrgChart(\'hq\',\''+hq+'\')">'
+      +'<div class="oc-title">'+hq+'</div>'
+      +'<div class="oc-sub">MD '+(mdName||'-')+'</div>'
+      +'<div class="oc-count">'+ids.length+'명</div>'
+      +'<div class="oc-stats"><span>S/W '+st.avgSw+'</span><span style="color:var(--good);">▲'+st.up+'</span><span style="color:var(--danger);">▼'+st.down+'</span></div>'
+    +'</div>';
+  }).join('') || '<div class="empty">결과 없음</div>';
+}
+function drillOrgChart(level, value){
+  if(level==='hq'){
+    document.getElementById('org-filter-hq').value = value;
+    orgFilterHqChanged(true);
+    document.getElementById('org-filter-branch').value = '';
+  } else if(level==='branch'){
+    document.getElementById('org-filter-branch').value = value;
+  }
+  renderOrgList();
+}
 function getOrgRows(){
   var q = document.getElementById('org-search').value.trim();
   var fHq = document.getElementById('org-filter-hq').value;
@@ -1253,6 +1343,7 @@ function renderOrgList(){
   document.querySelectorAll('#org-thead-row .arrow').forEach(function(el){ el.textContent=''; });
   var arrowEl = document.getElementById('arrow-'+_orgSortKey);
   if(arrowEl) arrowEl.textContent = _orgSortDir===1?'▲':'▼';
+  renderOrgChartSummary();
 
   var rows = getOrgRows();
   var tbody = document.getElementById('org-rows');
