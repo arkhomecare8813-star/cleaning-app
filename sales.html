@@ -392,11 +392,14 @@ tr.row-clickable:hover{background:var(--sf2);}
       </div>
 
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
           <div class="card-title" style="margin:0;">📋 서베이 항목 관리</div>
-          <button class="btn" onclick="addSurveySection()">+ 섹션 추가</button>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="survey-tpl-save-status" style="font-size:10px;color:var(--good);"></span>
+            <button class="btn" onclick="addSurveySection()">+ 섹션 추가</button>
+          </div>
         </div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">여기서 수정하면 앞으로 발송되는 서베이 전체에 공통 적용돼요. 이미 제출된 응답은 그 당시 질문 그대로 보존되니 안심하고 수정하셔도 됩니다.</p>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">수정하면 자동 저장돼요. 이미 제출된 응답은 그 당시 질문 그대로 보존되니 안심하고 수정하셔도 됩니다.</p>
         <div id="survey-template-editor"></div>
       </div>
 
@@ -488,29 +491,74 @@ var appConfig = { contactCycleDays: 90, esmapThreshold: 5, tipThreshold: 3, mess
 function fillTemplate(str, vars){
   return str.replace(/\{(\w+)\}/g, function(m, key){ return vars[key]!==undefined ? vars[key] : m; });
 }
-var surveyTemplate = null;   // { sections: [ {id,title,fields:[{id,label,type,options}]} ] }
+var surveyTemplate = null;   // { sections: [ {id,title,visibility:'shared'|'private',academicNote,fields:[{id,label,type,options,reverseScored}]} ] }
 var surveyResponses = {};    // empId -> { responseId: { submittedAt, sections:[{title,items:[{label,value}]}] } }
 
+// 5점 리커트 척도 공통 옵션 (scale 타입 필드는 항상 이 5개 사용)
+var SCALE_OPTIONS = ['매우 그렇다','그렇다','보통이다','그렇지 않다','전혀 그렇지 않다'];
+// 정방향 점수: 매우그렇다=5 ~ 전혀그렇지않다=1. reverseScored:true면 반대로 매김.
+function scaleScoreOf(value, reverseScored){
+  var idx = SCALE_OPTIONS.indexOf(value);
+  if(idx<0) return null;
+  var forward = 5 - idx; // 매우그렇다(0)->5 ... 전혀그렇지않다(4)->1
+  return reverseScored ? (6 - forward) : forward;
+}
+
 var DEFAULT_SURVEY_TEMPLATE = {
+  version: 2,
   sections: [
-    { id:'sec1', title:'전문직 관련 정보 및 학력/경력', fields:[
-      {id:'edu', label:'학력사항', type:'text'},
-      {id:'career', label:'전문직 경력', type:'text'},
-      {id:'cert', label:'자격증', type:'text'},
-      {id:'corpCount', label:'관리하는 법인업체 개수', type:'text'},
-      {id:'specialty', label:'전문분야', type:'text'},
-      {id:'specialtyNote', label:'전문분야 특이사항', type:'text'}
+    { id:'sec1', title:'전문직 기본 정보', visibility:'shared', fields:[
+      {id:'career', label:'전문직 경력', type:'choice', options:['1~3년','4~6년','7~9년','10년 이상']},
+      {id:'cert', label:'보유자격증', type:'text'},
+      {id:'corpCount', label:'본업 관리 법인·개인업체 수', type:'choice', options:['50개 미만','50~100개','100~200개','200~500개','500개 이상']},
+      {id:'specialty', label:'특화전문분야', type:'text'},
+      {id:'officeAddr', label:'오피스 주소(본업) *선물 등 배송', type:'text'}
     ]},
-    { id:'sec2', title:'Business Focus', fields:[
-      {id:'product', label:'주요 판매 상품', type:'text'},
+    { id:'sec2', title:'Business Focus', visibility:'shared', fields:[
+      {id:'product', label:'현재 Metlife 주요 판매 상품', type:'text'},
       {id:'target', label:'주요 Target 시장', type:'text'},
       {id:'successCase', label:'핵심성공사례', type:'text'}
     ]},
-    { id:'sec3', title:'To Metlife (가감없이 말씀주세요)', fields:[
+    { id:'sec3', title:'To Metlife (가감없이 말씀주세요)', visibility:'shared', fields:[
       {id:'mgmtNeed', label:'eFSR로 성공할 수 있도록 Management에 필요한 점 (특화 제도, 기획)', type:'text'},
-      {id:'eventSuggest', label:'회사에서 진행하는 이벤트나 Business Session에 제안하고 싶은 부분 (특화 교육, 행사)', type:'text'},
+      {id:'eventSuggest', label:'회사에서 진행하는 이벤트나 Business Session에 제안하고 싶은 부분', type:'text'},
       {id:'availableTime', label:'회사에서 진행하는 이벤트나 Business Session에 편하게 참석 가능한 시기&이유', type:'text'},
       {id:'requests', label:'eFSR 요청사항 (그 외 특별 요청사항)', type:'text'}
+    ]},
+    { id:'sec4', title:'요즘 업무 환경은 어떠신가요', visibility:'private',
+      academicNote:'근거: Rizzo, House & Lirtzman (1970) 역할 스트레스 척도 — 역할 명확성/조직 지원 인식/역할 갈등 측정',
+      fields:[
+        {id:'roleClarity', label:'본사/지점이 나에게 기대하는 목표와 기준이 명확하다', type:'scale'},
+        {id:'orgSupport', label:'필요할 때 본사나 지점으로부터 실질적인 도움을 받을 수 있다고 느낀다', type:'scale'},
+        {id:'roleConflict', label:'본사와 지점에서 나에게 요구하는 바가 서로 다르게 느껴질 때가 있다', type:'scale', reverseScored:true}
+    ]},
+    { id:'sec5', title:'요즘 컨디션은 어떠신가요', visibility:'private',
+      academicNote:'근거: Maslach Burnout Inventory(MBI) 세일즈 축약판 — 감정적 소진/개인적 성취감/자기효능감 측정',
+      fields:[
+        {id:'lowAccomplish', label:'요즘 이 일에서 예전만큼 성취감을 느끼지 못한다', type:'scale', reverseScored:true},
+        {id:'exhaustion', label:'하루 일과를 마치면 정서적으로 완전히 소진된 느낌이 든다', type:'scale', reverseScored:true},
+        {id:'selfEfficacy', label:'고객을 설득하고 성과를 만들어내는 나의 역량에 자신이 있다', type:'scale'}
+    ]},
+    { id:'sec6', title:'솔직한 마음을 여쭤봅니다', visibility:'private',
+      academicNote:'근거: Gallup Q12 스타일 몰입도 문항 — 지속 의지/인정 경험/심리적 안전감 측정',
+      fields:[
+        {id:'commitment', label:'지금 이 일을 계속하는 것에 대한 확신이 있다', type:'scale'},
+        {id:'recognition', label:'최근 한 달 사이, 내 노력이나 성과에 대해 인정이나 격려를 받은 적이 있다', type:'scale'},
+        {id:'psychSafety', label:'내 의견이나 어려움을 이야기하면 본사가 진지하게 들어준다고 느낀다', type:'scale'}
+    ]},
+    { id:'sec7', title:'최근 활동에 영향을 준 요인', visibility:'private',
+      academicNote:'근거: Walker-Churchill-Ford(1977) / Churchill 외(1985) 세일즈 성과 결정요인 6범주 모델',
+      fields:[
+        {id:'factors', label:'최근 3개월간 활동에 영향을 준 요인을 모두 선택해주세요', type:'multichoice', options:[
+          '본업(전문직) 업무량 과다로 시간 부족','신규 고객 발굴 채널 부족','상품·제도 이해 부족, 설명에 자신 없음',
+          '청약·설계 지원(본사·지점) 부족','담당 AM/MD와의 소통 어려움','보상·수수료 체계에 대한 불만',
+          '개인 사정 (건강, 가정 등)','이 일에 대한 동기·확신 저하','기타'
+        ]},
+        {id:'topNeed', label:'지금 본사에서 가장 필요한 지원 하나를 고른다면?', type:'choice', options:[
+          '신규 고객 발굴 지원 (마케팅/리드)','상품·제도 교육 강화','청약·설계 프로세스 지원',
+          '담당 AM/MD와의 관계 개선','보상 체계 개선','개인적 동기부여/코칭','기타'
+        ]},
+        {id:'activityLevel', label:'최근 3개월간 나의 영업활동 강도는?', type:'choice', options:['크게 늘었다','조금 늘었다','비슷하다','조금 줄었다','크게 줄었다']}
     ]}
   ]
 };
@@ -582,6 +630,11 @@ function boot(){
     tipLinks = res[11]||{};
     if(res[8]){
       surveyTemplate = res[8];
+      if(!surveyTemplate.version || surveyTemplate.version<2){
+        // 옛 버전(공개/비공개 구분 없던 시절) 템플릿 → 새 기본 템플릿으로 자동 교체
+        surveyTemplate = JSON.parse(JSON.stringify(DEFAULT_SURVEY_TEMPLATE));
+        fetch(FB_URL+ROOT+'/surveyTemplate.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(surveyTemplate)});
+      }
     } else {
       surveyTemplate = JSON.parse(JSON.stringify(DEFAULT_SURVEY_TEMPLATE));
       fetch(FB_URL+ROOT+'/surveyTemplate.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(surveyTemplate)});
@@ -1773,9 +1826,13 @@ function buildSurveyPanelHtml(empId){
     selectHtml = '<p style="font-size:11px;color:var(--muted);margin-bottom:12px;">'+d0+' 제출</p>';
   }
   var previewNote = ids.length ? '' : '<p style="font-size:11px;color:var(--muted);margin-bottom:12px;">아직 제출 전이에요 — 현재 서베이 항목 미리보기</p>';
+  var copyBtn = ids.length ? '<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="copyShareableSurveyReport(\''+empId+'\')">📋 공유용 보고서 복사</button>' : '';
   return '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">'
       +'<div class="card-title" style="margin:0;">📋 서베이 응답</div>'
-      +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="sendSurveyLink(\''+empId+'\')">🔗 링크 문자보내기</button>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+        + copyBtn
+        +'<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="sendSurveyLink(\''+empId+'\')">🔗 링크 문자보내기</button>'
+      +'</div>'
     +'</div>'
     + selectHtml
     + previewNote
@@ -1788,6 +1845,109 @@ function buildSurveyPanelHtml(empId){
       + '<p style="font-size:11px;color:var(--muted);margin-bottom:6px;">상담 중이든, 서베이 받은 후든 편하게 적어보세요. 입력하면 자동 저장돼요.</p>'
       + '<textarea id="rfm-insight-'+empId+'" rows="6" placeholder="상담하면서 느낀 인사이트, 눈여겨볼 점 등을 자유롭게 적어보세요." oninput="scheduleRfmInsightSave(\''+empId+'\')">'+(p.rfmInsight||'')+'</textarea>'
     + '</div>';
+}
+// 섹션 하나(현재 템플릿 기준)의 공개범위를 id로 조회 — 응답은 title만 저장하므로 title 매칭으로 역참조
+function findTemplateSectionByTitle(title){
+  if(!surveyTemplate || !surveyTemplate.sections) return null;
+  return surveyTemplate.sections.find(function(s){ return s.title===title; }) || null;
+}
+function scaleAverageBadge(secTemplate, items){
+  if(!secTemplate) return '';
+  var scaleFields = secTemplate.fields.filter(function(f){ return f.type==='scale'; });
+  if(!scaleFields.length) return '';
+  var scores = [];
+  scaleFields.forEach(function(f){
+    var it = items.find(function(i){ return i.label===f.label; });
+    if(it && it.value){
+      var s = scaleScoreOf(it.value, f.reverseScored);
+      if(s!==null) scores.push(s);
+    }
+  });
+  if(!scores.length) return '';
+  var avg = (scores.reduce(function(a,b){return a+b;},0)/scores.length).toFixed(1);
+  return '<span style="font-size:10.5px;font-weight:700;color:var(--accent);background:var(--a2);padding:2px 7px;border-radius:8px;margin-left:6px;">평균 '+avg+'/5</span>';
+}
+function buildSurveyTemplatePreviewHtml(){
+  if(!surveyTemplate || !surveyTemplate.sections || !surveyTemplate.sections.length){
+    return '<div class="empty">서베이 항목이 아직 없어요. 설정에서 만들어주세요.</div>';
+  }
+  var shared = surveyTemplate.sections.filter(function(s){ return (s.visibility||'shared')==='shared'; });
+  var privateS = surveyTemplate.sections.filter(function(s){ return s.visibility==='private'; });
+  function renderGroup(list, isPrivate){
+    return list.map(function(sec){
+      return '<div style="margin-bottom:14px;">'
+        +'<div style="font-size:12.5px;font-weight:700;color:var(--accent);margin-bottom:2px;">'+sec.title+'</div>'
+        + (isPrivate && sec.academicNote ? '<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">🔒 관리자 전용 · '+sec.academicNote+'</div>' : '')
+        + sec.fields.map(function(f){
+            var typeTag = (f.type==='choice'||f.type==='multichoice') ? ' <span style="font-size:9px;color:var(--muted);">('+ (f.options||[]).join(' / ') +')</span>' : '';
+            return '<div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--muted);">'+f.label+typeTag+'</div><div style="font-size:13px;color:var(--dim);">미응답</div></div>';
+          }).join('')
+      +'</div>';
+    }).join('');
+  }
+  var html = '';
+  if(shared.length) html += '<div style="font-size:11px;font-weight:700;color:var(--good);margin-bottom:8px;">📤 공개 (AM/MD 공유용)</div>' + renderGroup(shared,false);
+  if(privateS.length) html += '<div style="font-size:11px;font-weight:700;color:var(--danger);margin:14px 0 8px;">🔒 비공개 (본사 전용)</div>' + renderGroup(privateS,true);
+  return html;
+}
+function renderSurveyResponseView(empId, responseId){
+  var resp = surveyResponses[empId]||{};
+  var r = resp[responseId];
+  var el = document.getElementById('survey-resp-view-'+empId);
+  if(el) el.innerHTML = r ? buildSurveyResponseHtml(r) : '<div class="empty">응답을 찾을 수 없어요.</div>';
+}
+function buildSurveyResponseHtml(r){
+  if(!r || !r.sections) return '<div class="empty">응답 데이터가 비어있어요.</div>';
+  var shared = [], privateS = [];
+  r.sections.forEach(function(sec){
+    var t = findTemplateSectionByTitle(sec.title);
+    var vis = t ? (t.visibility||'shared') : 'shared'; // 템플릿에서 삭제된 옛 섹션은 기본 공개 취급
+    (vis==='private' ? privateS : shared).push({sec:sec, tmpl:t});
+  });
+  function renderGroup(list, isPrivate){
+    return list.map(function(row){
+      var sec = row.sec, t = row.tmpl;
+      return '<div style="margin-bottom:14px;">'
+        +'<div style="font-size:12.5px;font-weight:700;color:var(--accent);margin-bottom:2px;display:flex;align-items:center;flex-wrap:wrap;">'+sec.title
+          + (isPrivate ? scaleAverageBadge(t, sec.items) : '')
+        +'</div>'
+        + (isPrivate && t && t.academicNote ? '<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">🔒 관리자 전용 · '+t.academicNote+'</div>' : '')
+        + sec.items.map(function(it){
+            return '<div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--muted);">'+it.label+'</div><div style="font-size:13px;white-space:pre-wrap;">'+(it.value ? it.value : '<span style="color:var(--dim);">미응답</span>')+'</div></div>';
+          }).join('')
+      +'</div>';
+    }).join('');
+  }
+  var html = '';
+  if(shared.length) html += '<div style="font-size:11px;font-weight:700;color:var(--good);margin-bottom:8px;">📤 공개 (AM/MD 공유용)</div>' + renderGroup(shared,false);
+  if(privateS.length) html += '<div style="font-size:11px;font-weight:700;color:var(--danger);margin:14px 0 8px;">🔒 비공개 (본사 전용)</div>' + renderGroup(privateS,true);
+  return html || '<div class="empty">응답 데이터가 비어있어요.</div>';
+}
+// AM/MD에게 그대로 전달 가능한 '공개' 섹션만 뽑아 텍스트로 만들고 클립보드 복사
+function copyShareableSurveyReport(empId){
+  var p = people[empId]||{};
+  var resp = surveyResponses[empId]||{};
+  var ids = Object.keys(resp).sort(function(a,b){ return (resp[b].submittedAt||'').localeCompare(resp[a].submittedAt||''); });
+  if(!ids.length){ showToast('제출된 응답이 없어요.'); return; }
+  var r = resp[ids[0]];
+  var lines = [(p.name||'')+'님 eFSR 프로파일링 서베이 (공유용)', ''];
+  r.sections.forEach(function(sec){
+    var t = findTemplateSectionByTitle(sec.title);
+    var vis = t ? (t.visibility||'shared') : 'shared';
+    if(vis==='private') return; // 비공개 섹션은 절대 포함하지 않음
+    lines.push('■ '+sec.title);
+    sec.items.forEach(function(it){
+      lines.push('- '+it.label+': '+(it.value||'(미응답)'));
+    });
+    lines.push('');
+  });
+  var text = lines.join('\n');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ showToast('공유용 보고서가 복사됐어요. (비공개 항목 제외)'); })
+      .catch(function(){ showToast('복사에 실패했어요.'); });
+  } else {
+    showToast('이 브라우저에서는 클립보드 복사가 지원되지 않아요.');
+  }
 }
 var _rfmSaveTimers = {};
 function scheduleRfmInsightSave(empId){
@@ -1808,37 +1968,6 @@ function saveRfmInsight(empId){
     statusEl.textContent = '저장됨 ✓';
     setTimeout(function(){ if(statusEl) statusEl.textContent=''; }, 1500);
   }
-}
-function buildSurveyTemplatePreviewHtml(){
-  if(!surveyTemplate || !surveyTemplate.sections || !surveyTemplate.sections.length){
-    return '<div class="empty">서베이 항목이 아직 없어요. 설정에서 만들어주세요.</div>';
-  }
-  return surveyTemplate.sections.map(function(sec){
-    return '<div style="margin-bottom:14px;">'
-      +'<div style="font-size:12.5px;font-weight:700;color:var(--accent);margin-bottom:6px;">'+sec.title+'</div>'
-      + sec.fields.map(function(f){
-          var typeTag = f.type==='choice' ? ' <span style="font-size:9px;color:var(--muted);">('+ (f.options||[]).join(' / ') +')</span>' : '';
-          return '<div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--muted);">'+f.label+typeTag+'</div><div style="font-size:13px;color:var(--dim);">미응답</div></div>';
-        }).join('')
-    +'</div>';
-  }).join('');
-}
-function renderSurveyResponseView(empId, responseId){
-  var resp = surveyResponses[empId]||{};
-  var r = resp[responseId];
-  var el = document.getElementById('survey-resp-view-'+empId);
-  if(el) el.innerHTML = r ? buildSurveyResponseHtml(r) : '<div class="empty">응답을 찾을 수 없어요.</div>';
-}
-function buildSurveyResponseHtml(r){
-  if(!r || !r.sections) return '<div class="empty">응답 데이터가 비어있어요.</div>';
-  return r.sections.map(function(sec){
-    return '<div style="margin-bottom:14px;">'
-      +'<div style="font-size:12.5px;font-weight:700;color:var(--accent);margin-bottom:6px;">'+sec.title+'</div>'
-      + sec.items.map(function(it){
-          return '<div style="margin-bottom:8px;"><div style="font-size:11px;color:var(--muted);">'+it.label+'</div><div style="font-size:13px;white-space:pre-wrap;">'+(it.value ? it.value : '<span style="color:var(--dim);">미응답</span>')+'</div></div>';
-        }).join('')
-    +'</div>';
-  }).join('');
 }
 function openQuickScheduleModal(empId){
   var p = people[empId];
@@ -2729,45 +2858,92 @@ function renderStaffQuickList(){
 
 /* ---------- 앱 설정(컨택 주기) ---------- */
 /* ---------- 서베이 템플릿 관리 ---------- */
+var SURVEY_FIELD_TYPES = [
+  {v:'text', label:'주관식'},
+  {v:'choice', label:'객관식(단일선택)'},
+  {v:'multichoice', label:'객관식(복수선택)'},
+  {v:'scale', label:'척도(5점 리커트)'}
+];
 function renderSurveySettings(){
   var el = document.getElementById('survey-template-editor');
   if(!el || !surveyTemplate) return;
   var html = surveyTemplate.sections.map(function(sec){
+    var visibility = sec.visibility || 'shared';
     var fieldsHtml = sec.fields.map(function(f){
+      var needsOptions = (f.type==='choice' || f.type==='multichoice');
+      var typeOptsHtml = SURVEY_FIELD_TYPES.map(function(t){
+        return '<option value="'+t.v+'"'+(f.type===t.v?' selected':'')+'>'+t.label+'</option>';
+      }).join('');
       return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;" data-field-row data-field="'+f.id+'">'
         +'<input type="text" value="'+(f.label||'').replace(/"/g,'&quot;')+'" data-field-label style="flex:1;min-width:160px;font-size:12.5px;padding:6px 8px;">'
-        +'<select data-field-type style="width:auto;font-size:12px;padding:6px;" onchange="this.closest(\'[data-field-row]\').querySelector(\'[data-field-options]\').style.display=this.value===\'choice\'?\'block\':\'none\';">'
-          +'<option value="text"'+(f.type==='text'?' selected':'')+'>주관식</option>'
-          +'<option value="choice"'+(f.type==='choice'?' selected':'')+'>객관식</option>'
+        +'<select data-field-type style="width:auto;font-size:12px;padding:6px;" onchange="'
+          +'var row=this.closest(\'[data-field-row]\');'
+          +'row.querySelector(\'[data-field-options]\').style.display=(this.value===\'choice\'||this.value===\'multichoice\')?\'block\':\'none\';'
+          +'row.querySelector(\'[data-field-reverse]\').style.display=this.value===\'scale\'?\'inline-flex\':\'none\';'
+        +'">'
+          + typeOptsHtml
         +'</select>'
-        +'<input type="text" data-field-options placeholder="선택지(쉼표구분)" value="'+((f.options||[]).join(', '))+'" style="width:160px;font-size:12px;padding:6px;display:'+(f.type==='choice'?'block':'none')+';">'
+        +'<input type="text" data-field-options placeholder="선택지(쉼표구분)" value="'+((f.options||[]).join(', '))+'" style="width:160px;font-size:12px;padding:6px;display:'+(needsOptions?'block':'none')+';">'
+        +'<label data-field-reverse style="display:'+(f.type==='scale'?'inline-flex':'none')+';align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap;">'
+          +'<input type="checkbox" style="width:auto;"'+(f.reverseScored?' checked':'')+'> 역채점'
+        +'</label>'
         +'<span class="trash-icon" onclick="deleteSurveyField(\''+sec.id+'\',\''+f.id+'\')">삭제</span>'
       +'</div>';
     }).join('');
     return '<div style="border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:10px;" data-sec-block data-sec-id="'+sec.id+'">'
-      +'<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">'
-        +'<input type="text" value="'+(sec.title||'').replace(/"/g,'&quot;')+'" data-sec-title style="flex:1;font-size:13px;font-weight:700;padding:7px 9px;">'
+      +'<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;">'
+        +'<input type="text" value="'+(sec.title||'').replace(/"/g,'&quot;')+'" data-sec-title style="flex:1;min-width:160px;font-size:13px;font-weight:700;padding:7px 9px;">'
+        +'<select data-sec-visibility style="width:auto;font-size:11.5px;padding:6px;">'
+          +'<option value="shared"'+(visibility==='shared'?' selected':'')+'>📤 공개 (AM/MD 공유)</option>'
+          +'<option value="private"'+(visibility==='private'?' selected':'')+'>🔒 비공개 (본사 전용)</option>'
+        +'</select>'
         +'<button class="btn" style="font-size:11px;padding:5px 8px;white-space:nowrap;" onclick="addSurveyField(\''+sec.id+'\')">+ 항목</button>'
         +'<span class="trash-icon" onclick="deleteSurveySection(\''+sec.id+'\')">섹션삭제</span>'
       +'</div>'
+      +'<textarea data-sec-note placeholder="근거 이론/메모 (내부용, eFSR 서베이 화면엔 절대 안 보임 — 임원보고·설정화면에서만 표시)" style="font-size:11px;padding:6px 8px;min-height:36px;margin-bottom:8px;'+(visibility==='private'?'':'display:none;')+'">'+(sec.academicNote||'')+'</textarea>'
       + (fieldsHtml || '<div class="empty" style="padding:10px;">항목이 없어요.</div>')
     +'</div>';
   }).join('');
-  html += '<button class="btn primary" style="width:100%;" onclick="saveSurveyTemplateFromEditor()">템플릿 저장</button>';
-  el.innerHTML = html || '<div class="empty">섹션이 없어요. "섹션 추가"로 시작해보세요.</div>';
+  el.innerHTML = html || '<div class="empty">섹션이 없어요. "+ 섹션 추가"로 시작해보세요.</div>';
+  // 공개범위 바꾸면 근거메모 textarea 표시/숨김 토글 + 자동저장
+  el.querySelectorAll('[data-sec-visibility]').forEach(function(sel){
+    sel.addEventListener('change', function(){
+      var ta = this.closest('[data-sec-block]').querySelector('[data-sec-note]');
+      if(ta) ta.style.display = this.value==='private' ? 'block' : 'none';
+      scheduleSurveyTemplateSave();
+    });
+  });
+  // 텍스트/옵션 입력, 척도 타입 변경, 역채점 체크 등 모든 수정 → 자동저장
+  el.querySelectorAll('[data-sec-title], [data-sec-note], [data-field-label], [data-field-options]').forEach(function(inp){
+    inp.addEventListener('input', scheduleSurveyTemplateSave);
+  });
+  el.querySelectorAll('[data-field-type]').forEach(function(sel){
+    sel.addEventListener('change', scheduleSurveyTemplateSave);
+  });
+  el.querySelectorAll('[data-field-reverse] input').forEach(function(chk){
+    chk.addEventListener('change', scheduleSurveyTemplateSave);
+  });
+}
+var _surveyTplSaveTimer = null;
+function scheduleSurveyTemplateSave(){
+  var statusEl = document.getElementById('survey-tpl-save-status');
+  if(statusEl) statusEl.textContent = '저장 중...';
+  if(_surveyTplSaveTimer) clearTimeout(_surveyTplSaveTimer);
+  _surveyTplSaveTimer = setTimeout(saveSurveyTemplateFromEditor, 700);
 }
 function addSurveySection(){
-  var title = prompt('새 섹션 제목을 입력하세요.');
+  var title = prompt('새 섹션 제목을 입력하세요.\n(eFSR에게 그대로 보이니 순수 질문 제목으로 적어주세요)');
   if(!title) return;
   if(!surveyTemplate) surveyTemplate = {sections:[]};
-  surveyTemplate.sections.push({id:'sec'+Date.now(), title:title.trim(), fields:[]});
+  surveyTemplate.sections.push({id:'sec'+Date.now(), title:title.trim(), visibility:'shared', fields:[]});
   renderSurveySettings();
-  showToast('섹션이 추가됐어요. "템플릿 저장"을 눌러야 반영돼요.');
+  saveSurveyTemplateFromEditor();
 }
 function deleteSurveySection(secId){
-  if(!confirm('이 섹션 전체를 삭제할까요? (템플릿 저장을 눌러야 실제 반영돼요. 이미 제출된 응답에는 영향 없어요.)')) return;
+  if(!confirm('이 섹션 전체를 삭제할까요? 이미 제출된 응답에는 영향 없어요.')) return;
   surveyTemplate.sections = surveyTemplate.sections.filter(function(s){ return s.id!==secId; });
   renderSurveySettings();
+  saveSurveyTemplateFromEditor();
 }
 function addSurveyField(secId){
   var label = prompt('새 항목 질문을 입력하세요.');
@@ -2776,20 +2952,24 @@ function addSurveyField(secId){
   if(!sec) return;
   sec.fields.push({id:'f'+Date.now(), label:label.trim(), type:'text'});
   renderSurveySettings();
-  showToast('항목이 추가됐어요. "템플릿 저장"을 눌러야 반영돼요.');
+  saveSurveyTemplateFromEditor();
 }
 function deleteSurveyField(secId, fieldId){
-  if(!confirm('이 항목을 삭제할까요? (템플릿 저장을 눌러야 실제 반영돼요. 이미 제출된 응답에는 영향 없어요.)')) return;
+  if(!confirm('이 항목을 삭제할까요? 이미 제출된 응답에는 영향 없어요.')) return;
   var sec = surveyTemplate.sections.find(function(s){ return s.id===secId; });
   if(!sec) return;
   sec.fields = sec.fields.filter(function(f){ return f.id!==fieldId; });
   renderSurveySettings();
+  saveSurveyTemplateFromEditor();
 }
 function saveSurveyTemplateFromEditor(){
   var sections = [];
   document.querySelectorAll('[data-sec-block]').forEach(function(block){
     var secId = block.getAttribute('data-sec-id');
     var title = block.querySelector('[data-sec-title]').value.trim();
+    var visibility = block.querySelector('[data-sec-visibility]').value;
+    var noteEl = block.querySelector('[data-sec-note]');
+    var academicNote = noteEl ? noteEl.value.trim() : '';
     var fields = [];
     block.querySelectorAll('[data-field-row]').forEach(function(row){
       var fieldId = row.getAttribute('data-field');
@@ -2797,14 +2977,28 @@ function saveSurveyTemplateFromEditor(){
       var type = row.querySelector('[data-field-type]').value;
       var optionsRaw = row.querySelector('[data-field-options]').value.trim();
       var field = {id:fieldId, label:label, type:type};
-      if(type==='choice') field.options = optionsRaw.split(',').map(function(s){return s.trim();}).filter(Boolean);
+      if(type==='choice' || type==='multichoice'){
+        field.options = optionsRaw.split(',').map(function(s){return s.trim();}).filter(Boolean);
+      }
+      if(type==='scale'){
+        var revEl = row.querySelector('[data-field-reverse] input');
+        field.reverseScored = revEl ? revEl.checked : false;
+      }
       fields.push(field);
     });
-    sections.push({id:secId, title:title, fields:fields});
+    var sec = {id:secId, title:title, visibility:visibility, fields:fields};
+    if(visibility==='private' && academicNote) sec.academicNote = academicNote;
+    sections.push(sec);
   });
-  surveyTemplate = {sections:sections};
-  fetch(FB_URL+ROOT+'/surveyTemplate.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(surveyTemplate)});
-  showToast('서베이 템플릿이 저장됐어요.');
+  surveyTemplate = {version:2, sections:sections};
+  fetch(FB_URL+ROOT+'/surveyTemplate.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(surveyTemplate)})
+    .then(function(){
+      var statusEl = document.getElementById('survey-tpl-save-status');
+      if(statusEl){
+        statusEl.textContent = '저장됨 ✓';
+        setTimeout(function(){ if(statusEl) statusEl.textContent=''; }, 1500);
+      }
+    });
 }
 
 function renderConfigSettings(){

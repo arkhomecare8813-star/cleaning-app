@@ -28,6 +28,7 @@ textarea{min-height:70px;resize:vertical;}
 .choice-group{display:flex;flex-direction:column;gap:8px;}
 .choice-opt{display:flex;align-items:center;gap:8px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer;font-size:13.5px;}
 .choice-opt input{width:auto;}
+.privacy-banner{background:#fff6e5;border:1px solid #f3d99a;color:#8a5a00;font-size:11.5px;border-radius:8px;padding:8px 10px;margin-bottom:14px;line-height:1.5;}
 .submit-btn{width:100%;padding:14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;}
 .submit-btn:disabled{opacity:0.5;}
 .empty-state,.done-state{text-align:center;padding:60px 20px;color:var(--muted);}
@@ -90,6 +91,7 @@ function showNotFound(){
   document.getElementById('loading').style.display='none';
   document.getElementById('not-found').style.display='block';
 }
+var SCALE_OPTIONS = ['매우 그렇다','그렇다','보통이다','그렇지 않다','전혀 그렇지 않다'];
 function renderForm(tmpl){
   var el = document.getElementById('sections');
   el.innerHTML = tmpl.sections.map(function(sec){
@@ -100,9 +102,24 @@ function renderForm(tmpl){
         }).join('');
         return '<div class="field" data-field-id="'+f.id+'" data-type="choice"><label>'+f.label+'</label><div class="choice-group">'+opts+'</div></div>';
       }
+      if(f.type==='multichoice'){
+        var mopts = (f.options||[]).map(function(o){
+          return '<label class="choice-opt"><input type="checkbox" name="'+f.id+'" value="'+o.replace(/"/g,'&quot;')+'"> '+o+'</label>';
+        }).join('');
+        return '<div class="field" data-field-id="'+f.id+'" data-type="multichoice"><label>'+f.label+'</label><div class="choice-group">'+mopts+'</div></div>';
+      }
+      if(f.type==='scale'){
+        var sopts = SCALE_OPTIONS.map(function(o){
+          return '<label class="choice-opt"><input type="radio" name="'+f.id+'" value="'+o+'"> '+o+'</label>';
+        }).join('');
+        return '<div class="field" data-field-id="'+f.id+'" data-type="scale"><label>'+f.label+'</label><div class="choice-group">'+sopts+'</div></div>';
+      }
       return '<div class="field" data-field-id="'+f.id+'" data-type="text"><label>'+f.label+'</label><textarea placeholder="답변을 입력해주세요"></textarea></div>';
     }).join('');
-    return '<div class="card" data-sec-id="'+sec.id+'" data-sec-title="'+sec.title.replace(/"/g,'&quot;')+'"><div class="sec-title">'+sec.title+'</div>'+fieldsHtml+'</div>';
+    var privacyBanner = sec.visibility==='private'
+      ? '<div class="privacy-banner">🔒 이 항목은 담당 AM/MD에게 공유되지 않으며, 본사에서만 확인합니다. 편하게 솔직히 답해주세요.</div>'
+      : '';
+    return '<div class="card" data-sec-id="'+sec.id+'" data-sec-title="'+sec.title.replace(/"/g,'&quot;')+'"><div class="sec-title">'+sec.title+'</div>'+privacyBanner+fieldsHtml+'</div>';
   }).join('');
 }
 function submitSurvey(){
@@ -116,9 +133,12 @@ function submitSurvey(){
       var label = fEl.querySelector('label').textContent;
       var type = fEl.getAttribute('data-type');
       var value = '';
-      if(type==='choice'){
+      if(type==='choice' || type==='scale'){
         var checked = fEl.querySelector('input[type=radio]:checked');
         value = checked ? checked.value : '';
+      } else if(type==='multichoice'){
+        var checkedBoxes = fEl.querySelectorAll('input[type=checkbox]:checked');
+        value = Array.prototype.map.call(checkedBoxes, function(c){ return c.value; }).join(', ');
       } else {
         value = fEl.querySelector('textarea').value.trim();
       }
