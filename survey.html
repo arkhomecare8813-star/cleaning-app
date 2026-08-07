@@ -122,38 +122,65 @@ function renderForm(tmpl){
     return '<div class="card" data-sec-id="'+sec.id+'" data-sec-title="'+sec.title.replace(/"/g,'&quot;')+'"><div class="sec-title">'+sec.title+'</div>'+privacyBanner+fieldsHtml+'</div>';
   }).join('');
 }
+function scaleScoreOf(value, reverseScored){
+  var idx = SCALE_OPTIONS.indexOf(value);
+  if(idx<0) return null;
+  var forward = 5 - idx; // 매우그렇다(0)->5 ... 전혀그렇지않다(4)->1
+  return reverseScored ? (6 - forward) : forward;
+}
 function submitSurvey(){
   var btn = document.getElementById('submit-btn');
   var errEl = document.getElementById('err-msg');
   errEl.textContent = '';
   var sections = [];
-  document.querySelectorAll('[data-sec-id]').forEach(function(secEl){
+  var scaleScores = {}; // fieldId -> 1~5 점수 (역채점 반영 완료)
+  template.sections.forEach(function(sec){
+    var secEl = document.querySelector('[data-sec-id="'+sec.id+'"]');
+    if(!secEl) return;
     var items = [];
-    secEl.querySelectorAll('[data-field-id]').forEach(function(fEl){
-      var label = fEl.querySelector('label').textContent;
-      var type = fEl.getAttribute('data-type');
+    sec.fields.forEach(function(f){
+      var fEl = secEl.querySelector('[data-field-id="'+f.id+'"]');
+      if(!fEl) return;
       var value = '';
-      if(type==='choice' || type==='scale'){
+      if(f.type==='choice' || f.type==='scale'){
         var checked = fEl.querySelector('input[type=radio]:checked');
         value = checked ? checked.value : '';
-      } else if(type==='multichoice'){
+      } else if(f.type==='multichoice'){
         var checkedBoxes = fEl.querySelectorAll('input[type=checkbox]:checked');
         value = Array.prototype.map.call(checkedBoxes, function(c){ return c.value; }).join(', ');
       } else {
-        value = fEl.querySelector('textarea').value.trim();
+        var ta = fEl.querySelector('textarea');
+        value = ta ? ta.value.trim() : '';
       }
-      items.push({label:label, value:value});
+      items.push({label:f.label, value:value});
+      if(f.type==='scale' && value){
+        var s = scaleScoreOf(value, f.reverseScored);
+        if(s!==null) scaleScores[f.id] = s;
+      }
     });
-    sections.push({title: secEl.getAttribute('data-sec-title'), items: items});
+    sections.push({title: sec.title, items: items});
   });
   btn.disabled = true;
   btn.textContent = '제출 중...';
   var id = 'r'+Date.now();
-  var entry = { submittedAt: new Date().toISOString(), sections: sections };
-  fetch(FB_URL+ROOT+'/surveyResponses/'+empId+'/'+id+'.json', {
-    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(entry)
-  }).then(function(r){
-    if(!r.ok) throw new Error('저장 실패');
+  var now = new Date();
+  var entry = { submittedAt: now.toISOString(), sections: sections };
+  var yyyymm = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0');
+  var savePromises = [
+    fetch(FB_URL+ROOT+'/surveyResponses/'+empId+'/'+id+'.json', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(entry)
+    })
+  ];
+  if(Object.keys(scaleScores).length){
+    scaleScores.submittedAt = now.toISOString();
+    savePromises.push(
+      fetch(FB_URL+ROOT+'/surveyScoreSnapshots/'+yyyymm+'/'+empId+'.json', {
+        method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(scaleScores)
+      })
+    );
+  }
+  Promise.all(savePromises).then(function(results){
+    if(!results[0].ok) throw new Error('저장 실패');
     document.getElementById('content').style.display='none';
     document.getElementById('done').style.display='block';
   }).catch(function(e){
