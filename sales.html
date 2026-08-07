@@ -168,6 +168,30 @@ tr.row-clickable:hover{background:var(--sf2);}
       </div>
 
       <div class="card">
+        <div class="card-title">🎯 이달의 추천 액션</div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:12px;">서베이 척도(5점 만점, 낮을수록 챙겨야 할 신호) 기반으로 자동 추출돼요. 이름·기준은 설정 탭에서 자유롭게 바꿀 수 있어요.</p>
+        <div id="intervention-routine-list"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px;">
+          <div class="card-title" style="margin:0;">📊 캠페인 효과 비교</div>
+          <select id="campaign-effect-select" onchange="renderCampaignEffectChart()" style="width:auto;font-size:12px;padding:6px 10px;"></select>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Reach 발송할 때 붙인 캠페인 태그별로, 그 활동을 받은 사람들의 척도가 전/후로 어떻게 바뀌었는지 보여줘요.</p>
+        <div id="campaign-effect-empty" class="empty" style="display:none;">아직 캠페인 태그가 붙은 발송 기록이 없어요. Reach 보낼 때 캠페인 태그를 입력하면 여기 쌓여요.</div>
+        <div id="campaign-effect-body" style="display:none;">
+          <div style="display:flex;gap:20px;margin-bottom:10px;">
+            <div><div style="font-size:11px;color:var(--muted);">대상</div><div style="font-size:18px;font-weight:900;" id="ce-n">-</div></div>
+            <div><div style="font-size:11px;color:var(--muted);">전 평균</div><div style="font-size:18px;font-weight:900;" id="ce-before">-</div></div>
+            <div><div style="font-size:11px;color:var(--muted);">후 평균</div><div style="font-size:18px;font-weight:900;color:var(--accent);" id="ce-after">-</div></div>
+            <div><div style="font-size:11px;color:var(--muted);">변화</div><div style="font-size:18px;font-weight:900;" id="ce-delta">-</div></div>
+          </div>
+          <div style="position:relative;height:140px;"><canvas id="campaignEffectChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
           <div class="card-title" style="margin:0;">🔋 On-going Engagement</div>
           <button class="btn" style="font-size:11px;padding:5px 10px;" onclick="openActivityLogModal()">📜 Activity Log 보기</button>
@@ -396,6 +420,7 @@ tr.row-clickable:hover{background:var(--sf2);}
           <div class="card-title" style="margin:0;">📋 서베이 항목 관리</div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span id="survey-tpl-save-status" style="font-size:10px;color:var(--good);"></span>
+            <button class="btn" onclick="sendTestSurveyToMe()">📲 나에게 테스트 발송</button>
             <button class="btn" onclick="addSurveySection()">+ 섹션 추가</button>
           </div>
         </div>
@@ -439,6 +464,15 @@ tr.row-clickable:hover{background:var(--sf2);}
           </div>
         </div>
         <button class="btn" style="margin-top:10px;" onclick="saveConfig()">저장</button>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div class="card-title" style="margin:0;">🎯 이달의 추천 액션 기준 설정</div>
+          <span id="intervention-cfg-save-status" style="font-size:10px;color:var(--good);"></span>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">이름은 자유롭게 바꾸셔도 돼요. 척도는 5점 만점이며, 숫자가 낮을수록 챙겨야 할 신호예요. 수정하면 자동 저장돼요.</p>
+        <div id="intervention-cfg-editor"></div>
       </div>
 
       <div class="card">
@@ -488,7 +522,20 @@ var DEFAULT_MESSAGE_TEMPLATES = {
   surveyLink: '{name}님, eFSR 프로파일링을 위한 짧은 서베이입니다. 아래 링크에서 편하실 때 작성해주세요.\n{url}',
   tipNotice: '안녕하세요, 이번 교육영상 공유드립니다.\n\n[{title}]\n{url}\n\n편하실 때 시청 부탁드려요 :)'
 };
-var appConfig = { contactCycleDays: 90, esmapThreshold: 5, tipThreshold: 3, messageTemplates: Object.assign({}, DEFAULT_MESSAGE_TEMPLATES) };
+// 서베이 척도(5점, 낮을수록 챙겨야 할 신호) 기반 "이달의 추천 액션" 기본 라벨/기준값 — 이름은 설정에서 자유롭게 수정 가능
+var DEFAULT_INTERVENTION_CONFIG = {
+  interventionLabels: {
+    leaving: '🚨 이탈 위험군',
+    burnout: '🔥 소진 위험군',
+    role: '🧭 역할 모호성',
+    recognition: '🙌 인정 필요',
+    cause: '🎯 원인별 맞춤'
+  },
+  interventionThresholds: { leaving:2, burnout:2.5, role:2.5, recognition:2 }
+};
+var appConfig = { contactCycleDays: 90, esmapThreshold: 5, tipThreshold: 3, messageTemplates: Object.assign({}, DEFAULT_MESSAGE_TEMPLATES),
+  interventionLabels: Object.assign({}, DEFAULT_INTERVENTION_CONFIG.interventionLabels),
+  interventionThresholds: Object.assign({}, DEFAULT_INTERVENTION_CONFIG.interventionThresholds) };
 function fillTemplate(str, vars){
   return str.replace(/\{(\w+)\}/g, function(m, key){ return vars[key]!==undefined ? vars[key] : m; });
 }
@@ -625,8 +672,12 @@ function boot(){
     if(!orgMap.branch) orgMap.branch={};
     schedules = res[5]||{};
     hqStaff = res[6]||{};
-    appConfig = Object.assign({contactCycleDays:90, esmapThreshold:5, tipThreshold:3, messageTemplates:Object.assign({},DEFAULT_MESSAGE_TEMPLATES)}, res[7]||{});
+    appConfig = Object.assign({contactCycleDays:90, esmapThreshold:5, tipThreshold:3, messageTemplates:Object.assign({},DEFAULT_MESSAGE_TEMPLATES),
+      interventionLabels:Object.assign({},DEFAULT_INTERVENTION_CONFIG.interventionLabels),
+      interventionThresholds:Object.assign({},DEFAULT_INTERVENTION_CONFIG.interventionThresholds)}, res[7]||{});
     appConfig.messageTemplates = Object.assign({}, DEFAULT_MESSAGE_TEMPLATES, appConfig.messageTemplates||{});
+    appConfig.interventionLabels = Object.assign({}, DEFAULT_INTERVENTION_CONFIG.interventionLabels, appConfig.interventionLabels||{});
+    appConfig.interventionThresholds = Object.assign({}, DEFAULT_INTERVENTION_CONFIG.interventionThresholds, appConfig.interventionThresholds||{});
     surveyResponses = res[9]||{};
     fmMap = res[10]||{};
     tipLinks = res[11]||{};
@@ -849,6 +900,8 @@ function renderDashboard(){
   // 조직별(본부/지점) 위험군 현황
   renderRiskOrgList();
   renderWeeklyRoutine(ids);
+  renderInterventionRoutine(ids);
+  renderCampaignEffectChart();
 
   renderEngageEffectChart(ids, contactedThisMonthIds);
   renderSurveyRate(ids);
@@ -921,6 +974,212 @@ function startRoutineGroupSms(key){
     message = '안녕하세요, 요즘 어떻게 지내시는지 궁금해서 연락드려요. 편하실 때 통화 가능하실까요?';
   }
   openGroupSmsModal(targetIds, label, message);
+}
+/* ---------- 이달의 추천 액션 (서베이 척도 기반) ---------- */
+function latestScaleScoresFor(empId){
+  var keys = Object.keys(surveyScoreSnapshots).sort().reverse();
+  for(var i=0;i<keys.length;i++){
+    var s = surveyScoreSnapshots[keys[i]] && surveyScoreSnapshots[keys[i]][empId];
+    if(s) return s;
+  }
+  return null;
+}
+function findMultichoiceCauseField(){
+  if(!surveyTemplate || !surveyTemplate.sections) return null;
+  for(var i=0;i<surveyTemplate.sections.length;i++){
+    var sec = surveyTemplate.sections[i];
+    for(var j=0;j<sec.fields.length;j++){
+      if(sec.fields[j].type==='multichoice') return sec.fields[j];
+    }
+  }
+  return null;
+}
+function computeInterventionGroups(ids){
+  var th = appConfig.interventionThresholds || DEFAULT_INTERVENTION_CONFIG.interventionThresholds;
+  var leaving=[], burnout=[], role=[], recognition=[];
+  ids.forEach(function(id){
+    var s = latestScaleScoresFor(id);
+    if(!s) return;
+    if(typeof s.commitment==='number' && s.commitment<=th.leaving) leaving.push(id);
+    if(typeof s.recognition==='number' && s.recognition<=th.recognition) recognition.push(id);
+    var bVals=['lowAccomplish','exhaustion','selfEfficacy'].map(function(k){return s[k];}).filter(function(v){return typeof v==='number';});
+    if(bVals.length){
+      var bAvg = bVals.reduce(function(a,b){return a+b;},0)/bVals.length;
+      if(bAvg<=th.burnout) burnout.push(id);
+    }
+    var rVals=['roleClarity','orgSupport','roleConflict'].map(function(k){return s[k];}).filter(function(v){return typeof v==='number';});
+    if(rVals.length){
+      var rAvg = rVals.reduce(function(a,b){return a+b;},0)/rVals.length;
+      if(rAvg<=th.role) role.push(id);
+    }
+  });
+  var causeField = findMultichoiceCauseField();
+  var causeGroups = {};
+  if(causeField){
+    ids.forEach(function(id){
+      var resp = surveyResponses[id];
+      if(!resp) return;
+      var respIds = Object.keys(resp).sort(function(a,b){ return (resp[b].submittedAt||'').localeCompare(resp[a].submittedAt||''); });
+      if(!respIds.length) return;
+      var latest = resp[respIds[0]];
+      var sec = latest.sections.find(function(s2){ return s2.items.some(function(it){ return it.label===causeField.label; }); });
+      if(!sec) return;
+      var item = sec.items.find(function(it){ return it.label===causeField.label; });
+      if(!item || !item.value) return;
+      item.value.split(',').map(function(v){return v.trim();}).filter(Boolean).forEach(function(cause){
+        if(!causeGroups[cause]) causeGroups[cause]=[];
+        causeGroups[cause].push(id);
+      });
+    });
+  }
+  return { leaving:leaving, burnout:burnout, role:role, recognition:recognition, causeGroups:causeGroups };
+}
+function renderInterventionRoutine(ids){
+  var el = document.getElementById('intervention-routine-list');
+  if(!el) return;
+  var g = computeInterventionGroups(ids);
+  var labels = appConfig.interventionLabels || DEFAULT_INTERVENTION_CONFIG.interventionLabels;
+  function section(key, label, list, color){
+    var names = list.slice(0,4).map(function(id){ return people[id] ? people[id].name : id; }).join(', ') + (list.length>4?' 외 '+(list.length-4)+'명':'');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);gap:10px;">'
+      +'<div style="min-width:0;">'
+        +'<div style="font-size:13px;font-weight:700;">'+label+' <span style="color:'+color+';">'+list.length+'명</span></div>'
+        +'<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(list.length?names:'해당자 없음')+'</div>'
+      +'</div>'
+      +(list.length?'<button class="btn" style="flex-shrink:0;font-size:11px;padding:6px 10px;" onclick="startInterventionGroupSms(\''+key+'\')">🚀 Reach</button>':'')
+    +'</div>';
+  }
+  var html = section('leaving', labels.leaving, g.leaving, 'var(--danger)')
+    + section('burnout', labels.burnout, g.burnout, 'var(--warn)')
+    + section('role', labels.role, g.role, 'var(--warn)')
+    + section('recognition', labels.recognition, g.recognition, 'var(--good)');
+  var causeKeys = Object.keys(g.causeGroups);
+  html += '<div style="padding:12px 0 4px;font-size:13px;font-weight:700;">'+labels.cause+'</div>';
+  if(causeKeys.length){
+    causeKeys.sort(function(a,b){ return g.causeGroups[b].length - g.causeGroups[a].length; }).forEach(function(cause){
+      var list = g.causeGroups[cause];
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);gap:10px;padding-left:14px;">'
+        +'<div style="min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+cause+' <span style="color:var(--accent);font-weight:700;">'+list.length+'명</span></div>'
+        +'<button class="btn" style="flex-shrink:0;font-size:11px;padding:5px 8px;" onclick="startCauseGroupSms('+JSON.stringify(cause)+')">🚀 Reach</button>'
+      +'</div>';
+    });
+  } else {
+    html += '<div style="padding:6px 0 6px 14px;font-size:11px;color:var(--muted);">아직 원인 선택 응답이 없어요.</div>';
+  }
+  el.innerHTML = html;
+}
+function startInterventionGroupSms(key){
+  var ids = Object.keys(people);
+  var g = computeInterventionGroups(ids);
+  var labels = appConfig.interventionLabels || DEFAULT_INTERVENTION_CONFIG.interventionLabels;
+  var targetIds, label, message;
+  if(key==='leaving'){
+    targetIds=g.leaving; label=labels.leaving;
+    message = '안녕하세요, 요즘 어떻게 지내시는지 궁금해서 연락드려요. 편하실 때 통화 가능하실까요?';
+  } else if(key==='burnout'){
+    targetIds=g.burnout; label=labels.burnout;
+    message = '안녕하세요, 요즘 많이 바쁘셨죠? 혹시 도움 필요한 부분 있으면 편하게 말씀해주세요. 잠깐 통화 가능하실 때 말씀 주세요 :)';
+  } else if(key==='role'){
+    targetIds=g.role; label=labels.role;
+    message = '안녕하세요, 요즘 진행하시는 업무에 대해 본사에서 명확히 안내드리고 싶은 부분이 있어서 연락드려요. 편하실 때 통화 가능하실까요?';
+  } else {
+    targetIds=g.recognition; label=labels.recognition;
+    message = '안녕하세요, 최근 좋은 성과 잘 보고 있어요! 늘 애써주셔서 감사합니다 :)';
+  }
+  openGroupSmsModal(targetIds, label, message);
+}
+function startCauseGroupSms(cause){
+  var ids = Object.keys(people);
+  var g = computeInterventionGroups(ids);
+  var targetIds = g.causeGroups[cause] || [];
+  var message = '안녕하세요, "'+cause+'" 관련해서 도움드릴 방법을 고민하고 있어요. 편하실 때 통화 가능하실까요?';
+  openGroupSmsModal(targetIds, cause, message);
+}
+/* ---------- 캠페인 효과 비교 (전/후 척도 평균) ---------- */
+function allCampaignTags(){
+  var set = {};
+  Object.keys(contacts).forEach(function(empId){
+    Object.values(contacts[empId]||{}).forEach(function(c){
+      if(c.campaignTag) set[c.campaignTag]=true;
+    });
+  });
+  return Object.keys(set).sort().reverse();
+}
+function computeCampaignEffect(tag){
+  var affected = {}; // empId -> 이 태그로 처음 컨택한 날짜
+  Object.keys(contacts).forEach(function(empId){
+    Object.values(contacts[empId]||{}).forEach(function(c){
+      if(c.campaignTag===tag){
+        if(!affected[empId] || c.date < affected[empId]) affected[empId] = c.date;
+      }
+    });
+  });
+  var empIds = Object.keys(affected);
+  var rows = [];
+  empIds.forEach(function(empId){
+    var campaignYyyymm = affected[empId].slice(0,7).replace('-','');
+    var keys = Object.keys(surveyScoreSnapshots).sort();
+    var beforeKey = null;
+    keys.forEach(function(k){ if(k < campaignYyyymm) beforeKey = k; }); // 캠페인 이전 중 가장 최근
+    var afterKeys = keys.filter(function(k){ return k >= campaignYyyymm; });
+    var afterKey = afterKeys.length ? afterKeys[afterKeys.length-1] : null; // 캠페인 이후 중 가장 최신
+    function avgOf(k){
+      if(!k) return null;
+      var s = surveyScoreSnapshots[k] && surveyScoreSnapshots[k][empId];
+      if(!s) return null;
+      var vals = Object.keys(s).filter(function(f){return f!=='submittedAt';}).map(function(f){return s[f];}).filter(function(v){return typeof v==='number';});
+      if(!vals.length) return null;
+      return vals.reduce(function(a,b){return a+b;},0)/vals.length;
+    }
+    var b = avgOf(beforeKey), a = avgOf(afterKey);
+    if(b!==null && a!==null && beforeKey!==afterKey){
+      rows.push({empId:empId, before:b, after:a});
+    }
+  });
+  var beforeAvg = rows.length ? rows.reduce(function(s,r){return s+r.before;},0)/rows.length : null;
+  var afterAvg = rows.length ? rows.reduce(function(s,r){return s+r.after;},0)/rows.length : null;
+  return { n: rows.length, beforeAvg: beforeAvg, afterAvg: afterAvg };
+}
+var _campaignEffectChartInstance = null;
+function renderCampaignEffectChart(){
+  var selectEl = document.getElementById('campaign-effect-select');
+  var emptyEl = document.getElementById('campaign-effect-empty');
+  var bodyEl = document.getElementById('campaign-effect-body');
+  if(!selectEl) return;
+  var tags = allCampaignTags();
+  if(!tags.length){
+    if(emptyEl) emptyEl.style.display='block';
+    if(bodyEl) bodyEl.style.display='none';
+    selectEl.innerHTML = '';
+    return;
+  }
+  if(emptyEl) emptyEl.style.display='none';
+  if(bodyEl) bodyEl.style.display='block';
+  var prevVal = selectEl.value;
+  selectEl.innerHTML = tags.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+  if(tags.indexOf(prevVal)>-1) selectEl.value = prevVal;
+  var tag = selectEl.value;
+  var res = computeCampaignEffect(tag);
+  document.getElementById('ce-n').textContent = res.n+'명';
+  document.getElementById('ce-before').textContent = res.beforeAvg!==null ? res.beforeAvg.toFixed(1) : '-';
+  document.getElementById('ce-after').textContent = res.afterAvg!==null ? res.afterAvg.toFixed(1) : '-';
+  var deltaEl = document.getElementById('ce-delta');
+  if(res.beforeAvg!==null && res.afterAvg!==null){
+    var delta = Math.round((res.afterAvg-res.beforeAvg)*10)/10;
+    deltaEl.textContent = (delta>0?'+':'')+delta;
+    deltaEl.style.color = delta>0 ? 'var(--good)' : (delta<0 ? 'var(--danger)' : 'var(--muted)');
+  } else {
+    deltaEl.textContent = '-'; deltaEl.style.color = 'var(--muted)';
+  }
+  var canvasEl = document.getElementById('campaignEffectChart');
+  if(_campaignEffectChartInstance){ _campaignEffectChartInstance.destroy(); _campaignEffectChartInstance=null; }
+  if(canvasEl && res.n){
+    _campaignEffectChartInstance = new Chart(canvasEl.getContext('2d'), {
+      type:'bar',
+      data:{ labels:['캠페인 전','캠페인 후'], datasets:[{ data:[res.beforeAvg, res.afterAvg], backgroundColor:['#c9cfe0','#4361ee'], borderRadius:6, barThickness:60 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{min:1,max:5,grid:{color:'rgba(128,128,128,0.15)'},ticks:{font:{size:10}}}, x:{grid:{display:false},ticks:{font:{size:11}}} } }
+    });
+  }
 }
 function renderRiskOrgList(){
   var levelEl = document.getElementById('risk-org-level');
@@ -1438,6 +1697,12 @@ function exportOrgListExcel(){
 
 /* ---------- GROUP SMS ---------- */
 var _gsmsPresetIds = null;
+function suggestCampaignTag(label){
+  var now = new Date();
+  var yyyymm = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0');
+  var clean = (label||'').replace(/[^\w가-힣]+/g, '');
+  return (clean||'캠페인') + '_' + yyyymm;
+}
 function openGroupSmsModal(presetIds, presetLabel, presetMessage){
   _gsmsPresetIds = presetIds || null;
   var overlay=document.createElement('div');
@@ -1472,6 +1737,8 @@ function openGroupSmsModal(presetIds, presetLabel, presetMessage){
   box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
     +'<div class="card-title">🚀 Reach 보내기</div>'
     + basisBlock
+    +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">캠페인 태그 <span style="color:var(--dim);">(나중에 이 활동 전/후 척도 비교할 때 쓰여요)</span></label>'
+    +'<input type="text" id="gsms-campaign-tag" value="'+suggestCampaignTag(presetLabel)+'" style="margin-bottom:10px;font-size:12.5px;">'
     +'<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">메시지</label>'
     +'<textarea id="gsms-text" rows="4" placeholder="보낼 문자 내용을 입력하세요">'+(presetMessage||'')+'</textarea>'
     +'<div style="display:flex;gap:6px;margin-top:10px;">'
@@ -1579,14 +1846,18 @@ function copyGsmsNumbers(){
   var ids = getGsmsTargetIds();
   var nums = ids.map(function(id){return _gsmsPerson(id).phone;}).filter(Boolean);
   if(!nums.length){ showToast('대상자가 없어요.'); return; }
-  navigator.clipboard.writeText(nums.join(', ')).then(function(){ showToast(nums.length+'명 번호 복사됐어요.'); ids.forEach(function(id){ logContact(id,'sms'); }); });
+  var tagEl = document.getElementById('gsms-campaign-tag');
+  var campaignTag = tagEl ? tagEl.value.trim() : '';
+  navigator.clipboard.writeText(nums.join(', ')).then(function(){ showToast(nums.length+'명 번호 복사됐어요.'); ids.forEach(function(id){ logContact(id,'sms',campaignTag); }); });
 }
 function copyGsmsFull(){
   var ids = getGsmsTargetIds();
   var nums = ids.map(function(id){return _gsmsPerson(id).phone;}).filter(Boolean);
   var text = document.getElementById('gsms-text').value;
+  var tagEl = document.getElementById('gsms-campaign-tag');
+  var campaignTag = tagEl ? tagEl.value.trim() : '';
   if(!nums.length){ showToast('대상자가 없어요.'); return; }
-  navigator.clipboard.writeText('['+nums.length+'명]\n'+nums.join(', ')+'\n\n메시지:\n'+text).then(function(){ showToast('복사됐어요.'); ids.forEach(function(id){ logContact(id,'sms'); }); });
+  navigator.clipboard.writeText('['+nums.length+'명]\n'+nums.join(', ')+'\n\n메시지:\n'+text).then(function(){ showToast('복사됐어요.'); ids.forEach(function(id){ logContact(id,'sms',campaignTag); }); });
 }
 function openGsmsSmsApp(){
   var ids = getGsmsTargetIds();
@@ -1594,8 +1865,10 @@ function openGsmsSmsApp(){
   if(!nums.length){ showToast('대상자가 없어요.'); return; }
   if(nums.length>50){ showToast('50명이 넘으면 문자 앱이 안 열릴 수 있어요. 번호 복사를 이용해주세요.'); return; }
   var text = encodeURIComponent(document.getElementById('gsms-text').value);
+  var tagEl = document.getElementById('gsms-campaign-tag');
+  var campaignTag = tagEl ? tagEl.value.trim() : '';
   window.location.href = 'sms:'+nums.join(',')+'?body='+text;
-  ids.forEach(function(id){ logContact(id,'sms'); });
+  ids.forEach(function(id){ logContact(id,'sms',campaignTag); });
 }
 function _solapiRandomSalt(){
   var arr = new Uint8Array(16);
@@ -1631,7 +1904,7 @@ async function sendSolapiMessages(messages){
   return { ok: res.ok, data: data, failedNumbers: failedNumbers, count: count };
 }
 /* ---------- 카드형 발송 진행 모달 (청소앱과 동일한 UX) ---------- */
-function openSendReviewModal(items){
+function openSendReviewModal(items, campaignTag){
   // items: [{id, name, phone, text}]
   var overlay=document.createElement('div');
   overlay.className='modal-overlay';
@@ -1642,6 +1915,7 @@ function openSendReviewModal(items){
   box.innerHTML = '<button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">✕</button>'
     +'<div class="card-title">🚀 문자 발송</div>'
     +'<div style="font-size:13px;margin-bottom:10px;"><b style="font-size:18px;color:var(--accent);">'+items.length+'명</b>에게 발송합니다.</div>'
+    + (campaignTag ? '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">🏷 캠페인 태그: <b style="color:var(--text);">'+campaignTag+'</b></div>' : '')
     +'<div style="background:var(--sf2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:100px;overflow-y:auto;margin-bottom:12px;">'
       + (sameTextForAll ? previewText : previewText+'\n(외 각자 다른 내용 포함)')
     +'</div>'
@@ -1678,7 +1952,7 @@ function openSendReviewModal(items){
             if(cardEl){ cardEl.style.background='#fdeaee'; cardEl.style.borderColor='#f2b8c6'; cardEl.style.color='var(--danger)'; cardEl.textContent='❌ 실패'; }
           } else {
             successCount++;
-            if(idPhoneMap[m.to]) logContact(idPhoneMap[m.to], 'sms');
+            if(idPhoneMap[m.to]) logContact(idPhoneMap[m.to], 'sms', campaignTag);
             if(cardEl){ cardEl.style.background='#e5f7ee'; cardEl.style.borderColor='#a8e0c2'; cardEl.style.color='var(--good)'; cardEl.textContent='✅ 전송완료'; }
           }
         });
@@ -1705,6 +1979,8 @@ async function sendSingleSms(empId, phone, text){
 async function sendGroupSmsViaSolapi(){
   var ids = getGsmsTargetIds();
   var text = document.getElementById('gsms-text').value.trim();
+  var tagEl = document.getElementById('gsms-campaign-tag');
+  var campaignTag = tagEl ? tagEl.value.trim() : '';
   if(!ids.length){ showToast('대상자가 없어요.'); return; }
   if(!text){ showToast('메시지를 입력해주세요.'); return; }
   var items = ids.map(function(id){
@@ -1713,11 +1989,13 @@ async function sendGroupSmsViaSolapi(){
   }).filter(function(it){ return it.phone; });
   if(!items.length){ showToast('전화번호가 있는 대상자가 없어요.'); return; }
   document.querySelector('.modal-overlay').remove();
-  openSendReviewModal(items);
+  openSendReviewModal(items, campaignTag);
 }
 async function sendGroupSurveyLinksViaSolapi(){
   var rawIds = getGsmsTargetIds();
   var ids = rawIds.filter(function(id){ return people[id]; }); // 실제 FSR만 (본사스탭 제외)
+  var tagEl = document.getElementById('gsms-campaign-tag');
+  var campaignTag = tagEl ? tagEl.value.trim() : '';
   if(!ids.length){ showToast('대상자 중 서베이를 보낼 수 있는 FSR이 없어요.'); return; }
   var basePath = location.pathname.replace(/[^/]*$/, '');
   var items = ids.map(function(id){
@@ -1728,7 +2006,7 @@ async function sendGroupSurveyLinksViaSolapi(){
   }).filter(function(it){ return it.phone; });
   if(!items.length){ showToast('전화번호가 있는 대상자가 없어요.'); return; }
   document.querySelector('.modal-overlay').remove();
-  openSendReviewModal(items);
+  openSendReviewModal(items, campaignTag);
 }
 
 /* ---------- PROFILE ---------- */
@@ -2065,6 +2343,14 @@ function sendSurveyLink(empId){
   var text = fillTemplate(appConfig.messageTemplates.surveyLink, {name:p.name, url:url});
   sendSingleSms(empId, p.phone, text);
 }
+// 실제 담당자 데이터를 건드리지 않는 테스트 전용 링크(id=test)를 정훈님 번호로 발송
+function sendTestSurveyToMe(){
+  var basePath = location.pathname.replace(/[^/]*$/, '');
+  var url = location.origin + basePath + 'survey.html?id=test';
+  var text = fillTemplate(appConfig.messageTemplates.surveyLink, {name:'테스트', url:url})
+    + '\n\n(🧪 테스트 링크예요 — 제출해도 실제 명단에는 반영되지 않아요)';
+  openSendReviewModal([{ id:'testself'+Date.now(), name:'나(테스트)', phone:'01092925782', text:text }]);
+}
 function fmtNum(v){
   if(v===undefined||v===null||v==='') return v;
   var n = Number(v);
@@ -2188,9 +2474,10 @@ function saveOfficeAddress(empId){
     });
   }
 }
-function logContact(empId, type){
+function logContact(empId, type, campaignTag){
   var id='c'+Date.now();
   var entry = {date:new Date().toISOString(), type:type};
+  if(campaignTag) entry.campaignTag = campaignTag;
   fetch(FB_URL+ROOT+'/contacts/'+empId+'/'+id+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   if(!contacts[empId]) contacts[empId]={};
   contacts[empId][id]=entry;
@@ -3058,6 +3345,54 @@ function renderConfigSettings(){
   if(esEl) esEl.value = appConfig.esmapThreshold;
   var tipThEl = document.getElementById('cfg-tip-th');
   if(tipThEl) tipThEl.value = appConfig.tipThreshold;
+  renderInterventionConfigSettings();
+}
+function renderInterventionConfigSettings(){
+  var el = document.getElementById('intervention-cfg-editor');
+  if(!el) return;
+  var labels = appConfig.interventionLabels || DEFAULT_INTERVENTION_CONFIG.interventionLabels;
+  var th = appConfig.interventionThresholds || DEFAULT_INTERVENTION_CONFIG.interventionThresholds;
+  function row(key, thKey, defaultTh){
+    return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;" data-int-row data-int-key="'+key+'">'
+      +'<input type="text" data-int-label value="'+(labels[key]||'').replace(/"/g,'&quot;')+'" style="flex:1;min-width:140px;font-size:12.5px;padding:6px 8px;">'
+      + (thKey ? '<label style="font-size:11px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;">이 점수 이하 <input type="number" data-int-threshold step="0.1" min="1" max="5" value="'+(th[thKey]!==undefined?th[thKey]:defaultTh)+'" style="width:64px;font-size:12px;padding:6px;"></label>' : '')
+    +'</div>';
+  }
+  el.innerHTML = row('leaving','leaving',2) + row('burnout','burnout',2.5) + row('role','role',2.5) + row('recognition','recognition',2) + row('cause', null, null);
+  el.querySelectorAll('[data-int-label], [data-int-threshold]').forEach(function(inp){
+    inp.addEventListener('input', scheduleInterventionConfigSave);
+  });
+}
+var _intCfgSaveTimer = null;
+function scheduleInterventionConfigSave(){
+  var statusEl = document.getElementById('intervention-cfg-save-status');
+  if(statusEl) statusEl.textContent = '저장 중...';
+  if(_intCfgSaveTimer) clearTimeout(_intCfgSaveTimer);
+  _intCfgSaveTimer = setTimeout(saveInterventionConfig, 700);
+}
+function saveInterventionConfig(){
+  var labels = {}; var thresholds = {};
+  document.querySelectorAll('[data-int-row]').forEach(function(row){
+    var key = row.getAttribute('data-int-key');
+    var labelInp = row.querySelector('[data-int-label]');
+    labels[key] = labelInp ? labelInp.value.trim() : key;
+    var thInp = row.querySelector('[data-int-threshold]');
+    if(thInp){
+      var v = parseFloat(thInp.value);
+      thresholds[key] = isNaN(v) ? DEFAULT_INTERVENTION_CONFIG.interventionThresholds[key] : v;
+    }
+  });
+  appConfig.interventionLabels = labels;
+  appConfig.interventionThresholds = thresholds;
+  fetch(FB_URL+ROOT+'/config.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({interventionLabels:labels, interventionThresholds:thresholds})})
+    .then(function(){
+      var statusEl = document.getElementById('intervention-cfg-save-status');
+      if(statusEl){
+        statusEl.textContent = '저장됨 ✓';
+        setTimeout(function(){ if(statusEl) statusEl.textContent=''; }, 1500);
+      }
+    });
+  renderInterventionRoutine(Object.keys(people));
 }
 function saveMessageTemplates(){
   appConfig.messageTemplates.surveyLink = document.getElementById('cfg-tmpl-surveyLink').value;

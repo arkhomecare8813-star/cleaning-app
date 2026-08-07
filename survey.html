@@ -52,7 +52,7 @@ textarea{min-height:70px;resize:vertical;}
   </div>
   <div id="done" class="done-state" style="display:none;">
     <h2>✅ 제출이 완료됐어요</h2>
-    <p>소중한 시간 내주셔서 감사합니다.</p>
+    <p id="done-msg">소중한 시간 내주셔서 감사합니다.</p>
   </div>
   <div id="not-found" class="empty-state" style="display:none;">
     <p>유효하지 않은 링크예요. 담당자에게 다시 문의해주세요.</p>
@@ -73,15 +73,17 @@ var personName = '';
 
 function init(){
   if(!empId){ showNotFound(); return; }
+  var isTest = empId === 'test';
   Promise.all([
-    fetch(FB_URL+ROOT+'/people/'+empId+'.json').then(function(r){return r.json();}),
+    isTest ? Promise.resolve({name:'테스트'}) : fetch(FB_URL+ROOT+'/people/'+empId+'.json').then(function(r){return r.json();}),
     fetch(FB_URL+ROOT+'/surveyTemplate.json').then(function(r){return r.json();})
   ]).then(function(res){
     var person = res[0];
     template = res[1];
     if(!person || !template){ showNotFound(); return; }
     personName = person.name || '';
-    document.getElementById('greeting').textContent = personName + '님, 아래 항목을 편하게 작성해주세요.';
+    document.getElementById('greeting').textContent = personName + '님, 아래 항목을 편하게 작성해주세요.'
+      + (isTest ? ' (🧪 테스트 모드 — 제출해도 실제 담당자 명단·통계에는 반영되지 않아요)' : '');
     renderForm(template);
     document.getElementById('loading').style.display='none';
     document.getElementById('content').style.display='block';
@@ -181,6 +183,10 @@ function submitSurvey(){
   }
   Promise.all(savePromises).then(function(results){
     if(!results[0].ok) throw new Error('저장 실패');
+    var doneMsg = document.getElementById('done-msg');
+    if(doneMsg) doneMsg.textContent = (empId==='test')
+      ? '🧪 테스트 제출이에요. 구성·문항이 잘 나오는지 확인용이니 실제 담당자 명단에는 영향 없어요.'
+      : '소중한 시간 내주셔서 감사합니다.';
     document.getElementById('content').style.display='none';
     document.getElementById('done').style.display='block';
   }).catch(function(e){
