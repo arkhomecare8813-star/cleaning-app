@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>현장 고객 포털</title>
+<style>
+  :root {
+    --bg:#f0f4f8;--card:#ffffff;--primary:#2563eb;--primary-light:#eff6ff;
+    --primary-dark:#1d4ed8;--accent:#0ea5e9;--success:#10b981;--warning:#f59e0b;
+    --danger:#ef4444;--text:#0f172a;--text-sub:#64748b;--text-muted:#94a3b8;
+    --border:#e2e8f0;--radius:14px;
+    --shadow:0 2px 16px rgba(0,0,0,0.07);--shadow-lg:0 8px 32px rgba(0,0,0,0.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;-webkit-font-smoothing:antialiased;}
+
+  /* ── 로그인 ── */
+  #loginScreen{min-height:100dvh;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#1e3a8a 0%,#2563eb 50%,#0ea5e9 100%);padding:24px;}
+  .login-card{background:white;border-radius:24px;padding:40px 36px;width:100%;max-width:380px;box-shadow:var(--shadow-lg);text-align:center;}
+  .login-logo{width:64px;height:64px;background:var(--primary-light);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 20px;}
+  .login-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+  .login-subtitle{font-size:14px;color:var(--text-sub);margin-bottom:28px;line-height:1.5;}
+  .login-site-name{background:var(--primary-light);border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:600;color:var(--primary);margin-bottom:20px;}
+  .input-wrap{position:relative;margin-bottom:14px;}
+  .input-wrap input{width:100%;padding:14px 44px 14px 16px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;outline:none;transition:border-color .2s;background:#fafafa;font-family:inherit;}
+  .input-wrap input:focus{border-color:var(--primary);background:white;}
+  .eye-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted);padding:4px;}
+  .btn-primary{width:100%;padding:14px;background:var(--primary);color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s;}
+  .btn-primary:active{background:var(--primary-dark);}
+  .login-error{margin-top:12px;font-size:13px;color:var(--danger);min-height:18px;}
+  .login-hint{margin-top:16px;font-size:12px;color:var(--text-muted);}
+
+  /* ── 앱 ── */
+  #app{display:none;min-height:100dvh;padding-bottom:80px;}
+  .app-header{background:white;border-bottom:1px solid var(--border);padding:16px 20px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;}
+  .header-left{display:flex;align-items:center;gap:10px;}
+  .header-site{font-size:16px;font-weight:700;}
+  .header-company{font-size:12px;color:var(--text-sub);}
+  .header-right{display:flex;gap:8px;}
+  .icon-btn{width:36px;height:36px;background:var(--bg);border:none;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:background .15s;}
+  .icon-btn:hover{background:var(--border);}
+
+  /* VOC 뱃지 */
+  .voc-badge-btn{position:relative;}
+  .voc-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--danger);border-radius:50%;display:none;}
+  .voc-dot.on{display:block;}
+
+  /* 탭바 */
+  .tab-bar{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+  .tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;cursor:pointer;color:var(--text-muted);border:none;background:none;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+  .tab-item.active{color:var(--primary);}
+  .tab-icon{font-size:20px;margin-bottom:2px;}
+  .tab-label{font-size:10px;font-weight:500;}
+  .tab-content{display:none;padding:16px;}
+  .tab-content.active{display:block;}
+
+  /* 카드 */
+  .card{background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .card-title{font-size:13px;font-weight:600;color:var(--text-sub);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+
+  /* KPI */
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  .kpi-card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:4px;}
+  .kpi-label{font-size:12px;color:var(--text-sub);font-weight:500;}
+  .kpi-value{font-size:26px;font-weight:700;line-height:1;}
+  .kpi-value span{font-size:13px;font-weight:500;color:var(--text-muted);}
+  .kpi-icon{font-size:22px;margin-bottom:4px;}
+  .status-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;}
+  .badge-green{background:#d1fae5;color:#065f46;}
+  .badge-gray{background:#f1f5f9;color:#475569;}
+  .day-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .day-chip{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;background:var(--border);color:var(--text-sub);}
+  .day-chip.active{background:var(--primary);color:white;}
+
+  /* 캘린더 */
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .cal-nav-btn{width:36px;height:36px;border:1.5px solid var(--border);border-radius:10px;background:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+  .cal-month{font-size:16px;font-weight:700;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+  .cal-header{text-align:center;font-size:11px;font-weight:600;color:var(--text-sub);padding:6px 0;}
+  .cal-header:first-child{color:#ef4444;}
+  .cal-header:last-child{color:#3b82f6;}
+  .cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;font-size:13px;cursor:default;position:relative;gap:2px;}
+  .cal-day.clean-day{background:#dbeafe;font-weight:700;color:var(--primary);}
+  .cal-day.clean-done{background:var(--primary);color:white;font-weight:700;cursor:pointer;}
+  .cal-day.clean-done:hover{background:var(--primary-dark);}
+  .cal-day.today{outline:2px solid var(--accent);outline-offset:-2px;}
+  .cal-day.selected{outline:2px solid var(--warning);outline-offset:-2px;}
+  .cal-legend{display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-sub);}
+  .legend-dot{width:12px;height:12px;border-radius:4px;}
+
+  /* 날짜별 사진 패널 */
+  .photo-panel{margin-top:14px;background:var(--bg);border-radius:12px;overflow:hidden;transition:all .3s;}
+  .photo-panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--primary-light);border-bottom:1px solid #bfdbfe;}
+  .photo-panel-title{font-size:13px;font-weight:700;color:var(--primary);}
+  .photo-panel-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-sub);padding:2px 6px;}
+  .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;}
+  .photo-thumb{aspect-ratio:1;overflow:hidden;border-radius:6px;cursor:pointer;position:relative;background:#e2e8f0;}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .2s;}
+  .photo-thumb:hover img{transform:scale(1.05);}
+  .photo-thumb-err{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text-muted);}
+  .photo-panel-empty{padding:24px;text-align:center;font-size:13px;color:var(--text-muted);}
+
+  /* 사진 전체화면 뷰어 */
+  #photoViewer{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:900;display:none;flex-direction:column;align-items:center;justify-content:center;}
+  #photoViewer.open{display:flex;}
+  .viewer-img{max-width:100%;max-height:80dvh;object-fit:contain;border-radius:8px;}
+  .viewer-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;}
+  .viewer-close{background:rgba(255,255,255,0.15);border:none;color:white;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .viewer-name{color:white;font-size:13px;opacity:.7;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .viewer-nav{position:absolute;bottom:20px;display:flex;gap:12px;}
+  .viewer-nav-btn{background:rgba(255,255,255,0.15);border:none;color:white;font-size:18px;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .viewer-counter{color:white;font-size:13px;opacity:.7;align-self:center;}
+
+  /* 현장보고 탭 */
+  .report-month-btn{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg);border-radius:10px;border:none;cursor:pointer;width:100%;font-size:14px;font-weight:600;color:var(--text);font-family:inherit;margin-bottom:8px;}
+  .report-item{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);}
+  .report-item:last-child{border-bottom:none;}
+  .report-date-badge{min-width:46px;background:var(--primary-light);color:var(--primary);border-radius:8px;padding:6px 8px;text-align:center;font-size:11px;font-weight:700;line-height:1.3;}
+  .report-info{flex:1;}
+  .report-info-title{font-size:13px;font-weight:600;}
+  .report-info-sub{font-size:12px;color:var(--text-sub);margin-top:2px;}
+  .report-actions{display:flex;gap:6px;}
+  .report-link{display:flex;align-items:center;gap:4px;padding:8px 12px;background:var(--primary);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;border:none;cursor:pointer;font-family:inherit;}
+  .report-link.outline{background:none;border:1.5px solid var(--primary);color:var(--primary);}
+
+  /* 사진 인라인 그리드 (보고 탭) */
+  .inline-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:10px;}
+  .inline-thumb{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:pointer;background:#e2e8f0;}
+  .inline-thumb img{width:100%;height:100%;object-fit:cover;}
+
+  /* VOC */
+  .voc-btn{width:100%;padding:14px;background:linear-gradient(135deg,#f59e0b,#ef4444);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .voc-item{border-left:3px solid var(--warning);padding:12px 14px;background:#fffbeb;border-radius:0 10px 10px 0;margin-bottom:10px;}
+  .voc-item-date{font-size:11px;color:var(--text-muted);margin-bottom:4px;}
+  .voc-item-memo{font-size:14px;line-height:1.5;}
+  .voc-item-status{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;}
+  .voc-status-new{background:#fee2e2;color:#991b1b;}
+  .voc-status-done{background:#d1fae5;color:#065f46;}
+  .voc-photo-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+  .voc-photo-thumb{width:60px;height:60px;border-radius:8px;overflow:hidden;cursor:pointer;}
+  .voc-photo-thumb img{width:100%;height:100%;object-fit:cover;}
+
+  /* VOC 모달 */
+  #vocModal{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:600;display:none;align-items:flex-end;justify-content:center;}
+  #vocModal.open{display:flex;}
+  .voc-sheet{background:white;border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:600px;max-height:90dvh;overflow-y:auto;}
+  .voc-sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;}
+  .voc-sheet-title{font-size:17px;font-weight:700;margin-bottom:16px;}
+  .voc-textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;resize:none;outline:none;min-height:100px;}
+  .voc-textarea:focus{border-color:var(--warning);}
+  .voc-photo-upload{margin:12px 0;}
+  .voc-photo-label{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:2px dashed var(--border);border-radius:10px;cursor:pointer;font-size:14px;color:var(--text-sub);font-weight:600;transition:border-color .2s;}
+  .voc-photo-label:hover{border-color:var(--warning);}
+  .voc-preview-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .voc-preview-item{position:relative;width:70px;height:70px;border-radius:8px;overflow:hidden;}
+  .voc-preview-item img{width:100%;height:100%;object-fit:cover;}
+  .voc-preview-del{position:absolute;top:2px;right:2px;width:18px;height:18px;background:rgba(0,0,0,0.6);color:white;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .voc-submit-btn{width:100%;padding:14px;background:var(--warning);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:14px;}
+  .voc-submit-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  /* 청구 */
+  .billing-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+  .billing-row:last-child{border-bottom:none;}
+  .billing-month{font-size:14px;font-weight:600;}
+  .billing-amount{font-size:15px;font-weight:700;color:var(--primary);}
+  .billing-total{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:14px 16px;background:var(--primary-light);border-radius:10px;}
+  .billing-total-label{font-size:13px;font-weight:600;color:var(--primary);}
+  .billing-total-value{font-size:18px;font-weight:800;color:var(--primary);}
+
+  /* 설정 */
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-label{font-size:14px;font-weight:500;}
+  .settings-value{font-size:13px;color:var(--text-sub);}
+  .settings-btn{padding:8px 16px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+
+  /* 체크리스트 */
+  .check-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .check-item:last-child{border-bottom:none;}
+  .check-icon{font-size:18px;margin-top:1px;flex-shrink:0;}
+  .check-text{font-size:14px;line-height:1.5;flex:1;}
+  .check-status-chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;flex-shrink:0;}
+  .chip-ok{background:#d1fae5;color:#065f46;}
+  .chip-no{background:#fee2e2;color:#991b1b;}
+
+  /* 모달 공통 */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:500;padding:24px;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:360px;box-shadow:var(--shadow-lg);}
+  .modal-title{font-size:17px;font-weight:700;margin-bottom:18px;}
+  .modal-box input{width:100%;padding:12px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;outline:none;margin-bottom:10px;}
+  .modal-box input:focus{border-color:var(--primary);}
+  .modal-actions{display:flex;gap:10px;margin-top:6px;}
+  .btn-cancel{flex:1;padding:12px;border:1.5px solid var(--border);border-radius:10px;background:none;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;}
+  .btn-confirm{flex:1;padding:12px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .modal-error{font-size:12px;color:var(--danger);min-height:16px;margin-bottom:6px;}
+
+  /* 스피너/로딩 */
+  .spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:30px auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-state{text-align:center;padding:30px 0;}
+  .loading-state p{font-size:13px;color:var(--text-muted);margin-top:8px;}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--text-muted);}
+  .empty-state .empty-icon{font-size:40px;margin-bottom:10px;}
+  .empty-state p{font-size:14px;}
+
+  /* 토스트 */
+  #toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0f172a;color:white;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:opacity .25s;z-index:999;pointer-events:none;white-space:nowrap;}
+  #toast.show{opacity:1;}
+
+  @media(min-width:480px){
+    .kpi-grid{grid-template-columns:repeat(4,1fr);}
+    #loginScreen .login-card{padding:48px 44px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🧹</div>
+    <div class="login-title">현장 고객 포털</div>
+    <div class="login-subtitle">현장 청소 서비스 현황을<br>언제 어디서나 확인하세요.</div>
+    <div id="loginSiteName" class="login-site-name" style="display:none"></div>
+    <div id="loginLoading" class="loading-state"><div class="spinner"></div><p>현장 정보 불러오는 중...</p></div>
+    <div id="loginForm" style="display:none">
+      <div class="input-wrap">
+        <input type="password" id="pwInput" placeholder="비밀번호를 입력하세요" maxlength="20" autocomplete="current-password">
+        <button class="eye-btn" onclick="togglePw()" type="button">👁</button>
+      </div>
+      <button class="btn-primary" onclick="doLogin()">로그인</button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-hint">초기 비밀번호: 사업자번호 또는 주민번호 뒷 4자리</div>
+    </div>
+    <div id="loginNotFound" style="display:none;color:#ef4444;font-size:14px;margin-top:8px;">현장을 찾을 수 없습니다. URL을 확인해 주세요.</div>
+  </div>
+</div>
+
+<!-- 메인 앱 -->
+<div id="app">
+  <header class="app-header">
+    <div class="header-left">
+      <div style="font-size:22px">🧹</div>
+      <div>
+        <div class="header-site" id="headerSite">—</div>
+        <div class="header-company" id="headerCompany">—</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn voc-badge-btn" onclick="openTab('voc')" title="VOC 내역">
+        📋<div class="voc-dot" id="vocDot"></div>
+      </button>
+      <button class="icon-btn" onclick="openTab('settings')">⚙️</button>
+    </div>
+  </header>
+
+  <div id="tab-dashboard" class="tab-content active"><div id="dashboardContent"></div></div>
+  <div id="tab-calendar"  class="tab-content"><div id="calendarContent"></div></div>
+  <div id="tab-report"    class="tab-content"><div id="reportContent"></div></div>
+  <div id="tab-checklist" class="tab-content"><div id="checklistContent"></div></div>
+  <div id="tab-billing"   class="tab-content"><div id="billingContent"></div></div>
+  <div id="tab-voc"       class="tab-content"><div id="vocContent"></div></div>
+  <div id="tab-settings"  class="tab-content"><div id="settingsContent"></div></div>
+
+  <nav class="tab-bar">
+    <button class="tab-item active" onclick="openTab('dashboard')" id="tabBtn-dashboard"><span class="tab-icon">📊</span><span class="tab-label">대시보드</span></button>
+    <button class="tab-item" onclick="openTab('calendar')"  id="tabBtn-calendar"><span class="tab-icon">📅</span><span class="tab-label">일정</span></button>
+    <button class="tab-item" onclick="openTab('report')"    id="tabBtn-report"><span class="tab-icon">📷</span><span class="tab-label">보고</span></button>
+    <button class="tab-item" onclick="openTab('checklist')" id="tabBtn-checklist"><span class="tab-icon">✅</span><span class="tab-label">체크</span></button>
+    <button class="tab-item" onclick="openTab('billing')"   id="tabBtn-billing"><span class="tab-icon">💰</span><span class="tab-label">청구</span></button>
+  </nav>
+</div>
+
+<!-- 사진 전체화면 뷰어 -->
+<div id="photoViewer">
+  <div class="viewer-top">
+    <button class="viewer-close" onclick="closeViewer()">✕</button>
+    <div class="viewer-name" id="viewerName"></div>
+  </div>
+  <img class="viewer-img" id="viewerImg" src="" alt="">
+  <div class="viewer-nav">
+    <button class="viewer-nav-btn" onclick="viewerNav(-1)">◀</button>
+    <div class="viewer-counter" id="viewerCounter"></div>
+    <button class="viewer-nav-btn" onclick="viewerNav(1)">▶</button>
+  </div>
+</div>
+
+<!-- VOC 작성 모달 -->
+<div id="vocModal">
+  <div class="voc-sheet">
+    <div class="voc-sheet-handle"></div>
+    <div class="voc-sheet-title">📢 불편사항 / 요청사항</div>
+    <textarea class="voc-textarea" id="vocMemo" placeholder="청소 미흡 부분이나 요청사항을 자세히 적어주세요." rows="4"></textarea>
+    <div class="voc-photo-upload">
+      <label class="voc-photo-label" for="vocFileInput">📷 사진 첨부 (선택)</label>
+      <input type="file" id="vocFileInput" accept="image/*" multiple style="display:none" onchange="vocPreviewPhotos()">
+      <div class="voc-preview-row" id="vocPreviewRow"></div>
+    </div>
+    <div class="modal-error" id="vocError"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-cancel" onclick="closeVocModal()">취소</button>
+      <button class="voc-submit-btn" id="vocSubmitBtn" onclick="submitVoc()" style="margin-top:0;flex:1">📤 제출하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 변경 모달 -->
+<div class="modal-overlay" id="pwModal">
+  <div class="modal-box">
+    <div class="modal-title">🔑 비밀번호 변경</div>
+    <input type="password" id="pwCurrent" placeholder="현재 비밀번호" maxlength="20">
+    <input type="password" id="pwNew" placeholder="새 비밀번호 (4~20자)" maxlength="20">
+    <input type="password" id="pwNewConfirm" placeholder="새 비밀번호 확인" maxlength="20">
+    <div class="modal-error" id="pwModalError"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closePwModal()">취소</button>
+      <button class="btn-confirm" onclick="changePw()">변경</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const FB_URL  = 'https://cleaning-498705-default-rtdb.asia-southeast1.firebasedatabase.app';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxCmXc0Ad4prYecIhThnfiH6FqybBVi78GTsU23EfXJC_wJUiGifI2QLzCdS1IlWs_z/exec';
+
+let siteId = null, siteData = null;
+let allPhotoFiles = {}, allChecklists = {}, allSettlements = {}, allVoc = {};
+let currentCalMonth = new Date();
+let activeTab = 'dashboard';
+let selectedCalDate = null;
+let viewerPhotos = [], viewerIdx = 0;
+let vocFiles = [];
+
+const $ = id => document.getElementById(id);
+const fbGet = async p => { try { const r = await fetch(`${FB_URL}${p}.json`); return r.ok ? r.json() : null; } catch{ return null; } };
+const fbPatch = async (p,d) => { try { await fetch(`${FB_URL}${p}.json`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}); } catch{} };
+const fbPut   = async (p,d) => { try { await fetch(`${FB_URL}${p}.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}); } catch{} };
+
+function showToast(msg,dur=2200){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+function fmtMoney(n){if(!n)return '0원';return Number(n).toLocaleString('ko-KR')+'원';}
+
+function getCleanDays(site){
+  const map={'일':0,'월':1,'화':2,'수':3,'목':4,'금':5,'토':6};
+  const days=[];
+  if(!site.days) return days;
+  if(typeof site.days==='string') site.days.split(',').forEach(d=>{const v=map[d.trim()];if(v!==undefined)days.push(v);});
+  else if(Array.isArray(site.days)) site.days.forEach(d=>{const v=map[d];if(v!==undefined)days.push(v);});
+  return days;
+}
+function getDefaultPw(site){
+  const biz=(site.bizNo||site.biznum||site.businessNo||'').replace(/[^0-9]/g,'');
+  return biz.length>=4?biz.slice(-4):'0000';
+}
+function getSiteIdFromUrl(){const p=new URLSearchParams(location.search);return p.get('site')||p.get('siteId')||null;}
+
+// ── 초기화 ──
+async function init(){
+  siteId=getSiteIdFromUrl();
+  if(!siteId){$('loginLoading').style.display='none';$('loginNotFound').style.display='block';return;}
+  const sites=await fbGet('/data/sites');
+  if(!sites||!sites[siteId]){$('loginLoading').style.display='none';$('loginNotFound').style.display='block';return;}
+  siteData=sites[siteId];
+  $('loginLoading').style.display='none';
+  $('loginSiteName').style.display='block';
+  $('loginSiteName').textContent=`📍 ${siteData.company||''} · ${siteData.name||siteData.siteName||''}`;
+  $('loginForm').style.display='block';
+  $('pwInput').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+}
+function togglePw(){const i=$('pwInput');i.type=i.type==='password'?'text':'password';}
+
+async function doLogin(){
+  const pw=$('pwInput').value.trim();
+  if(!pw){$('loginError').textContent='비밀번호를 입력하세요.';return;}
+  const stored=siteData.clientPassword||getDefaultPw(siteData);
+  if(pw!==stored){$('loginError').textContent='비밀번호가 맞지 않습니다.';$('pwInput').value='';return;}
+  await loadAllData();
+  $('loginScreen').style.display='none';
+  $('app').style.display='block';
+  renderAll();
+}
+
+async function loadAllData(){
+  const [pf,cl,ss,vc]=await Promise.all([
+    fbGet('/data/photoFiles'),
+    fbGet('/data/checklist'),
+    fbGet('/data/settleSnapshots'),
+    fbGet(`/data/voc/${siteId}`)
+  ]);
+  allPhotoFiles=pf||{};
+  allChecklists=cl||{};
+  allSettlements=ss||{};
+  allVoc=vc||{};
+  $('headerSite').textContent=siteData.name||siteData.siteName||'현장';
+  $('headerCompany').textContent=siteData.company||'';
+  updateVocBadge();
+}
+
+function updateVocBadge(){
+  const hasNew=Object.values(allVoc).some(v=>v&&v.status==='new');
+  $('vocDot').classList.toggle('on',hasNew);
+}
+
+// ── 탭 ──
+function openTab(name){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(el=>el.classList.remove('active'));
+  $(`tab-${name}`).classList.add('active');
+  const btn=$(`tabBtn-${name}`);
+  if(btn) btn.classList.add('active');
+  activeTab=name;
+  if(name==='settings') renderSettings();
+  if(name==='voc') renderVocList();
+}
+
+function renderAll(){
+  renderDashboard();
+  renderCalendar();
+  renderReport();
+  renderChecklist();
+  renderBilling();
+}
+
+// ── 대시보드 ──
+function renderDashboard(){
+  const now=new Date(),year=now.getFullYear(),month=now.getMonth();
+  const ym=`${year}-${String(month+1).padStart(2,'0')}`;
+  const cleanDays=getCleanDays(siteData);
+  let scheduled=0;
+  const dim=new Date(year,month+1,0).getDate();
+  for(let d=1;d<=dim;d++) if(cleanDays.includes(new Date(year,month,d).getDay())) scheduled++;
+  let reported=0;
+  Object.keys(allPhotoFiles).forEach(date=>{if(date.startsWith(ym)&&allPhotoFiles[date][siteId])reported++;});
+  const rate=scheduled>0?Math.round(reported/scheduled*100):0;
+  const dayLabels=['일','월','화','수','목','금','토'];
+  const chips=dayLabels.map((d,i)=>`<div class="day-chip ${cleanDays.includes(i)?'active':''}">${d}</div>`).join('');
+  const startDate=siteData.startDate||siteData.serviceStart||'';
+  $('dashboardContent').innerHTML=`
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-icon">🧹</div><div class="kpi-label">이번달 예정</div><div class="kpi-value">${scheduled}<span>회</span></div></div>
+      <div class="kpi-card"><div class="kpi-icon">📷</div><div class="kpi-label">사진 보고</div><div class="kpi-value">${reported}<span>회</span></div></div>
+      <div class="kpi-card"><div class="kpi-icon">📈</div><div class="kpi-label">보고율</div><div class="kpi-value">${rate}<span>%</span></div></div>
+      <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">월 청구금액</div><div class="kpi-value" style="font-size:16px">${fmtMoney(siteData.price||siteData.priceMain)}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏢 현장 정보</div>
+      <div class="settings-row"><div class="settings-label">현장명</div><div class="settings-value">${siteData.name||siteData.siteName||'—'}</div></div>
+      <div class="settings-row"><div class="settings-label">업체명</div><div class="settings-value">${siteData.company||'—'}</div></div>
+      <div class="settings-row"><div class="settings-label">주소</div><div class="settings-value">${[siteData.sido,siteData.sigun,siteData.address].filter(Boolean).join(' ')||'—'}</div></div>
+      <div class="settings-row"><div class="settings-label">서비스 시작일</div><div class="settings-value">${startDate||'—'}</div></div>
+      <div class="settings-row"><div class="settings-label">상태</div><div class="settings-value">${siteData.status==='active'?'<span class="status-badge badge-green">🟢 운영중</span>':'<span class="status-badge badge-gray">보류</span>'}</div></div>
+    </div>
+    <div class="card"><div class="card-title">📅 청소 요일</div><div class="day-chips">${chips}</div></div>
+    <button class="voc-btn" onclick="openVocModal()">📢 불편사항 / 요청 접수</button>`;
+}
+
+// ── 캘린더 ──
+function renderCalendar(){
+  const year=currentCalMonth.getFullYear(),month=currentCalMonth.getMonth();
+  const cleanDays=getCleanDays(siteData);
+  const today=new Date();
+  const ym=`${year}-${String(month+1).padStart(2,'0')}`;
+  const reportedDates=new Set();
+  Object.keys(allPhotoFiles).forEach(date=>{if(date.startsWith(ym)&&allPhotoFiles[date][siteId])reportedDates.add(date);});
+  const firstDay=new Date(year,month,1).getDay();
+  const dim=new Date(year,month+1,0).getDate();
+  const headers=['일','월','화','수','목','금','토'].map(d=>`<div class="cal-header">${d}</div>`).join('');
+  let cells='';
+  for(let i=0;i<firstDay;i++) cells+=`<div class="cal-day"></div>`;
+  for(let d=1;d<=dim;d++){
+    const dow=new Date(year,month,d).getDay();
+    const dateStr=`${ym}-${String(d).padStart(2,'0')}`;
+    const isDone=reportedDates.has(dateStr);
+    const isClean=cleanDays.includes(dow);
+    const isToday=today.getFullYear()===year&&today.getMonth()===month&&today.getDate()===d;
+    const isSel=selectedCalDate===dateStr;
+    let cls='cal-day';
+    if(isDone) cls+=' clean-done';
+    else if(isClean) cls+=' clean-day';
+    if(isToday) cls+=' today';
+    if(isSel) cls+=' selected';
+    const onclick=isDone?`onclick="calDayClick('${dateStr}')"` :'';
+    cells+=`<div class="${cls}" ${onclick}>${d}</div>`;
+  }
+  $('calendarContent').innerHTML=`
+    <div class="card">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="shiftMonth(-1)">◀</button>
+        <div class="cal-month">${year}년 ${month+1}월</div>
+        <button class="cal-nav-btn" onclick="shiftMonth(1)">▶</button>
+      </div>
+      <div class="cal-grid">${headers}${cells}</div>
+      <div class="cal-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--primary)"></div>보고완료 (클릭하면 사진 보기)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#dbeafe"></div>청소예정</div>
+      </div>
+    </div>
+    <div id="calPhotoPanel"></div>`;
+  if(selectedCalDate&&reportedDates.has(selectedCalDate)) renderCalPhotoPanel(selectedCalDate);
+}
+function shiftMonth(dir){currentCalMonth.setMonth(currentCalMonth.getMonth()+dir);renderCalendar();}
+
+function calDayClick(dateStr){
+  if(selectedCalDate===dateStr){selectedCalDate=null;renderCalendar();return;}
+  selectedCalDate=dateStr;
+  renderCalendar();
+}
+
+function renderCalPhotoPanel(dateStr){
+  const data=allPhotoFiles[dateStr]&&allPhotoFiles[dateStr][siteId];
+  const files=(data&&data.files)||[];
+  const [,, dd]=dateStr.split('-');
+  const dow=['일','월','화','수','목','금','토'][new Date(dateStr).getDay()];
+  let thumbs='';
+  if(files.length===0){
+    thumbs=`<div class="photo-panel-empty">사진 정보를 불러올 수 없습니다.<br><a href="${(data&&data.folderLink)||'#'}" target="_blank" style="color:var(--primary);font-weight:600;">📂 Drive 폴더 열기</a></div>`;
+  } else {
+    thumbs=`<div class="photo-grid">${files.map((f,i)=>`
+      <div class="photo-thumb" onclick="openViewer(${JSON.stringify(files).replace(/"/g,'&quot;')},${i})">
+        <img src="${f.url.replace('/view','').replace('file/d/','file/d/').replace('https://drive.google.com/file/d/','https://drive.google.com/thumbnail?id=').replace('/view','&sz=w300')}"
+             onerror="this.parentElement.innerHTML='<div class=\\'photo-thumb-err\\'>📷</div>'" alt="${f.name||'사진'}">
+      </div>`).join('')}</div>
+      <div style="padding:10px 10px 6px;display:flex;justify-content:flex-end;">
+        <a href="${(data&&data.folderLink)||'#'}" target="_blank" style="font-size:12px;color:var(--primary);font-weight:600;text-decoration:none;">📂 Drive에서 전체보기</a>
+      </div>`;
+  }
+  $('calPhotoPanel').innerHTML=`
+    <div class="photo-panel">
+      <div class="photo-panel-header">
+        <div class="photo-panel-title">📷 ${Number(dd)}일 (${dow}) · ${files.length>0?files.length+'장':'사진'}</div>
+        <button class="photo-panel-close" onclick="selectedCalDate=null;renderCalendar()">✕</button>
+      </div>
+      ${thumbs}
+    </div>`;
+}
+
+// ── 사진 뷰어 ──
+function openViewer(files, idx){
+  viewerPhotos=files; viewerIdx=idx;
+  updateViewer();
+  $('photoViewer').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeViewer(){$('photoViewer').classList.remove('open');document.body.style.overflow='';}
+function viewerNav(dir){
+  viewerIdx=(viewerIdx+dir+viewerPhotos.length)%viewerPhotos.length;
+  updateViewer();
+}
+function updateViewer(){
+  const f=viewerPhotos[viewerIdx];
+  // Drive 썸네일 → 원본으로 전환
+  const origUrl=f.url;
+  $('viewerImg').src=origUrl;
+  $('viewerName').textContent=f.name||'사진';
+  $('viewerCounter').textContent=`${viewerIdx+1} / ${viewerPhotos.length}`;
+}
+// 키보드 탐색
+document.addEventListener('keydown',e=>{
+  if(!$('photoViewer').classList.contains('open')) return;
+  if(e.key==='Escape') closeViewer();
+  if(e.key==='ArrowRight') viewerNav(1);
+  if(e.key==='ArrowLeft')  viewerNav(-1);
+});
+
+// ── 현장보고 탭 ──
+function renderReport(){
+  const dateMap={};
+  Object.keys(allPhotoFiles).forEach(date=>{
+    if(allPhotoFiles[date][siteId]){
+      const ym=date.substring(0,7);
+      if(!dateMap[ym]) dateMap[ym]=[];
+      dateMap[ym].push({date,data:allPhotoFiles[date][siteId]});
+    }
+  });
+  const months=Object.keys(dateMap).sort().reverse();
+  if(months.length===0){
+    $('reportContent').innerHTML=`<div class="card"><div class="empty-state"><div class="empty-icon">📷</div><p>아직 업로드된 현장보고가 없습니다.</p></div></div>`;
+    return;
+  }
+  let html='';
+  months.forEach((ym,idx)=>{
+    const [y,m]=ym.split('-');
+    const items=dateMap[ym].sort((a,b)=>b.date.localeCompare(a.date));
+    const isOpen=idx===0;
+    const itemsHtml=items.map(({date,data})=>{
+      const [,,dd]=date.split('-');
+      const dow=['일','월','화','수','목','금','토'][new Date(date).getDay()];
+      const files=(data&&data.files)||[];
+      const cnt=files.length||(data&&data.count)||0;
+      const folderLink=data&&data.folderLink;
+      // 인라인 썸네일 (최대 6장)
+      const thumbsHtml=files.length>0?`<div class="inline-photo-grid">${files.slice(0,6).map((f,i)=>`
+        <div class="inline-thumb" onclick="openViewer(${JSON.stringify(files).replace(/"/g,'&quot;')},${i})">
+          <img src="${f.url.replace('https://drive.google.com/file/d/','https://drive.google.com/thumbnail?id=').replace('/view','&sz=w300')}"
+               onerror="this.style.background='#e2e8f0'" alt="">
+        </div>`).join('')}${files.length>6?`<div class="inline-thumb" style="display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text-sub);background:#f1f5f9">+${files.length-6}</div>`:''}
+      </div>`:'';
+      return `<div class="report-item" style="flex-direction:column;align-items:flex-start;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;width:100%">
+          <div class="report-date-badge">${Number(dd)}일<br>${dow}</div>
+          <div class="report-info"><div class="report-info-title">현장 청소 완료</div><div class="report-info-sub">${cnt?`사진 ${cnt}장`:'업로드됨'}</div></div>
+          <div class="report-actions">
+            ${files.length>0?`<button class="report-link outline" onclick="openViewer(${JSON.stringify(files).replace(/"/g,'&quot;')},0)">🖼 보기</button>`:''}
+            ${folderLink?`<a href="${folderLink}" target="_blank" class="report-link">📂</a>`:''}
+          </div>
+        </div>
+        ${thumbsHtml}
+      </div>`;
+    }).join('');
+    html+=`<div class="card" style="margin-bottom:12px">
+      <button class="report-month-btn" onclick="toggleSection(this)">
+        <span>${y}년 ${Number(m)}월 — ${items.length}건</span><span>${isOpen?'▲':'▼'}</span>
+      </button>
+      <div style="display:${isOpen?'block':'none'}">${itemsHtml}</div>
+    </div>`;
+  });
+  $('reportContent').innerHTML=html;
+}
+function toggleSection(btn){
+  const el=btn.nextElementSibling;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  btn.querySelector('span:last-child').textContent=open?'▼':'▲';
+}
+
+// ── 체크리스트 ──
+function renderChecklist(){
+  // /data/checklist/{siteId} 구조
+  const data=allChecklists[siteId];
+  if(!data||!data.files||data.files.length===0){
+    $('checklistContent').innerHTML=`<div class="card"><div class="empty-state"><div class="empty-icon">✅</div><p>등록된 체크리스트가 없습니다.</p></div></div>`;
+    return;
+  }
+  const files=data.files;
+  const folderLink=data.folderLink||'';
+  const thumbs=files.map((f,i)=>`
+    <div class="photo-thumb" onclick="openViewer(${JSON.stringify(files).replace(/"/g,'&quot;')},${i})" style="border-radius:10px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#e2e8f0">
+      <img src="${f.url.replace('https://drive.google.com/file/d/','https://drive.google.com/thumbnail?id=').replace('/view','&sz=w300')}"
+           onerror="this.parentElement.innerHTML='<div class=\\'photo-thumb-err\\'>📋</div>'" alt="${f.name||'체크리스트'}">
+    </div>`).join('');
+  $('checklistContent').innerHTML=`
+    <div class="card">
+      <div class="card-title">📋 체크리스트 사진 (${files.length}장)</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">${thumbs}</div>
+      ${folderLink?`<div style="margin-top:12px;text-align:right"><a href="${folderLink}" target="_blank" style="font-size:13px;color:var(--primary);font-weight:600;text-decoration:none;">📂 전체 보기</a></div>`:''}
+    </div>`;
+}
+
+// ── 청구 ──
+function renderBilling(){
+  const rows=[];
+  Object.keys(allSettlements).sort().reverse().forEach(ymKey=>{
+    const snap=allSettlements[ymKey];
+    if(!snap||!snap.sites) return;
+    const found=snap.sites.find(s=>s.id===siteId||s.siteId===siteId);
+    if(found) rows.push({ym:ymKey,amount:found.price||found.amount||siteData.price||0});
+  });
+  if(rows.length===0){
+    const now=new Date();
+    for(let i=0;i<6;i++){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      rows.push({ym,amount:siteData.price||siteData.priceMain||0});
+    }
+  }
+  const total=rows.reduce((s,r)=>s+Number(r.amount),0);
+  const rowsHtml=rows.map(r=>{const[y,m]=r.ym.split('-');return`<div class="billing-row"><div class="billing-month">${y}년 ${Number(m)}월</div><div class="billing-amount">${fmtMoney(r.amount)}</div></div>`;}).join('');
+  $('billingContent').innerHTML=`
+    <div class="card">
+      <div class="card-title">💰 청구 내역</div>
+      ${rowsHtml}
+      <div class="billing-total"><div class="billing-total-label">합계 (${rows.length}개월)</div><div class="billing-total-value">${fmtMoney(total)}</div></div>
+    </div>
+    <div class="card" style="font-size:12px;color:var(--text-muted);line-height:1.7">※ 금액은 부가세 포함 원청 기준입니다.<br>※ 세금계산서 관련 문의는 담당자에게 연락해 주세요.</div>`;
+}
+
+// ── VOC ──
+function openVocModal(){
+  $('vocMemo').value='';
+  $('vocPreviewRow').innerHTML='';
+  $('vocError').textContent='';
+  vocFiles=[];
+  $('vocModal').classList.add('open');
+}
+function closeVocModal(){$('vocModal').classList.remove('open');}
+$('vocModal').addEventListener('click',e=>{if(e.target===$('vocModal'))closeVocModal();});
+
+function vocPreviewPhotos(){
+  const input=$('vocFileInput');
+  Array.from(input.files).forEach(file=>{
+    if(vocFiles.length>=5){showToast('사진은 최대 5장까지 첨부 가능합니다.');return;}
+    vocFiles.push(file);
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const idx=vocFiles.length-1;
+      $('vocPreviewRow').insertAdjacentHTML('beforeend',`
+        <div class="voc-preview-item" id="vocPrev${idx}">
+          <img src="${ev.target.result}" alt="">
+          <button class="voc-preview-del" onclick="removeVocFile(${idx})">✕</button>
+        </div>`);
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+function removeVocFile(idx){
+  vocFiles.splice(idx,1);
+  // 프리뷰 전체 재렌더
+  $('vocPreviewRow').innerHTML='';
+  vocFiles.forEach((file,i)=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      $('vocPreviewRow').insertAdjacentHTML('beforeend',`
+        <div class="voc-preview-item" id="vocPrev${i}">
+          <img src="${ev.target.result}" alt="">
+          <button class="voc-preview-del" onclick="removeVocFile(${i})">✕</button>
+        </div>`);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function submitVoc(){
+  const memo=$('vocMemo').value.trim();
+  if(!memo&&vocFiles.length===0){$('vocError').textContent='내용이나 사진 중 하나 이상 입력해 주세요.';return;}
+  const btn=$('vocSubmitBtn');
+  btn.disabled=true;btn.textContent='⏳ 제출 중...';
+  try{
+    const vocId='voc_'+Date.now();
+    const dateStr=new Date().toISOString().slice(0,10);
+    const uploadedUrls=[];
+    // 사진 GAS 업로드
+    for(const file of vocFiles){
+      const b64=await fileToBase64(file);
+      const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify({
+        type:'voc',
+        co:siteData.company||'고객VOC',
+        site:siteData.name||siteData.siteName||siteId,
+        date:dateStr,
+        siteId:siteId,
+        name:file.name||`voc_${Date.now()}.jpg`,
+        data:b64,mime:file.type||'image/jpeg'
+      })});
+      const d=await res.json();
+      if(d.ok) uploadedUrls.push({name:file.name,url:d.url});
+    }
+    // Firebase 저장
+    await fbPut(`/data/voc/${siteId}/${vocId}`,{
+      memo,
+      photos:uploadedUrls,
+      status:'new',
+      createdAt:new Date().toISOString(),
+      dateStr,
+      siteName:siteData.name||siteData.siteName||'',
+      company:siteData.company||''
+    });
+    allVoc[vocId]={memo,photos:uploadedUrls,status:'new',createdAt:new Date().toISOString(),dateStr};
+    updateVocBadge();
+    closeVocModal();
+    showToast('✅ 요청이 접수되었습니다. 담당자가 확인 후 연락드립니다.');
+  }catch(err){
+    $('vocError').textContent='제출 중 오류가 발생했습니다. 다시 시도해 주세요.';
+  }finally{
+    btn.disabled=false;btn.textContent='📤 제출하기';
+  }
+}
+
+function renderVocList(){
+  const entries=Object.entries(allVoc).sort((a,b)=>b[1].createdAt.localeCompare(a[1].createdAt));
+  if(entries.length===0){
+    $('vocContent').innerHTML=`
+      <button class="voc-btn" onclick="openVocModal()">📢 불편사항 / 요청 접수</button>
+      <div class="card"><div class="empty-state"><div class="empty-icon">📋</div><p>접수된 요청이 없습니다.</p></div></div>`;
+    return;
+  }
+  const listHtml=entries.map(([id,v])=>{
+    const photos=(v.photos||[]).map((p,i)=>`
+      <div class="voc-photo-thumb" onclick="openViewer(${JSON.stringify(v.photos||[]).replace(/"/g,'&quot;')},${i})">
+        <img src="${p.url.replace('https://drive.google.com/file/d/','https://drive.google.com/thumbnail?id=').replace('/view','&sz=w200')}"
+             onerror="this.style.display='none'" alt="">
+      </div>`).join('');
+    return `<div class="voc-item">
+      <div class="voc-item-date">${(v.dateStr||v.createdAt||'').slice(0,10)}</div>
+      <div class="voc-item-memo">${v.memo||'(메모 없음)'}</div>
+      ${photos?`<div class="voc-photo-row">${photos}</div>`:''}
+      <div class="voc-item-status ${v.status==='done'?'voc-status-done':'voc-status-new'}">${v.status==='done'?'✅ 처리완료':'🔴 접수중'}</div>
+    </div>`;
+  }).join('');
+  $('vocContent').innerHTML=`
+    <button class="voc-btn" onclick="openVocModal()">📢 새 요청 접수</button>
+    <div class="card"><div class="card-title">📋 접수 내역 (${entries.length}건)</div>${listHtml}</div>`;
+}
+
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=()=>rej(new Error('읽기 실패'));
+    r.readAsDataURL(file);
+  });
+}
+
+// ── 설정 ──
+function renderSettings(){
+  const defaultPw=getDefaultPw(siteData);
+  $('settingsContent').innerHTML=`
+    <div class="card">
+      <div class="card-title">⚙️ 계정 설정</div>
+      <div class="settings-row"><div class="settings-label">현장명</div><div class="settings-value">${siteData.name||siteData.siteName||'—'}</div></div>
+      <div class="settings-row"><div class="settings-label">비밀번호</div><button class="settings-btn" onclick="openPwModal()">🔑 변경</button></div>
+      <div class="settings-row"><div class="settings-label">초기 비밀번호</div><div class="settings-value">사업자번호 뒷 4자리 (${defaultPw})</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📌 이용 안내</div>
+      <div style="font-size:13px;color:var(--text-sub);line-height:1.9">
+        • <b>일정</b> 탭: 청소 완료일 클릭 → 사진 바로 확인<br>
+        • <b>보고</b> 탭: 월별 사진 보고 목록 + 썸네일<br>
+        • <b>불편사항/요청</b>: 사진+메모 접수 → 담당자 즉시 알림<br>
+        • 비밀번호 분실 시 관리자에게 초기화 요청
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:24px">
+      <button onclick="logout()" style="padding:10px 28px;border:1.5px solid #ef4444;color:#ef4444;border-radius:10px;background:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">로그아웃</button>
+    </div>`;
+}
+function logout(){if(!confirm('로그아웃 하시겠습니까?'))return;$('app').style.display='none';$('loginScreen').style.display='flex';$('pwInput').value='';$('loginError').textContent='';}
+
+// ── 비밀번호 변경 ──
+function openPwModal(){$('pwCurrent').value='';$('pwNew').value='';$('pwNewConfirm').value='';$('pwModalError').textContent='';$('pwModal').classList.add('open');}
+function closePwModal(){$('pwModal').classList.remove('open');}
+async function changePw(){
+  const cur=$('pwCurrent').value.trim(),nw=$('pwNew').value.trim(),nw2=$('pwNewConfirm').value.trim();
+  const stored=siteData.clientPassword||getDefaultPw(siteData);
+  if(cur!==stored){$('pwModalError').textContent='현재 비밀번호가 틀렸습니다.';return;}
+  if(nw.length<4){$('pwModalError').textContent='새 비밀번호는 4자 이상이어야 합니다.';return;}
+  if(nw!==nw2){$('pwModalError').textContent='새 비밀번호가 일치하지 않습니다.';return;}
+  await fbPatch(`/data/sites/${siteId}`,{clientPassword:nw});
+  siteData.clientPassword=nw;
+  closePwModal();
+  showToast('✅ 비밀번호가 변경되었습니다.');
+}
+$('pwModal').addEventListener('click',e=>{if(e.target===$('pwModal'))closePwModal();});
+
+init();
+</script>
+</body>
+</html>

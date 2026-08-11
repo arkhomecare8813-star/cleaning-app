@@ -41,6 +41,17 @@ var routines = JSON.parse(localStorage.getItem('cm-routines')||'[]');
 var rentTenants   = JSON.parse(localStorage.getItem('cm-rent-tenants')||'[]');
 var rentPayments  = JSON.parse(localStorage.getItem('cm-rent-payments')||'[]');
 var clientContacts = JSON.parse(localStorage.getItem('cm-client-contacts')||'[]'); // 거래처 담당자 자동완성
+
+// ── 외부링크(별도 앱) 크루 문자발송 — 기존 발송 기능과 완전 분리된 독립 기능 ──
+// 특정 현장(noReport 체크된 현장)은 우리 upload.html이 아닌 외부 앱으로 사진을 올리게 하고,
+// 비품 링크(upload.html)만 우리 쪽에서 계속 관리하기 위한 투트랙 발송용 설정.
+var extAppConfig = { appName:'', appLink:'', appId:'', appPw:'' };
+function saveExtAppConfig(cfg, cb){
+  extAppConfig = cfg;
+  fetch(FB_URL+'/data/extAppConfig.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)
+  }).then(function(){ if(cb)cb(); }).catch(function(){ if(cb)cb(); });
+}
 // 거래처 담당자 자동완성
 function saveClientContacts(){ localStorage.setItem('cm-client-contacts', JSON.stringify(clientContacts)); }
 function upsertClientContact(name, phone, email){
@@ -87,7 +98,7 @@ function hideClientMgrDropdown(ddId){
 
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
-function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}}callback();});
+function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}if(d.extAppConfig){extAppConfig=Object.assign({appName:'',appLink:'',appId:'',appPw:''},d.extAppConfig);}}callback();});
   // rent 데이터 별도 로드
   fetch(FB_URL+'/rent.json').then(function(r){return r.json();}).then(function(d){
     if(d){
@@ -5763,6 +5774,177 @@ function openSolapiModal(mode){
   }
 }
 
+// ══════════════════════════════════════════════════════════
+// 외부링크(별도 앱) 크루 전용 문자발송 — 기존 발송 로직과 완전 독립
+// (openSolapiModal / sendSolapiList / makeSmsBody 등 기존 함수는 절대 건드리지 않음)
+// ══════════════════════════════════════════════════════════
+function makeExtAppSmsBody(site, dateStr){
+  var supplyLink = makeUploadLink(site, dateStr); // 기존 함수 재사용(읽기 전용 참조)
+  var appName = extAppConfig.appName || '';
+  var lines = [];
+  lines.push((site.site||'')+'은(는) '+appName+'로 별도 사진 업로드 해주세요.');
+  lines.push('앱 다운로드 링크('+appName+'): {applink}');
+  lines.push('아이디: '+(extAppConfig.appId||''));
+  lines.push('비번: '+(extAppConfig.appPw||''));
+  lines.push('청소 시작시 청소시작 누르기 / 끝나고 완료 누르기 및 사진업로드');
+  lines.push('');
+  lines.push('📦 비품 구매내역: {supplylink}');
+  var body = lines.join('\n')
+    .replace('{applink}', encodeURIComponent(extAppConfig.appLink||''))
+    .replace('{supplylink}', encodeURIComponent(supplyLink));
+  // iOS 문자앱 링크 잘림 방지: 링크만 encodeURIComponent, 줄바꿈은 %0A로 (기존 makeSmsBody와 동일한 방식)
+  return body.replace(/\n/g, '%0A');
+}
+
+// 외부앱 설정 + 대상현장 선택 + 문자발송을 한 화면에서 처리
+function openExtAppConfigModal(){
+  var today = todayStr();
+  var dow = getDayOfWeek(today);
+  var todayDt = new Date(today+'T00:00:00');
+
+  var targets = sites.filter(function(s){
+    if(!(s.noReport && s.days && s.days.includes(dow) && (s.status||'active')!=='inquiry' && s.phone)) return false;
+    if(s.startDate && todayDt < new Date(s.startDate+'T00:00:00')) return false;
+    if(s.endDate   && todayDt > new Date(s.endDate+'T00:00:00'))   return false;
+    return true;
+  });
+
+  var wrap = document.createElement('div');
+  wrap.id = 'extapp-config-modal';
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:800;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);';
+  wrap.onclick = function(e){ if(e.target===wrap) wrap.remove(); };
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#161616;border:1px solid #10b981;border-radius:16px;padding:20px;width:100%;max-width:460px;max-height:85vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;';
+
+  var head = document.createElement('div');
+  head.innerHTML = '<div style="font-size:15px;font-weight:900;color:#10b981;">⚙️ 외부앱 설정</div>'
+    +'<div style="font-size:11px;color:#888;line-height:1.5;margin-top:4px;">📵 사진 보고 제외 체크된 현장에게 보낼 외부 앱 정보입니다. (예: 스페이션 크루)</div>';
+  box.appendChild(head);
+
+  var cfgWrap = document.createElement('div');
+  cfgWrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+  cfgWrap.innerHTML = '<input id="eac-name" type="text" placeholder="앱 이름 (예: 스페이션프로크루)" value="'+(extAppConfig.appName||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">'
+    +'<input id="eac-link" type="text" placeholder="앱 다운로드 링크(URL)" value="'+(extAppConfig.appLink||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">'
+    +'<input id="eac-id" type="text" placeholder="공용 아이디" value="'+(extAppConfig.appId||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">'
+    +'<input id="eac-pw" type="text" placeholder="공용 비밀번호" value="'+(extAppConfig.appPw||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">';
+  box.appendChild(cfgWrap);
+
+  // ── 대상 현장 리스트 (오늘자 📵 사진보고제외 현장, 모두 체크 상태로 시작) ──
+  var listTitle = document.createElement('div');
+  listTitle.style.cssText = 'font-size:12px;font-weight:800;color:#ccc;margin-top:4px;';
+  listTitle.textContent = '📋 오늘 발송 대상 ('+targets.length+'곳) — 체크 해제하면 그 현장만 빼고 발송';
+  box.appendChild(listTitle);
+
+  var list = document.createElement('div');
+  list.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;';
+  var checkboxes = [];
+
+  if(!targets.length){
+    list.innerHTML = '<div style="font-size:12px;color:#666;padding:10px;">오늘 해당하는 대상(📵 사진보고제외 + 연락처 있는 현장)이 없습니다.</div>';
+  } else {
+    targets.forEach(function(s){
+      var row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;cursor:pointer;';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = true; // 매번 열 때마다 기본 전체 체크 (영구저장 아님, 이번 발송에만 적용)
+      cb.style.cssText = 'width:16px;height:16px;accent-color:#10b981;flex-shrink:0;margin-top:2px;';
+      checkboxes.push({ cb: cb, site: s });
+      var info = document.createElement('div');
+      info.innerHTML = '<div style="font-size:13px;font-weight:800;">'+(s.site||'')+'</div>'
+        +'<div style="font-size:11px;color:#777;">'+(s.company||'')+' · '+(s.phone||'')+'</div>';
+      row.appendChild(cb); row.appendChild(info);
+      list.appendChild(row);
+    });
+  }
+  box.appendChild(list);
+
+  if(targets.length){
+    var selRow = document.createElement('div');
+    selRow.style.cssText = 'display:flex;gap:8px;';
+    var selAll = document.createElement('button');
+    selAll.textContent = '전체 선택';
+    selAll.style.cssText = 'flex:1;padding:7px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#f0f0f0;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+    selAll.onclick = function(){ checkboxes.forEach(function(x){ x.cb.checked=true; }); };
+    var deselAll = document.createElement('button');
+    deselAll.textContent = '전체 해제';
+    deselAll.style.cssText = 'flex:1;padding:7px;border-radius:8px;border:1px solid #2c2c2c;background:#1e1e1e;color:#777;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+    deselAll.onclick = function(){ checkboxes.forEach(function(x){ x.cb.checked=false; }); };
+    selRow.appendChild(selAll); selRow.appendChild(deselAll);
+    box.appendChild(selRow);
+
+    var previewBtn = document.createElement('button');
+    previewBtn.textContent = '👁 문자 미리보기';
+    previewBtn.style.cssText = 'width:100%;padding:8px;border-radius:8px;border:1px solid #2c2c2c;background:transparent;color:#aaa;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+    previewBtn.onclick = function(){
+      var nameEl=document.getElementById('eac-name'), linkEl=document.getElementById('eac-link'), idEl=document.getElementById('eac-id'), pwEl=document.getElementById('eac-pw');
+      var tmpCfg = { appName:nameEl.value.trim(), appLink:linkEl.value.trim(), appId:idEl.value.trim(), appPw:pwEl.value.trim() };
+      if(!tmpCfg.appLink){ showToast('앱 다운로드 링크를 먼저 입력해주세요.'); return; }
+      var savedCfg = extAppConfig; extAppConfig = tmpCfg; // 임시로 바꿔서 미리보기 생성 후 원복
+      var preview = decodeURIComponent(makeExtAppSmsBody(targets[0], today));
+      extAppConfig = savedCfg;
+      alert(preview);
+    };
+    box.appendChild(previewBtn);
+  }
+
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:8px;margin-top:4px;';
+  var cancelBtn = document.createElement('button');
+  cancelBtn.textContent = '취소';
+  cancelBtn.style.cssText = 'flex:1;padding:11px;border-radius:8px;border:1px solid #2c2c2c;background:transparent;color:#777;font-size:13px;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  cancelBtn.onclick = function(){ wrap.remove(); };
+  var saveSendBtn = document.createElement('button');
+  saveSendBtn.textContent = targets.length ? '💾 저장 후 전송' : '💾 설정만 저장';
+  saveSendBtn.style.cssText = 'flex:2;padding:11px;border-radius:8px;border:none;background:#10b981;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
+  saveSendBtn.onclick = function(){
+    var cfg = {
+      appName: document.getElementById('eac-name').value.trim(),
+      appLink: document.getElementById('eac-link').value.trim(),
+      appId:   document.getElementById('eac-id').value.trim(),
+      appPw:   document.getElementById('eac-pw').value.trim()
+    };
+    if(!cfg.appName || !cfg.appLink){ showToast('앱 이름과 다운로드 링크는 필수입니다.'); return; }
+    saveExtAppConfig(cfg, function(){
+      if(!targets.length){ showToast('✅ 외부앱 설정 저장됨'); wrap.remove(); return; }
+      var selected = checkboxes.filter(function(x){ return x.cb.checked; }).map(function(x){ return x.site; });
+      if(!selected.length){ showToast('✅ 설정 저장됨 (선택된 현장이 없어 발송은 생략)'); wrap.remove(); return; }
+      wrap.remove();
+      sendExtAppSmsList(selected, today);
+    });
+  };
+  btnRow.appendChild(cancelBtn); btnRow.appendChild(saveSendBtn);
+  box.appendChild(btnRow);
+
+  wrap.appendChild(box);
+  document.body.appendChild(wrap);
+}
+
+function sendExtAppSmsList(targetSites, dateStr){
+  var total = targetSites.length;
+  var done = 0;
+  var failCount = 0;
+  showToast('📤 '+total+'곳 발송 시작...');
+  targetSites.forEach(function(s){
+    var text = decodeURIComponent(makeExtAppSmsBody(s, dateStr));
+    fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify({ type:'sms', to: s.phone.replace(/[^0-9]/g,''), text: text })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      done++;
+      if(!d.ok){ failCount++; showToast('❌ '+s.site+': '+(d.error||'발송실패')); }
+      if(done===total){ showToast(failCount ? ('⚠️ '+(total-failCount)+'/'+total+'곳 발송 완료 ('+failCount+'곳 실패)') : ('✅ '+total+'곳 발송 완료!')); }
+    })
+    .catch(function(){
+      done++; failCount++;
+      if(done===total){ showToast('⚠️ 일부 발송 실패'); }
+    });
+  });
+}
+
 function sendSolapiList(targets){
   var today = todayStr();
   var total = targets.length;
@@ -5934,7 +6116,8 @@ function renderReport(){
     // ── 밀린 보고 섹션 끝 ──
 
     // 오늘자 전체 자동발송 버튼
-    html += '<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">'
+    html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">'
+      +'<button onclick="openExtAppConfigModal()" style="padding:7px 16px;border-radius:8px;border:none;background:#10b981;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📦 외부링크 크루 문자발송</button>'
       +'<button onclick="openSolapiModal(\'today\')" style="padding:7px 16px;border-radius:8px;border:none;background:#5b8dee;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🚀 오늘 전체 자동발송</button>'
       +'</div>';
 
