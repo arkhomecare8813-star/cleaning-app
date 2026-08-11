@@ -5611,6 +5611,18 @@ function makeUploadLink(site, dateStr){
   if(site.manager)    url += '&mgr=' + encodeURIComponent(site.manager);
   return url;
 }
+// 비품 보고 전용 링크 (supply.html — upload.html과 완전 별개 파일, 사진 없이도 등록 가능)
+function makeSupplyOnlyLink(site, dateStr){
+  var base = location.href.split('/index.html')[0].split('#')[0].split('?')[0];
+  if(base.slice(-1)==='/') base=base.slice(0,-1);
+  var url = base + '/supply.html'
+    + '?co=' + encodeURIComponent(site.company)
+    + '&site=' + encodeURIComponent(site.site)
+    + '&date=' + encodeURIComponent(dateStr)
+    + '&siteId=' + encodeURIComponent(site.id)
+    + '&title=' + encodeURIComponent(appTitle);
+  return url;
+}
 // 영수증 링크 생성 (receipt.html?siteId=...&date=...&mgr=...&title=...)
 function makeReceiptLink(site, dateStr){
   var base = location.href.split('/index.html')[0].split('#')[0].split('?')[0];
@@ -5779,13 +5791,15 @@ function openSolapiModal(mode){
 // (openSolapiModal / sendSolapiList / makeSmsBody 등 기존 함수는 절대 건드리지 않음)
 // ══════════════════════════════════════════════════════════
 function makeExtAppSmsBody(site, dateStr){
-  var supplyLink = makeUploadLink(site, dateStr); // 기존 함수 재사용(읽기 전용 참조)
+  var supplyLink = makeSupplyOnlyLink(site, dateStr); // 비품 전용 링크 (사진업로드 페이지와 분리됨)
   var appName = extAppConfig.appName || '';
   var lines = [];
   lines.push((site.site||'')+'은(는) '+appName+'로 별도 사진 업로드 해주세요.');
   lines.push('앱 다운로드 링크('+appName+'): {applink}');
+  lines.push('');
   lines.push('아이디: '+(extAppConfig.appId||''));
-  lines.push('비번: '+(extAppConfig.appPw||''));
+  lines.push('비번(대문자): '+(extAppConfig.appPw||''));
+  lines.push('');
   lines.push('청소 시작시 청소시작 누르기 / 끝나고 완료 누르기 및 사진업로드');
   lines.push('');
   lines.push('📦 비품 구매내역: {supplylink}');
