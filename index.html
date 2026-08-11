@@ -98,7 +98,7 @@ function hideClientMgrDropdown(ddId){
 
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
-function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}if(d.extAppConfig){extAppConfig=Object.assign({appName:'',appLink:'',appId:'',appPw:''},d.extAppConfig);}}callback();});
+function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}if(d.extAppConfig){extAppConfig=Object.assign({appName:'',appLink:'',appId:'',appPw:''},d.extAppConfig);}if(d.routines&&Array.isArray(d.routines)){routines=d.routines;localStorage.setItem('cm-routines',JSON.stringify(routines));}else if(routines&&routines.length){saveRoutines();}}callback();});
   // rent 데이터 별도 로드
   fetch(FB_URL+'/rent.json').then(function(r){return r.json();}).then(function(d){
     if(d){
@@ -7383,11 +7383,21 @@ function openSettings(){
 // ── 업무 루틴 ──
 function saveRoutines(){
   localStorage.setItem('cm-routines', JSON.stringify(routines));
+  // ⚠️ 예전엔 localStorage에만 저장돼서 기기간 동기화가 안 되고,
+  // 브라우저가 저장공간을 비우면(특히 모바일 사파리) 통째로 사라지는 문제가 있었음 (2026-08-11 확인).
+  // 다른 기기/화면이 동시에 쓰는 경로가 아니므로 개별 key(/data/routines)로 전체 배열을 PUT.
+  fetch(FB_URL+'/data/routines.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(routines)
+  }).catch(function(){});
 }
 
 function getRoutineLabel(r){
   if(r.repeatType === 'daily')   return '매일';
-  if(r.repeatType === 'weekday') return ['일','월','화','수','목','금','토'][r.weekday]+'요일마다';
+  if(r.repeatType === 'weekday'){
+    var wdays = r.weekdays || (r.weekday !== undefined ? [parseInt(r.weekday)] : []);
+    var names = ['일','월','화','수','목','금','토'];
+    return wdays.map(function(w){ return names[w]; }).join(',') + '요일마다';
+  }
   if(r.repeatType === 'monthly') return '매월 '+r.monthDay+'일';
   if(r.repeatType === 'once')    return r.date;
   return '';
@@ -7396,7 +7406,10 @@ function getRoutineLabel(r){
 function matchesToday(r, dateStr){
   var d = new Date(dateStr+'T00:00:00');
   if(r.repeatType === 'daily')   return true;
-  if(r.repeatType === 'weekday') return d.getDay() === parseInt(r.weekday);
+  if(r.repeatType === 'weekday'){
+    var days = r.weekdays || (r.weekday !== undefined ? [parseInt(r.weekday)] : []);
+    return days.indexOf(d.getDay()) > -1;
+  }
   if(r.repeatType === 'monthly') return d.getDate() === parseInt(r.monthDay);
   if(r.repeatType === 'once')    return r.date === dateStr;
   return false;
@@ -7741,20 +7754,6 @@ function saveNewRoutine(){
   if(listEl) listEl.style.display = '';
   renderRoutineList();
   renderDashboard();
-}
-
-// weekday → 복수 요일 지원으로 matchesToday 수정
-function matchesToday(r, dateStr){
-  var d = new Date(dateStr+'T00:00:00');
-  var dow = d.getDay();
-  if(r.repeatType === 'daily')   return true;
-  if(r.repeatType === 'weekday'){
-    var days = r.weekdays || (r.weekday !== undefined ? [parseInt(r.weekday)] : []);
-    return days.indexOf(dow) > -1;
-  }
-  if(r.repeatType === 'monthly') return d.getDate() === parseInt(r.monthDay);
-  if(r.repeatType === 'once')    return r.date === dateStr;
-  return false;
 }
 
 function saveSupplies(){ localStorage.setItem('cm-supplies', JSON.stringify(supplies)); saveToFirebase(); }
