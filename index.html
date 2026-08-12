@@ -5839,8 +5839,7 @@ function makeExtAppSmsBody(site, dateStr){
   var appName = extAppConfig.appName || '';
   var acct = findExtAppAccount(site.extAcctNo || 1) || { id:'', pw:'' };
   var lines = [];
-  lines.push(site.site||'');
-  lines.push('['+appName+'] 앱 다운로드 후');
+  lines.push('['+(site.site||'')+'] 현장 담당자님');
   lines.push('');
   lines.push('청소시작 및 완료후 사진업로드');
   lines.push('');
