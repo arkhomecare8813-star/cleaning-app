@@ -45,12 +45,43 @@ var clientContacts = JSON.parse(localStorage.getItem('cm-client-contacts')||'[]'
 // ── 외부링크(별도 앱) 크루 문자발송 — 기존 발송 기능과 완전 분리된 독립 기능 ──
 // 특정 현장(noReport 체크된 현장)은 우리 upload.html이 아닌 외부 앱으로 사진을 올리게 하고,
 // 비품 링크(upload.html)만 우리 쪽에서 계속 관리하기 위한 투트랙 발송용 설정.
-var extAppConfig = { appName:'', appLink:'', appId:'', appPw:'' };
+var extAppConfig = { appName:'스페이션프로크루' }; // 앱이름만 (다운로드 링크는 문자에 안 넣음, ID·PW는 계정별로 분리)
+var extAppAccounts = [ // 계정 5개(고정 슬롯). 언제든 ⚙️ 설정에서 값 수정 가능.
+  { no:1, id:'arkmembers1@spation.ksd', pw:'arkmembers1@' },
+  { no:2, id:'arkmembers2@spation.ksd', pw:'arkmembers2@' },
+  { no:3, id:'arkmembers3@spation.ksd', pw:'arkmembers3@' },
+  { no:4, id:'arkmembers4@spation.ksd', pw:'arkmembers4@' },
+  { no:5, id:'arkmembers5@spation.ksd', pw:'arkmembers5@' }
+];
 function saveExtAppConfig(cfg, cb){
   extAppConfig = cfg;
   fetch(FB_URL+'/data/extAppConfig.json',{
     method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)
   }).then(function(){ if(cb)cb(); }).catch(function(){ if(cb)cb(); });
+}
+function saveExtAppAccounts(accounts, cb){
+  extAppAccounts = accounts;
+  fetch(FB_URL+'/data/extAppAccounts.json',{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(accounts)
+  }).then(function(){ if(cb)cb(); }).catch(function(){ if(cb)cb(); });
+}
+function findExtAppAccount(no){
+  return extAppAccounts.find(function(a){ return a.no===parseInt(no); }) || null;
+}
+function renderExtAcctSelect(prefix, selectedNo){
+  var sel = document.getElementById(prefix+'-extacct');
+  if(!sel) return;
+  sel.innerHTML = extAppAccounts.map(function(a){
+    return '<option value="'+a.no+'">'+a.no+'. '+(a.id||'')+'</option>';
+  }).join('');
+  if(selectedNo) sel.value = selectedNo;
+}
+function toggleExtAcctVisibility(prefix){
+  var cb = document.getElementById(prefix+'-noreport');
+  var wrap = document.getElementById(prefix+'-extacct-wrap');
+  if(!wrap) return;
+  wrap.style.display = (cb && cb.checked) ? '' : 'none';
+  if(cb && cb.checked) renderExtAcctSelect(prefix, document.getElementById(prefix+'-extacct').value);
 }
 // 거래처 담당자 자동완성
 function saveClientContacts(){ localStorage.setItem('cm-client-contacts', JSON.stringify(clientContacts)); }
@@ -98,7 +129,7 @@ function hideClientMgrDropdown(ddId){
 
 function fbGet(path,cb){fetch(FB_URL+path+'.json').then(function(r){return r.json();}).then(function(d){cb(d);}).catch(function(){cb(null);});}
 function fbSet(path,data,cb){fetch(FB_URL+path+'.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){if(cb)cb();}).catch(function(){if(cb)cb();});}
-function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}if(d.extAppConfig){extAppConfig=Object.assign({appName:'',appLink:'',appId:'',appPw:''},d.extAppConfig);}if(d.routines&&Array.isArray(d.routines)){routines=d.routines;localStorage.setItem('cm-routines',JSON.stringify(routines));}else if(routines&&routines.length){saveRoutines();}}callback();});
+function loadFromFirebase(callback){fbGet('/data',function(d){if(d){if(d.sites&&Array.isArray(d.sites))sites=d.sites;if(d.title){appTitle=d.title;localStorage.setItem('cm-title',appTitle);}if(d.photos){reportPhotoData=d.photos;}if(d.supplies){if(Array.isArray(d.supplies))supplies=d.supplies;else supplies=Object.values(d.supplies).filter(Boolean);}if(d.settleSnap)settleSnapshots=d.settleSnap;if(d.smsTemplate){SMS_TEMPLATE=d.smsTemplate;localStorage.setItem('cm-sms-template',d.smsTemplate);}if(d.extAppConfig){extAppConfig=Object.assign({appName:'스페이션프로크루'},d.extAppConfig);}if(d.extAppAccounts&&Array.isArray(d.extAppAccounts)){extAppAccounts=d.extAppAccounts;}if(d.routines&&Array.isArray(d.routines)){routines=d.routines;localStorage.setItem('cm-routines',JSON.stringify(routines));}else if(routines&&routines.length){saveRoutines();}}callback();});
   // rent 데이터 별도 로드
   fetch(FB_URL+'/rent.json').then(function(r){return r.json();}).then(function(d){
     if(d){
@@ -993,9 +1024,13 @@ main{padding:18px 14px;max-width:1400px;}
         </div>
         <input type="hidden" id="f-status" value="active">
       </div>
-      <div class="toggle-row" onclick="var c=document.getElementById('f-noreport');c.checked=!c.checked;" style="margin-bottom:8px;">
-        <input type="checkbox" id="f-noreport" onclick="event.stopPropagation()">
+      <div class="toggle-row" onclick="var c=document.getElementById('f-noreport');c.checked=!c.checked;toggleExtAcctVisibility('f');" style="margin-bottom:8px;">
+        <input type="checkbox" id="f-noreport" onclick="event.stopPropagation();toggleExtAcctVisibility('f');">
         <label style="font-size:13px;cursor:pointer;user-select:none;">📵 사진 보고 제외 (문자 발송 안 함)</label>
+      </div>
+      <div id="f-extacct-wrap" style="display:none;margin:-4px 0 12px;padding:10px 12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;">
+        <div style="font-size:11px;color:#f59e0b;margin-bottom:6px;">🔗 이 현장에 쓸 외부앱 계정 선택</div>
+        <select id="f-extacct" style="width:100%;padding:9px 10px;border-radius:7px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;"></select>
       </div>
       <div class="form-actions">
         <button class="btn" onclick="openNewSiteChecklist()" id="f-cl-btn"
@@ -1402,9 +1437,13 @@ main{padding:18px 14px;max-width:1400px;}
       </div>
       <input type="hidden" id="e-status" value="active">
     </div>
-    <div class="toggle-row" onclick="var c=document.getElementById('e-noreport');c.checked=!c.checked;" style="margin-bottom:14px;">
-      <input type="checkbox" id="e-noreport" onclick="event.stopPropagation()">
+    <div class="toggle-row" onclick="var c=document.getElementById('e-noreport');c.checked=!c.checked;toggleExtAcctVisibility('e');" style="margin-bottom:14px;">
+      <input type="checkbox" id="e-noreport" onclick="event.stopPropagation();toggleExtAcctVisibility('e');">
       <label style="font-size:13px;cursor:pointer;user-select:none;">📵 사진 보고 제외 (문자 발송 안 함)</label>
+    </div>
+    <div id="e-extacct-wrap" style="display:none;margin:-6px 0 14px;padding:10px 12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;">
+      <div style="font-size:11px;color:#f59e0b;margin-bottom:6px;">🔗 이 현장에 쓸 외부앱 계정 선택</div>
+      <select id="e-extacct" style="width:100%;padding:9px 10px;border-radius:7px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;"></select>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal()">취소</button>
@@ -2317,6 +2356,7 @@ function resetForm(){
   const fst=document.getElementById('f-subtaxtype');if(fst)fst.value='none';
   document.querySelectorAll('#day-picker .day-btn').forEach(function(b){b.classList.remove('active');});
   var nr=document.getElementById('f-noreport');if(nr)nr.checked=false;
+  toggleExtAcctVisibility('f');
   var ot=document.getElementById('f-onetime');if(ot)ot.checked=false;
   toggleOneTime('f');
   _updateCoDatalist();
@@ -2527,7 +2567,8 @@ function addSite(){
     startDate:document.getElementById('f-startdate').value||'',
     endDate:document.getElementById('f-enddate').value||'',
     status:status,
-    noReport:(function(){var el=document.getElementById('f-noreport');return el?el.checked:false;})()
+    noReport:(function(){var el=document.getElementById('f-noreport');return el?el.checked:false;})(),
+    extAcctNo:(function(){var el=document.getElementById('f-extacct');return el&&el.value?parseInt(el.value):1;})()
   });
   save();resetForm();renderAll();
   // 거래처 담당자 자동저장
@@ -2630,6 +2671,8 @@ function openEdit(id){
   });
   document.querySelectorAll('#e-day-picker .day-btn').forEach(function(b){b.classList.toggle('active',(s.days||[]).includes(parseInt(b.dataset.day)));});
   var enr=document.getElementById('e-noreport');if(enr)enr.checked=s.noReport||false;
+  renderExtAcctSelect('e', s.extAcctNo||1);
+  toggleExtAcctVisibility('e');
   var eot=document.getElementById('e-onetime');if(eot)eot.checked=s.isOneTime||false;
   toggleOneTime('e');
   document.getElementById('edit-modal').classList.add('open');
@@ -2836,6 +2879,7 @@ function saveEdit(){
   s.endDate=document.getElementById('e-enddate').value||'';
   s.status=document.getElementById('e-status').value||'active';
   var enr2=document.getElementById('e-noreport');s.noReport=enr2?enr2.checked:false;
+  var eea2=document.getElementById('e-extacct');s.extAcctNo=(eea2&&eea2.value)?parseInt(eea2.value):(s.extAcctNo||1);
   save();closeModal();renderAll();
   // 거래처 담당자 자동저장
   upsertClientContact(s.clientMgr, s.clientPhone, s.clientEmail);
@@ -5615,12 +5659,12 @@ function makeUploadLink(site, dateStr){
 function makeSupplyOnlyLink(site, dateStr){
   var base = location.href.split('/index.html')[0].split('#')[0].split('?')[0];
   if(base.slice(-1)==='/') base=base.slice(0,-1);
+  // 문자에 넣을 링크라 최대한 짧게: siteId+date만 넘기고, 업체명/현장명/제목은
+  // supply.html이 열릴 때 Firebase에서 직접 조회함 (2026-08-12: 링크가 너무 길어 SMS에서
+  // 잘려서 클릭 안 되는 문제 때문에 단축)
   var url = base + '/supply.html'
-    + '?co=' + encodeURIComponent(site.company)
-    + '&site=' + encodeURIComponent(site.site)
-    + '&date=' + encodeURIComponent(dateStr)
-    + '&siteId=' + encodeURIComponent(site.id)
-    + '&title=' + encodeURIComponent(appTitle);
+    + '?siteId=' + encodeURIComponent(site.id)
+    + '&date=' + encodeURIComponent(dateStr);
   return url;
 }
 // 영수증 링크 생성 (receipt.html?siteId=...&date=...&mgr=...&title=...)
@@ -5793,18 +5837,21 @@ function openSolapiModal(mode){
 function makeExtAppSmsBody(site, dateStr){
   var supplyLink = makeSupplyOnlyLink(site, dateStr); // 비품 전용 링크 (사진업로드 페이지와 분리됨)
   var appName = extAppConfig.appName || '';
+  var acct = findExtAppAccount(site.extAcctNo || 1) || { id:'', pw:'' };
   var lines = [];
-  lines.push((site.site||'')+'은(는) '+appName+'로 별도 사진 업로드 해주세요.');
-  lines.push('앱 다운로드 링크('+appName+'): {applink}');
+  lines.push(site.site||'');
+  lines.push('['+appName+'] 앱 다운로드 후');
   lines.push('');
-  lines.push('아이디: '+(extAppConfig.appId||''));
-  lines.push('비번(대문자): '+(extAppConfig.appPw||''));
+  lines.push('청소시작 및 완료후 사진업로드');
   lines.push('');
-  lines.push('청소 시작시 청소시작 누르기 / 끝나고 완료 누르기 및 사진업로드');
+  lines.push('ID: '+(acct.id||''));
+  lines.push('PW: '+(acct.pw||''));
+  lines.push('');
   lines.push('');
   lines.push('📦 비품 구매내역: {supplylink}');
+  // 링크는 이 메시지 안에 딱 1개(비품 링크)만 남김 — 링크 2개+긴 메시지가 여러 통으로 쪼개지면서
+  // 통신사 처리 과정에서 링크가 끊겨 클릭 안 되는 문제가 있었음 (2026-08-12 확인/수정, 이후 메시지 추가 축약)
   var body = lines.join('\n')
-    .replace('{applink}', encodeURIComponent(extAppConfig.appLink||''))
     .replace('{supplylink}', encodeURIComponent(supplyLink));
   // iOS 문자앱 링크 잘림 방지: 링크만 encodeURIComponent, 줄바꿈은 %0A로 (기존 makeSmsBody와 동일한 방식)
   return body.replace(/\n/g, '%0A');
@@ -5839,10 +5886,35 @@ function openExtAppConfigModal(){
   var cfgWrap = document.createElement('div');
   cfgWrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
   cfgWrap.innerHTML = '<input id="eac-name" type="text" placeholder="앱 이름 (예: 스페이션프로크루)" value="'+(extAppConfig.appName||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">'
-    +'<input id="eac-link" type="text" placeholder="앱 다운로드 링크(URL)" value="'+(extAppConfig.appLink||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">'
-    +'<input id="eac-id" type="text" placeholder="공용 아이디" value="'+(extAppConfig.appId||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">'
-    +'<input id="eac-pw" type="text" placeholder="공용 비밀번호" value="'+(extAppConfig.appPw||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:13px;box-sizing:border-box;">';
+    +'<div style="font-size:10px;color:#666;">💡 앱 다운로드 링크는 문자에 안 넣습니다 (링크 2개 들어가면 비품링크가 깨져서 클릭 안 되는 문제 때문)</div>';
   box.appendChild(cfgWrap);
+
+  // ── 계정 5개 관리 (현장 프로필에서 1~5번 중 골라 쓰는 그 계정들) ──
+  var acctTitle = document.createElement('div');
+  acctTitle.style.cssText = 'font-size:12px;font-weight:800;color:#ccc;margin-top:4px;';
+  acctTitle.textContent = '🔑 계정 목록 (현장 프로필에서 선택해서 씀)';
+  box.appendChild(acctTitle);
+
+  var acctWrap = document.createElement('div');
+  acctWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  var acctInputs = [];
+  extAppAccounts.forEach(function(a){
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    var noLabel = document.createElement('div');
+    noLabel.style.cssText = 'width:16px;font-size:12px;color:#f59e0b;font-weight:800;flex-shrink:0;';
+    noLabel.textContent = a.no;
+    var idInp = document.createElement('input');
+    idInp.type='text'; idInp.placeholder='아이디'; idInp.value=a.id||'';
+    idInp.style.cssText='flex:3;padding:8px;border-radius:7px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:12px;box-sizing:border-box;';
+    var pwInp = document.createElement('input');
+    pwInp.type='text'; pwInp.placeholder='비밀번호'; pwInp.value=a.pw||'';
+    pwInp.style.cssText='flex:2;padding:8px;border-radius:7px;border:1px solid #333;background:#111;color:#f0f0f0;font-size:12px;box-sizing:border-box;';
+    row.appendChild(noLabel); row.appendChild(idInp); row.appendChild(pwInp);
+    acctWrap.appendChild(row);
+    acctInputs.push({ no:a.no, idInp:idInp, pwInp:pwInp });
+  });
+  box.appendChild(acctWrap);
 
   // ── 대상 현장 리스트 (오늘자 📵 사진보고제외 현장, 모두 체크 상태로 시작) ──
   var listTitle = document.createElement('div');
@@ -5865,9 +5937,11 @@ function openExtAppConfigModal(){
       cb.checked = true; // 매번 열 때마다 기본 전체 체크 (영구저장 아님, 이번 발송에만 적용)
       cb.style.cssText = 'width:16px;height:16px;accent-color:#10b981;flex-shrink:0;margin-top:2px;';
       checkboxes.push({ cb: cb, site: s });
+      var acctNo = s.extAcctNo || 1;
       var info = document.createElement('div');
       info.innerHTML = '<div style="font-size:13px;font-weight:800;">'+(s.site||'')+'</div>'
-        +'<div style="font-size:11px;color:#777;">'+(s.company||'')+' · '+(s.phone||'')+'</div>';
+        +'<div style="font-size:11px;color:#777;">'+(s.company||'')+' · '+(s.phone||'')+'</div>'
+        +'<div style="font-size:10px;color:#f59e0b;margin-top:2px;">🔑 계정 '+acctNo+'번</div>';
       row.appendChild(cb); row.appendChild(info);
       list.appendChild(row);
     });
@@ -5892,12 +5966,14 @@ function openExtAppConfigModal(){
     previewBtn.textContent = '👁 문자 미리보기';
     previewBtn.style.cssText = 'width:100%;padding:8px;border-radius:8px;border:1px solid #2c2c2c;background:transparent;color:#aaa;font-size:12px;font-weight:700;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
     previewBtn.onclick = function(){
-      var nameEl=document.getElementById('eac-name'), linkEl=document.getElementById('eac-link'), idEl=document.getElementById('eac-id'), pwEl=document.getElementById('eac-pw');
-      var tmpCfg = { appName:nameEl.value.trim(), appLink:linkEl.value.trim(), appId:idEl.value.trim(), appPw:pwEl.value.trim() };
-      if(!tmpCfg.appLink){ showToast('앱 다운로드 링크를 먼저 입력해주세요.'); return; }
-      var savedCfg = extAppConfig; extAppConfig = tmpCfg; // 임시로 바꿔서 미리보기 생성 후 원복
+      var nameEl=document.getElementById('eac-name');
+      var tmpCfg = { appName:nameEl.value.trim() };
+      if(!tmpCfg.appName){ showToast('앱 이름을 먼저 입력해주세요.'); return; }
+      var tmpAccts = acctInputs.map(function(a){ return { no:a.no, id:a.idInp.value.trim(), pw:a.pwInp.value.trim() }; });
+      var savedCfg = extAppConfig, savedAccts = extAppAccounts;
+      extAppConfig = tmpCfg; extAppAccounts = tmpAccts; // 임시로 바꿔서 미리보기 생성 후 원복
       var preview = decodeURIComponent(makeExtAppSmsBody(targets[0], today));
-      extAppConfig = savedCfg;
+      extAppConfig = savedCfg; extAppAccounts = savedAccts;
       alert(preview);
     };
     box.appendChild(previewBtn);
@@ -5914,18 +5990,18 @@ function openExtAppConfigModal(){
   saveSendBtn.style.cssText = 'flex:2;padding:11px;border-radius:8px;border:none;background:#10b981;color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:"Noto Sans KR",sans-serif;';
   saveSendBtn.onclick = function(){
     var cfg = {
-      appName: document.getElementById('eac-name').value.trim(),
-      appLink: document.getElementById('eac-link').value.trim(),
-      appId:   document.getElementById('eac-id').value.trim(),
-      appPw:   document.getElementById('eac-pw').value.trim()
+      appName: document.getElementById('eac-name').value.trim()
     };
-    if(!cfg.appName || !cfg.appLink){ showToast('앱 이름과 다운로드 링크는 필수입니다.'); return; }
+    if(!cfg.appName){ showToast('앱 이름은 필수입니다.'); return; }
+    var accts = acctInputs.map(function(a){ return { no:a.no, id:a.idInp.value.trim(), pw:a.pwInp.value.trim() }; });
     saveExtAppConfig(cfg, function(){
-      if(!targets.length){ showToast('✅ 외부앱 설정 저장됨'); wrap.remove(); return; }
-      var selected = checkboxes.filter(function(x){ return x.cb.checked; }).map(function(x){ return x.site; });
-      if(!selected.length){ showToast('✅ 설정 저장됨 (선택된 현장이 없어 발송은 생략)'); wrap.remove(); return; }
-      wrap.remove();
-      sendExtAppSmsList(selected, today);
+      saveExtAppAccounts(accts, function(){
+        if(!targets.length){ showToast('✅ 외부앱 설정 저장됨'); wrap.remove(); return; }
+        var selected = checkboxes.filter(function(x){ return x.cb.checked; }).map(function(x){ return x.site; });
+        if(!selected.length){ showToast('✅ 설정 저장됨 (선택된 현장이 없어 발송은 생략)'); wrap.remove(); return; }
+        wrap.remove();
+        sendExtAppSmsList(selected, today);
+      });
     });
   };
   btnRow.appendChild(cancelBtn); btnRow.appendChild(saveSendBtn);

@@ -151,16 +151,46 @@ function parseParams(){
 
 function init(){
   parseParams();
-  if(!params.co || !params.site || !params.date || !params.siteId){
+  // 최소 필수값: siteId + date만 있으면 됨 (co/site/title은 아래에서 Firebase 조회로 채움)
+  if(!params.date || !params.siteId){
     document.getElementById('info-card').style.display = 'none';
     document.getElementById('supply-card').style.display = 'none';
     document.getElementById('invalid-card').style.display = '';
     return;
   }
-  if(params.title) document.getElementById('app-title').textContent = params.title;
-  document.getElementById('info-co').textContent = params.co;
-  document.getElementById('info-site').textContent = params.site;
   document.getElementById('info-date').textContent = params.date;
+
+  if(params.co && params.site){
+    // 예전 방식(긴 링크, co/site가 이미 파라미터로 옴)도 계속 지원
+    if(params.title) document.getElementById('app-title').textContent = params.title;
+    document.getElementById('info-co').textContent = params.co;
+    document.getElementById('info-site').textContent = params.site;
+    return;
+  }
+
+  // 짧은 링크: Firebase에서 현장 정보 조회
+  document.getElementById('info-co').textContent = '불러오는 중...';
+  document.getElementById('info-site').textContent = '불러오는 중...';
+  fetch(FB_URL+'/data.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d && d.title) document.getElementById('app-title').textContent = d.title;
+      var found = d && Array.isArray(d.sites) ? d.sites.find(function(s){ return String(s.id)===String(params.siteId); }) : null;
+      if(!found){
+        document.getElementById('info-card').style.display = 'none';
+        document.getElementById('supply-card').style.display = 'none';
+        document.getElementById('invalid-card').style.display = '';
+        return;
+      }
+      params.co = found.company || '';
+      params.site = found.site || '';
+      document.getElementById('info-co').textContent = params.co || '—';
+      document.getElementById('info-site').textContent = params.site || '—';
+    })
+    .catch(function(){
+      document.getElementById('info-co').textContent = '조회 실패';
+      document.getElementById('info-site').textContent = '조회 실패';
+    });
 }
 
 function updateBtn(){
